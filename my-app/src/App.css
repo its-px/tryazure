@@ -40,3 +40,16 @@
 .read-the-docs {
   color: #888;
 }
+
+
+.css-6mw38q-MuiTypography-root
+{
+  display :none !important;
+}
+
+.css-1x57bai-MuiDialogActions-root-MuiPickersLayout-actionBar>:not(style)~:not(style) 
+{display: none !important;}
+
+
+.MuiTypography-root {display: none !important;}
+ 
