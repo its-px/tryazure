@@ -18,7 +18,7 @@ export default function AdminPanel() {
     const formattedDates: { date: string }[] = selectedDates.map((date) => ({ date }));
 
     // Fix: Use correct table name "availability"
-    const { data, error } = await supabase
+    const {  error } = await supabase
       .from("availability")
       .upsert(formattedDates, { onConflict: "date" });
 

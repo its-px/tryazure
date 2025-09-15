@@ -4,15 +4,19 @@ import Auth from "./Auth";
 import AdminPanel from "./assets/pages/AdminPanel";
 import UserPanel from "./assets/pages/UserPanel";
 import OwnerPanel from "./assets/pages/OwnerPanel";
+import { Button, Box } from "@mui/material";
 
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 type Role = "admin" | "user" | "owner";
+type AppMode = "public" | "admin";
 
 function App() {
   const [session, setSession] = useState<any>(null);
   const [role, setRole] = useState<Role | null>(null);
+  const [appMode, setAppMode] = useState<AppMode>("public");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -20,7 +24,6 @@ function App() {
       setSession(currentSession);
 
       if (currentSession?.user) {
-        // Remove generic type parameter - just use .from()
         const { data, error } = await supabase
           .from("profiles")
           .select("role")
@@ -35,6 +38,7 @@ function App() {
           setRole(null);
         }
       }
+      setLoading(false);
     };
 
     loadSession();
@@ -44,7 +48,7 @@ function App() {
 
       if (session?.user) {
         supabase
-          .from("profiles") // Remove generic type parameter here too
+          .from("profiles")
           .select("role")
           .eq("id", session.user.id)
           .single()
@@ -59,17 +63,73 @@ function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  const renderAdminControls = () => (
+    <Box 
+      sx={{ 
+        position: 'fixed', 
+        top: 20, 
+        right: 20, 
+        zIndex: 1000,
+        display: 'flex',
+        gap: 1,
+        flexDirection: 'column'
+      }}
+    >
+      <Button 
+        variant="outlined" 
+        size="small"
+        onClick={() => setAppMode(appMode === "public" ? "admin" : "public")}
+      >
+        {appMode === "public" ? "Admin Mode" : "Public Mode"}
+      </Button>
+      
+      {session && (
+        <Button 
+          variant="outlined" 
+          size="small"
+          onClick={() => supabase.auth.signOut()}
+        >
+          Sign Out
+        </Button>
+      )}
+    </Box>
+  );
+
+  const renderContent = () => {
+    // If in admin mode, require authentication
+    if (appMode === "admin") {
+      if (loading) return <div>Loading...</div>;
+      
+      if (!session) {
+        return <Auth />;
+      }
+
+      // Show admin/owner panels based on role
+      if (role === "admin") {
+        return <AdminPanel />;
+      } else if (role === "owner") {
+        return <OwnerPanel />;
+      } else {
+        return (
+          <Box textAlign="center" mt={5}>
+            <h2>Access Denied</h2>
+            <p>You don't have permission to access the admin panel.</p>
+            <Button onClick={() => setAppMode("public")} variant="contained">
+              Go to Public Site
+            </Button>
+          </Box>
+        );
+      }
+    }
+
+    // Public mode - always show UserPanel (no login required)
+    return <UserPanel />;
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      {!session ? (
-        <Auth />
-      ) : role === "admin" ? (
-        <AdminPanel />
-      ) : role === "owner" ? (
-        <OwnerPanel />
-      ) : (
-        <UserPanel />
-      )}
+      {renderAdminControls()}
+      {renderContent()}
     </LocalizationProvider>
   );
 }

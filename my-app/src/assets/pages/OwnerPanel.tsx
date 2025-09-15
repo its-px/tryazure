@@ -89,8 +89,8 @@ export default function OwnerPanel() {
           boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
           padding: 3,
           "& .MuiDateCalendar-root": {
-            width: "400px",
-            height: "400px",
+            width: "auto",
+            height: "75wh",
           },
           "& .MuiPickersCalendarHeader-root": {
             fontSize: "1.5rem",
@@ -98,9 +98,12 @@ export default function OwnerPanel() {
           },
           "& .MuiPickersDay-root": {
             fontSize: "1.1rem",
-            width: "45px",
-            height: "45px",
-          }
+            width: "calc(75vw / 7)",
+            height: "calc(75vh / 7)*1.1",
+          },
+          "& .MuiPickersCalendar-weekContainer": {
+          minHeight: "auto", // avoid internal min height causing scroll
+    },
         }}
       >
         <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -120,7 +123,7 @@ export default function OwnerPanel() {
       {/* Summary section */}
       <Box
         sx={{
-          marginTop: 3,
+          marginTop: 1,
           padding: 2,
           backgroundColor: "rgba(255, 255, 255, 0.9)",
           borderRadius: "10px",
