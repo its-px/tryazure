@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabaseClient";
-import Auth from "./Auth";
+import { supabase } from "./assets/components/supabaseClient";
+import Auth from "./assets/components/Auth";
 import AdminPanel from "./assets/pages/AdminPanel";
 import UserPanel from "./assets/pages/UserPanel";
 import OwnerPanel from "./assets/pages/OwnerPanel";

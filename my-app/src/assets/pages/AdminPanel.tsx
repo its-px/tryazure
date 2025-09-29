@@ -1,7 +1,7 @@
 import { Calendar } from '../components/calendar';
 import { Box } from "@mui/material";
 import { useState } from "react";
-import { supabase } from '../../supabaseClient';
+import { supabase } from '../components/supabaseClient';
 import { generateWeekdaysInRange, excludeDates } from '../components/dateUtils';
 
 export default function AdminPanel() {

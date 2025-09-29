@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../supabaseClient";
+import { supabase } from "../components/supabaseClient";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { Box } from "@mui/material";
 import dayjs, { Dayjs } from "dayjs";
 import { DateCalendar, PickersDay } from "@mui/x-date-pickers";
 
-// Define the interface for our custom component props
+
 interface CustomPickersDayProps {
   day: Dayjs;
   outsideCurrentMonth: boolean;
@@ -90,7 +90,7 @@ export default function OwnerPanel() {
           padding: 3,
           "& .MuiDateCalendar-root": {
             width: "auto",
-            height: "75wh",
+            height: "75vh",
           },
           "& .MuiPickersCalendarHeader-root": {
             fontSize: "1.5rem",
