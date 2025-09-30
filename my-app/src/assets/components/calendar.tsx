@@ -22,28 +22,34 @@ export const Calendar = ({ selectedDates, setSelectedDates, allowedDates }: Cale
   };
 
     //handler 
-  const handleSave = async () => {
-    if (!currentDate) return;
+  // In calendar.tsx, update the handleSave function
+const handleSave = async () => {
+  if (!currentDate) return;
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase.from("bookings").insert([
-      {
-        user_id: user?.id,
-        date: currentDate.format("YYYY-MM-DD"),
-      },
-    ]);
+  // You'll need to pass these as props to Calendar component
+  const { data, error } = await supabase.from("bookings").insert([
+    {
+      user_id: user?.id,
+      booking_date: currentDate.format("YYYY-MM-DD"),
+      // Add these if you have them as props:
+      // professional_id: professionalId,
+      // services: selectedServices,
+      // location: selectedLocation
+    },
+  ]);
 
-    if (error) {
-      console.error("Error saving booking:", error.message);
-      alert("❌ Failed to book date");
-    } else {
-      console.log("Booking saved:", data);
-      alert("✅ Booking confirmed for " + currentDate.format("YYYY-MM-DD"));
-    }
-  };
+  if (error) {
+    console.error("Error saving booking:", error.message);
+    alert(" Failed to book date");
+  } else {
+    console.log("Booking saved:", data);
+    alert(" Booking confirmed for " + currentDate.format("YYYY-MM-DD"));
+  }
+};
   return (
   
     <LocalizationProvider dateAdapter={AdapterDayjs}>
