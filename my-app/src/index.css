@@ -1,16 +1,52 @@
 :root {
+  /* Color variables */
+  --primary-green: #2e7d32;
+  --primary-green-dark: #1b5e20;
+  --secondary-gray: #333333;
+  --secondary-gray-dark: #1e1e1e;
+  --background-light: #f5f7fa;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --border-radius: 10px;
+  --box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+
+  /* Typography & base settings */
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
+  /* Dark/light theme support */
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
 
+  /* Rendering optimizations */
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  background-color: var(--background-light);
+  color: var(--text-primary);
+
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
 }
 
 a {
@@ -20,14 +56,6 @@ a {
 }
 a:hover {
   color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
 }
 
 h1 {
@@ -54,6 +82,22 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--secondary-gray);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-green);
+}
+
+/* Light mode overrides */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

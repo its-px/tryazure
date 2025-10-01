@@ -1,0 +1,277 @@
+import { useState } from "react";
+import { 
+  Dialog, 
+  DialogContent, 
+  Box, 
+  Button, 
+  TextField,
+  IconButton,
+  Typography 
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import GoogleIcon from "@mui/icons-material/Google";
+import EmailIcon from "@mui/icons-material/Email";
+import { supabase } from "./supabaseClient";
+
+interface LoginModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function LoginModal({ open, onClose }: LoginModalProps) {
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      alert("Error with Google login: " + error.message);
+    }
+  };
+
+  const handleEmailAuth = async () => {
+    setLoading(true);
+    try {
+      if (isSignUp) {
+        // Sign up
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        alert("Check your email for the confirmation link!");
+      } else {
+        // Sign in
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        alert("Logged in successfully!");
+        onClose();
+      }
+    } catch (error: any) {
+      alert("Error: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setShowEmailForm(false);
+    setEmail("");
+    setPassword("");
+    setIsSignUp(false);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  return (
+    <Dialog 
+      open={open} 
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          backgroundColor: '#2e2e2e',
+          color: 'white',
+          borderRadius: '15px',
+        }
+      }}
+    >
+      <DialogContent sx={{ position: 'relative', padding: 4 }}>
+        {/* Close Button */}
+        <IconButton
+          onClick={handleClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: 'white',
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+
+        {/* Info Icon */}
+        <Box display="flex" justifyContent="center" mb={2}>
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              border: '3px solid #2e7d32',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '3rem',
+              color: '#2e7d32',
+            }}
+          >
+            i
+          </Box>
+        </Box>
+
+        <Typography variant="h4" textAlign="center" mb={2}>
+          Login
+        </Typography>
+
+        <Typography variant="body1" textAlign="center" mb={4} color="#ccc">
+          In order to see your user history you have to login first.
+        </Typography>
+
+        {!showEmailForm ? (
+          <>
+            {/* Google Login Button */}
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<GoogleIcon />}
+              onClick={handleGoogleLogin}
+              sx={{
+                mb: 2,
+                padding: '12px',
+                color: '#ff6b6b',
+                borderColor: '#ff6b6b',
+                '&:hover': {
+                  borderColor: '#ff5252',
+                  backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                }
+              }}
+            >
+              CONTINUE WITH GOOGLE
+            </Button>
+
+            {/* Email Login Button */}
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<EmailIcon />}
+              onClick={() => setShowEmailForm(true)}
+              sx={{
+                mb: 4,
+                padding: '12px',
+                color: 'white',
+                borderColor: 'white',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                }
+              }}
+            >
+              CONTINUE WITH EMAIL
+            </Button>
+          </>
+        ) : (
+          <>
+            {/* Email Form */}
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              sx={{
+                mb: 2,
+                '& .MuiInputLabel-root': { color: '#ccc' },
+                '& .MuiOutlinedInput-root': {
+                  color: 'white',
+                  '& fieldset': { borderColor: '#555' },
+                  '&:hover fieldset': { borderColor: '#2e7d32' },
+                }
+              }}
+            />
+
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              sx={{
+                mb: 2,
+                '& .MuiInputLabel-root': { color: '#ccc' },
+                '& .MuiOutlinedInput-root': {
+                  color: 'white',
+                  '& fieldset': { borderColor: '#555' },
+                  '&:hover fieldset': { borderColor: '#2e7d32' },
+                }
+              }}
+            />
+
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={handleEmailAuth}
+              disabled={loading || !email || !password}
+              sx={{
+                mb: 2,
+                padding: '12px',
+                backgroundColor: '#2e7d32',
+                '&:hover': { backgroundColor: '#1b5e20' },
+              }}
+            >
+              {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
+            </Button>
+
+            <Button
+              fullWidth
+              variant="text"
+              onClick={() => setIsSignUp(!isSignUp)}
+              sx={{ color: '#2e7d32', mb: 2 }}
+            >
+              {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+            </Button>
+
+            <Button
+              fullWidth
+              variant="text"
+              onClick={resetForm}
+              sx={{ color: '#ccc' }}
+            >
+              Back to login options
+            </Button>
+          </>
+        )}
+
+        {!showEmailForm && (
+          <>
+            <Typography variant="body1" textAlign="center" mb={2} color="#ccc">
+              No profile yet?
+            </Typography>
+
+            <Box display="flex" justifyContent="center">
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setShowEmailForm(true);
+                  setIsSignUp(true);
+                }}
+                sx={{
+                  padding: '10px 30px',
+                  backgroundColor: '#2e7d32',
+                  '&:hover': { backgroundColor: '#1b5e20' },
+                }}
+              >
+                Create new profile
+              </Button>
+            </Box>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
