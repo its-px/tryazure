@@ -10,7 +10,7 @@ import InfoPage from "../components/InfoPage";
 import { Box } from "@mui/material";
 import LoginModal from "../components/LoginModal";
 import { Button } from "@mui/material";
-import UserAccountPage from "../components/UserAccountPage";
+//import UserAccountPage from "../components/UserAccountPage";
 
 
 export default function UserPanel() {

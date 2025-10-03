@@ -11,6 +11,26 @@ interface HeroProps {
   onAccountClick: () => void;
 }
 
+
+
+// na ftiajo to to owner panel na lei mono to future booked dates kai edw na to ftiajo me to css kai ta themes ola se ena
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export default function Hero({ onBookingClick, onInfoClick, onQRClick, onAccountClick }: HeroProps) {
   return (
     <Box

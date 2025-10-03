@@ -1,5 +1,5 @@
-import { Box, Button, Grid, Typography, Paper, IconButton } from "@mui/material";
-import { Phone, CalendarToday, Info, QrCode, AccountCircle, Room } from "@mui/icons-material";
+import { Box, Button,  Typography, Paper} from "@mui/material";
+import { Phone, Room } from "@mui/icons-material";
 
 export default function InfoPage() {
   return (
