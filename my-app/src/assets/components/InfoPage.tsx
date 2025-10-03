@@ -3,6 +3,7 @@ import { Phone, CalendarToday, Info, QrCode, AccountCircle, Room } from "@mui/ic
 
 export default function InfoPage() {
   return (
+    // na to ftiajo na min einai tetoio xroma 
     <Box sx={{ backgroundColor: "#1e1e1e", color: "#fff", minHeight: "100vh", p: 3 }}>
      
 
@@ -12,7 +13,7 @@ export default function InfoPage() {
       <Box textAlign="center" mt={3}>
         <Box
           component="img"
-          src="/banner.jpg"
+          src="/petsas_banner.png"
           alt="Banner"
           sx={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 2 }}
         />
@@ -40,9 +41,9 @@ export default function InfoPage() {
 
       {/* Business Info */}
       <Box textAlign="center" mt={4}>
-        <Typography variant="h5">God&apos;s Eye</Typography>
+        <Typography variant="h5">Name&apos;s Company</Typography>
         <Typography variant="body2" sx={{ color: "gray" }}>
-          Πεικων, 22, Μεταμορφωση, Greece, 14451
+          Πεικων 22, Μεταμορφωση, Greece, 14451
         </Typography>
 
         {/* Call button */}

@@ -167,7 +167,15 @@ export default function UserPanel() {
         return (
           <Box sx={{ padding: 4, textAlign: "center" }}>
             <h2>QR Code Page</h2>
-            <p>QR code functionality coming soon...</p>
+            
+             <Box textAlign="center" mt={3}>
+                    <Box
+                      component="img"
+                      src="/qr.png"
+                      alt="qr"
+                      sx={{ width: "30%", maxHeight: 200, objectFit: "cover", borderRadius: 2 }}
+                    />
+                  </Box>
           </Box>
         );
       
