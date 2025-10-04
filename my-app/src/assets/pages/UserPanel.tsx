@@ -10,7 +10,7 @@ import InfoPage from "../components/InfoPage";
 import { Box } from "@mui/material";
 import LoginModal from "../components/LoginModal";
 import { Button } from "@mui/material";
-//import UserAccountPage from "../components/UserAccountPage";
+import UserAccountPage from "../components/UserAccountPage";
 
 
 export default function UserPanel() {
@@ -272,7 +272,7 @@ export default function UserPanel() {
                           Selected Date: {selectedDate}
                         </p>
                       </div>
-                    )}
+                  )}
                   </>
                 )}
               </div>
@@ -311,7 +311,8 @@ export default function UserPanel() {
   };
 
   return (
-  <div>
+  <div style={{ width: '100%', minHeight: '100vh' ,  margin: 0,
+    padding: 0}}>
     {/* Login Modal - Always available, controlled by showLoginModal state */}
     <LoginModal 
       open={showLoginModal} 
@@ -328,9 +329,12 @@ export default function UserPanel() {
       onQRClick={() => setCurrentPage('qr')}
       onAccountClick={() => setShowLoginModal(true)}
     />
-    
-    {/* Render the selected page below the Hero */}
+     <div style={{ width: '100%' }}>
+      {/* Render the selected page below the Hero */}
     {renderPage()}
+    </div>
+    
   </div>
+  
 );
 }

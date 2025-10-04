@@ -3,6 +3,7 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import InfoIcon from "@mui/icons-material/Info";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+//import {colors} from "../..theme/";
 
 interface HeroProps {
   onBookingClick: () => void;
@@ -41,7 +42,9 @@ export default function Hero({ onBookingClick, onInfoClick, onQRClick, onAccount
         backgroundColor: "#1e1e1e",
         padding: { xs: 2, md: 4 },
         flexWrap: "wrap",
-        gap: 2
+        gap: 2,
+         width: '100%', 
+        margin: 0, 
       }}
     >
       {/* Book Appointment */}

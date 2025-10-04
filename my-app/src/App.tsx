@@ -70,8 +70,8 @@ function App() {
     <Box 
       sx={{ 
         position: 'fixed', 
-        top: 20, 
-        right: 20, 
+        top: 10, 
+        right: 10, 
         zIndex: 1000,
         display: 'flex',
         gap: 1,
@@ -82,6 +82,10 @@ function App() {
         variant="outlined" 
         size="small"
         onClick={() => setAppMode(appMode === "public" ? "admin" : "public")}
+        sx={{
+        fontSize: '0.75rem', // Smaller text
+        padding: '4px 8px',  // Smaller padding
+      }}
       >
         {appMode === "public" ? "Admin Mode" : "Public Mode"}
       </Button>
@@ -91,6 +95,10 @@ function App() {
           variant="outlined" 
           size="small"
           onClick={() => supabase.auth.signOut()}
+          sx={{
+          fontSize: '0.75rem',
+          padding: '4px 8px',
+        }}
         >
           Sign Out
         </Button>

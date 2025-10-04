@@ -1,0 +1,10 @@
+na valo functionality na mporei o user na vlepei ta booked tou dates
+na po sto chat na valei na xrisimopoei pantou to theme.ts
+na do sto index.css ti paizei me auto to * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  /* width: 30vw !important;
+  max-width: 30vw !important; */
+  overflow-x: hidden;
+}
