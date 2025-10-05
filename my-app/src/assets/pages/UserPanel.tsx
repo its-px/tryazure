@@ -10,7 +10,8 @@ import InfoPage from "../components/InfoPage";
 import { Box } from "@mui/material";
 import LoginModal from "../components/LoginModal";
 import { Button } from "@mui/material";
-//import UserAccountPage from "../components/UserAccountPage";
+import UserAccountPage from "../components/UserAccountPage";
+import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 
 
 export default function UserPanel() {
@@ -26,6 +27,8 @@ export default function UserPanel() {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null);
    const [showLoginModal, setShowLoginModal] = useState(false);
+   const [isLoggedIn, setIsLoggedIn] = useState(false);
+   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   // Load available dates based on selected professional
   useEffect(() => {
@@ -81,6 +84,24 @@ export default function UserPanel() {
       }
     });
   };
+
+// Check if user is logged in
+useEffect(() => {
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setIsLoggedIn(!!user);
+  };
+  
+  checkAuth();
+  
+  // Listen for auth changes
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setIsLoggedIn(!!session);
+  });
+  
+  return () => subscription.unsubscribe();
+}, []);
+
 
   const handleProfessionalSelect = (professionalId: string) => {
     setSelectedProfessional(professionalId);
@@ -157,6 +178,17 @@ export default function UserPanel() {
     }
   };
 
+
+  const handleLogout = async () => {
+  await supabase.auth.signOut();
+  setIsLoggedIn(false);
+  setShowLogoutDialog(false);
+  setCurrentPage('booking');
+  setCurrentStep(1);
+  alert("You have been logged out successfully");
+};
+
+
   // Render different pages based on currentPage
   const renderPage = () => {
     switch (currentPage) {
@@ -173,26 +205,31 @@ export default function UserPanel() {
                       component="img"
                       src="/qr.png"
                       alt="qr"
-                      sx={{ width: "30%", maxHeight: 200, objectFit: "cover", borderRadius: 2 }}
+                      sx={{ width: "20%", maxHeight: 700, objectFit: "cover", borderRadius: 2 }}
                     />
                   </Box>
           </Box>
         );
       
-      case 'account':
-     return (
+     case 'account':
+  return (
     <Box sx={{ padding: 4, textAlign: "center" }}>
-      <h2>User Account</h2>
-      <p>Please login to view your account</p>
-      <Button 
-        variant="contained" 
-        onClick={() => setShowLoginModal(true)}
-        sx={{ mt: 2 }}
-      >
-        Open Login
-      </Button>
+      {!isLoggedIn ? (
+        <>
+          <h2>User Account</h2>
+          <p>Please login to view your account</p>
+          <Button 
+            variant="contained" 
+            onClick={() => setShowLoginModal(true)}
+            sx={{ mt: 2 }}
+          >
+            Login
+          </Button>
+        </>
+      ) : (
+        <UserAccountPage />
+      )}
     </Box>
-    
   );
       
       case 'booking':
@@ -320,15 +357,17 @@ export default function UserPanel() {
     />
     
     {/* Hero Navigation - Always visible at top */}
-    <Hero
-      onBookingClick={() => {
-        setCurrentPage('booking');
-        setCurrentStep(1);
-      }}
-      onInfoClick={() => setCurrentPage('info')}
-      onQRClick={() => setCurrentPage('qr')}
-      onAccountClick={() => setShowLoginModal(true)}
-    />
+  <Hero
+  onBookingClick={() => {
+    setCurrentPage('booking');
+    setCurrentStep(1);
+  }}
+  onInfoClick={() => setCurrentPage('info')}
+  onQRClick={() => setCurrentPage('qr')}
+  onAccountClick={() => setCurrentPage('account')}
+  onExitClick={() => setShowLogoutDialog(true)}
+  isLoggedIn={isLoggedIn}
+/>
      <div style={{ width: '100%' }}>
       {/* Render the selected page below the Hero */}
     {renderPage()}

@@ -78,7 +78,7 @@ function App() {
         flexDirection: 'column'
       }}
     >
-      <Button 
+      {/* <Button 
         variant="outlined" 
         size="small"
         onClick={() => setAppMode(appMode === "public" ? "admin" : "public")}
@@ -88,9 +88,9 @@ function App() {
       }}
       >
         {appMode === "public" ? "Admin Mode" : "Public Mode"}
-      </Button>
+      </Button> */}
       
-      {session && (
+      {/* {session && (
         <Button 
           variant="outlined" 
           size="small"
@@ -102,7 +102,7 @@ function App() {
         >
           Sign Out
         </Button>
-      )}
+      )} */}
     </Box>
   );
 

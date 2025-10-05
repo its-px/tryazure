@@ -16,12 +16,15 @@ import { supabase } from "./supabaseClient";
 interface LoginModalProps {
   open: boolean;
   onClose: () => void;
+   onLoginSuccess?: () => void;
 }
 
-export default function LoginModal({ open, onClose }: LoginModalProps) {
+export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalProps) {
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -40,16 +43,71 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
   };
 
   const handleEmailAuth = async () => {
+    // Validation
+    if (isSignUp) {
+      if (!fullName.trim()) {
+        alert("Full name is required");
+        return;
+      }
+      if (!email.trim()) {
+        alert("Email is required");
+        return;
+      }
+      if (!phone.trim()) {
+        alert("Phone number is required");
+        return;
+      }
+      if (!password.trim()) {
+        alert("Password is required");
+        return;
+      }
+      if (password.length < 6) {
+        alert("Password must be at least 6 characters");
+        return;
+      }
+    } else {
+      if (!email.trim() || !password.trim()) {
+        alert("Email and password are required");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       if (isSignUp) {
         // Sign up
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: fullName,
+              phone: phone
+            }
+          }
         });
+        
         if (error) throw error;
-        alert("Check your email for the confirmation link!");
+        
+        // Create profile entry
+        if (data.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: data.user.id, 
+                full_name: fullName,
+                phone: phone,
+                email: email
+              }
+            ]);
+          
+          if (profileError) console.error("Profile creation error:", profileError);
+        }
+        
+        alert("Account created successfully! Check your email for confirmation.");
+        resetForm();
+        onClose();
       } else {
         // Sign in
         const { error } = await supabase.auth.signInWithPassword({
@@ -58,6 +116,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         });
         if (error) throw error;
         alert("Logged in successfully!");
+        resetForm();
         onClose();
       }
     } catch (error: any) {
@@ -71,12 +130,22 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
     setShowEmailForm(false);
     setEmail("");
     setPassword("");
+    setFullName("");
+    setPhone("");
     setIsSignUp(false);
   };
 
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const canSubmit = () => {
+    if (isSignUp) {
+      return fullName.trim() && email.trim() && phone.trim() && password.trim() && password.length >= 6;
+    } else {
+      return email.trim() && password.trim();
+    }
   };
 
   return (
@@ -127,11 +196,13 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         </Box>
 
         <Typography variant="h4" textAlign="center" mb={2}>
-          Login
+          {isSignUp ? "Sign Up" : "Login"}
         </Typography>
 
         <Typography variant="body1" textAlign="center" mb={4} color="#ccc">
-          In order to see your user history you have to login first.
+          {isSignUp 
+            ? "Create your account to start booking" 
+            : "In order to see your user history you have to login first."}
         </Typography>
 
         {!showEmailForm ? (
@@ -178,12 +249,51 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         ) : (
           <>
             {/* Email Form */}
+            {isSignUp && (
+              <>
+                <TextField
+                  fullWidth
+                  label="Full Name *"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  sx={{
+                    mb: 2,
+                    '& .MuiInputLabel-root': { color: '#ccc' },
+                    '& .MuiOutlinedInput-root': {
+                      color: 'white',
+                      '& fieldset': { borderColor: '#555' },
+                      '&:hover fieldset': { borderColor: '#2e7d32' },
+                    }
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Phone Number *"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  sx={{
+                    mb: 2,
+                    '& .MuiInputLabel-root': { color: '#ccc' },
+                    '& .MuiOutlinedInput-root': {
+                      color: 'white',
+                      '& fieldset': { borderColor: '#555' },
+                      '&:hover fieldset': { borderColor: '#2e7d32' },
+                    }
+                  }}
+                />
+              </>
+            )}
+
             <TextField
               fullWidth
-              label="Email"
+              label="Email *"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              required
               sx={{
                 mb: 2,
                 '& .MuiInputLabel-root': { color: '#ccc' },
@@ -197,10 +307,12 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
 
             <TextField
               fullWidth
-              label="Password"
+              label="Password *"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              helperText={isSignUp ? "Minimum 6 characters" : ""}
               sx={{
                 mb: 2,
                 '& .MuiInputLabel-root': { color: '#ccc' },
@@ -208,7 +320,8 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                   color: 'white',
                   '& fieldset': { borderColor: '#555' },
                   '&:hover fieldset': { borderColor: '#2e7d32' },
-                }
+                },
+                '& .MuiFormHelperText-root': { color: '#ccc' }
               }}
             />
 
@@ -216,15 +329,19 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
               fullWidth
               variant="contained"
               onClick={handleEmailAuth}
-              disabled={loading || !email || !password}
+              disabled={loading || !canSubmit()}
               sx={{
                 mb: 2,
                 padding: '12px',
                 backgroundColor: '#2e7d32',
                 '&:hover': { backgroundColor: '#1b5e20' },
+                '&:disabled': {
+                  backgroundColor: '#555',
+                  color: '#999'
+                }
               }}
             >
-              {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
+              {loading ? "Loading..." : isSignUp ? "Create Account" : "Sign In"}
             </Button>
 
             <Button
@@ -247,7 +364,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           </>
         )}
 
-        {!showEmailForm && (
+        {!showEmailForm && !isSignUp && (
           <>
             <Typography variant="body1" textAlign="center" mb={2} color="#ccc">
               No profile yet?
