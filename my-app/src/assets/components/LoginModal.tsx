@@ -88,7 +88,8 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
         });
         
         if (error) throw error;
-        
+        resetForm();
+        onClose();
         // Create profile entry
         if (data.user) {
           const { error: profileError } = await supabase

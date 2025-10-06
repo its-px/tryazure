@@ -16,3 +16,5 @@ na do sto index.css ti paizei me auto to * {
 
 
 den doulevei to login managment 
+
+na ftiajo to admin mode kai to owner apo to login 

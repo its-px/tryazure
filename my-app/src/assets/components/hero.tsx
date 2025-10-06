@@ -8,21 +8,26 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import LanguageIcon from "@mui/icons-material/Language";
 
 interface HeroProps {
-  onBookingClick: () => void;
+ onBookingClick: () => void;
   onInfoClick: () => void;
   onQRClick: () => void;
   onAccountClick: () => void;
   onExitClick?: () => void;
   isLoggedIn?: boolean;
+  currentPage: 'booking' | 'info' | 'qr' | 'account';
+  
+  
 }
 
 export default function Hero({ 
-  onBookingClick, 
+ onBookingClick, 
   onInfoClick, 
   onQRClick, 
   onAccountClick,
   onExitClick,
-  isLoggedIn = false
+  isLoggedIn = false,
+  currentPage
+  
 }: HeroProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedLanguage, setSelectedLanguage] = useState("EN");
@@ -69,7 +74,7 @@ export default function Hero({
           startIcon={<LanguageIcon />}
           sx={{
             color: 'white',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            backgroundColor: 'rgba(124, 59, 59, 0.1)',
             '&:hover': {
               backgroundColor: 'rgba(255, 255, 255, 0.2)',
             },
@@ -131,13 +136,16 @@ export default function Hero({
           <IconButton
             onClick={onBookingClick}
             sx={{
-              backgroundColor: "#2e7d32",
               color: "white",
               width: { xs: 60, md: 80 },
               height: { xs: 60, md: 80 },
               mb: 1,
-              "&:hover": { backgroundColor: "#1b5e20" },
+              backgroundColor: currentPage==='booking' ? '#0dc4edff' : '#555555ff',
+              fontWeight: currentPage==='booking' ? 'bold' : 'normal',
+
+              "&:hover": { backgroundColor: "#555" },
             }}
+
           >
             <CalendarTodayIcon fontSize="large" />
           </IconButton>
@@ -151,11 +159,13 @@ export default function Hero({
           <IconButton
             onClick={onInfoClick}
             sx={{
-              backgroundColor: "#333",
+              
               color: "white",
               width: { xs: 60, md: 80 },
               height: { xs: 60, md: 80 },
               mb: 1,
+               backgroundColor: currentPage==='info' ? '#0dc4edff' : '#555555ff',
+              fontWeight: currentPage==='info' ? 'bold' : 'normal',
               "&:hover": { backgroundColor: "#555" },
             }}
           >
@@ -173,6 +183,7 @@ export default function Hero({
             sx={{
               borderRadius: "50%",
               p: 0,
+              
             }}
           >
             <Box
@@ -194,11 +205,13 @@ export default function Hero({
           <IconButton
             onClick={onQRClick}
             sx={{
-              backgroundColor: "#333",
+              
               color: "white",
               width: { xs: 60, md: 80 },
               height: { xs: 60, md: 80 },
               mb: 1,
+               backgroundColor: currentPage==='qr' ? '#0dc4edff' : '#555555ff',
+              fontWeight: currentPage==='qr' ? 'bold' : 'normal',
               "&:hover": { backgroundColor: "#555" },
             }}
           >
@@ -214,11 +227,13 @@ export default function Hero({
           <IconButton
             onClick={onAccountClick}
             sx={{
-              backgroundColor: "#333",
+              
               color: "white",
               width: { xs: 60, md: 80 },
               height: { xs: 60, md: 80 },
               mb: 1,
+               backgroundColor: currentPage==='account' ? '#0dc4edff' : '#555555ff',
+              fontWeight: currentPage==='account' ? 'bold' : 'normal',
               "&:hover": { backgroundColor: "#555" },
             }}
           >
