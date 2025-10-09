@@ -12,14 +12,15 @@ import CloseIcon from "@mui/icons-material/Close";
 import GoogleIcon from "@mui/icons-material/Google";
 import EmailIcon from "@mui/icons-material/Email";
 import { supabase } from "./supabaseClient";
+import { colors, commonStyles } from "./../../theme";
 
 interface LoginModalProps {
   open: boolean;
   onClose: () => void;
-   onLoginSuccess?: () => void;
+  onLoginSuccess?: () => void;
 }
 
-export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalProps) {
+export default function LoginModal({ open, onClose, onLoginSuccess }: LoginModalProps) {
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -75,7 +76,6 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
     setLoading(true);
     try {
       if (isSignUp) {
-        // Sign up
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -90,7 +90,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
         if (error) throw error;
         resetForm();
         onClose();
-        // Create profile entry
+        
         if (data.user) {
           const { error: profileError } = await supabase
             .from('profiles')
@@ -110,7 +110,6 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
         resetForm();
         onClose();
       } else {
-        // Sign in
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -149,6 +148,16 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
     }
   };
 
+  const textFieldStyle = {
+    mb: 2,
+    '& .MuiInputLabel-root': { color: colors.text.secondary },
+    '& .MuiOutlinedInput-root': {
+      color: colors.text.primary,
+      '& fieldset': { borderColor: colors.border.main },
+      '&:hover fieldset': { borderColor: colors.primary.main },
+    }
+  };
+
   return (
     <Dialog 
       open={open} 
@@ -156,11 +165,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
       maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: {
-          backgroundColor: '#2e2e2e',
-          color: 'white',
-          borderRadius: '15px',
-        }
+        sx: commonStyles.dialog
       }}
     >
       <DialogContent sx={{ position: 'relative', padding: 4 }}>
@@ -171,7 +176,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
             position: 'absolute',
             right: 8,
             top: 8,
-            color: 'white',
+            color: colors.text.primary,
           }}
         >
           <CloseIcon />
@@ -184,12 +189,12 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
               width: 80,
               height: 80,
               borderRadius: '50%',
-              border: '3px solid #2e7d32',
+              border: `3px solid ${colors.primary.main}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '3rem',
-              color: '#2e7d32',
+              color: colors.primary.main,
             }}
           >
             i
@@ -200,7 +205,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
           {isSignUp ? "Sign Up" : "Login"}
         </Typography>
 
-        <Typography variant="body1" textAlign="center" mb={4} color="#ccc">
+        <Typography variant="body1" textAlign="center" mb={4} color={colors.text.secondary}>
           {isSignUp 
             ? "Create your account to start booking" 
             : "In order to see your user history you have to login first."}
@@ -217,10 +222,10 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
               sx={{
                 mb: 2,
                 padding: '12px',
-                color: '#ff6b6b',
-                borderColor: '#ff6b6b',
+                color: colors.google.main,
+                borderColor: colors.google.main,
                 '&:hover': {
-                  borderColor: '#ff5252',
+                  borderColor: colors.google.hover,
                   backgroundColor: 'rgba(255, 107, 107, 0.1)',
                 }
               }}
@@ -237,8 +242,8 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
               sx={{
                 mb: 4,
                 padding: '12px',
-                color: 'white',
-                borderColor: 'white',
+                color: colors.text.primary,
+                borderColor: colors.text.primary,
                 '&:hover': {
                   backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 }
@@ -258,15 +263,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  sx={{
-                    mb: 2,
-                    '& .MuiInputLabel-root': { color: '#ccc' },
-                    '& .MuiOutlinedInput-root': {
-                      color: 'white',
-                      '& fieldset': { borderColor: '#555' },
-                      '&:hover fieldset': { borderColor: '#2e7d32' },
-                    }
-                  }}
+                  sx={textFieldStyle}
                 />
 
                 <TextField
@@ -275,15 +272,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required
-                  sx={{
-                    mb: 2,
-                    '& .MuiInputLabel-root': { color: '#ccc' },
-                    '& .MuiOutlinedInput-root': {
-                      color: 'white',
-                      '& fieldset': { borderColor: '#555' },
-                      '&:hover fieldset': { borderColor: '#2e7d32' },
-                    }
-                  }}
+                  sx={textFieldStyle}
                 />
               </>
             )}
@@ -295,15 +284,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              sx={{
-                mb: 2,
-                '& .MuiInputLabel-root': { color: '#ccc' },
-                '& .MuiOutlinedInput-root': {
-                  color: 'white',
-                  '& fieldset': { borderColor: '#555' },
-                  '&:hover fieldset': { borderColor: '#2e7d32' },
-                }
-              }}
+              sx={textFieldStyle}
             />
 
             <TextField
@@ -315,14 +296,8 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
               required
               helperText={isSignUp ? "Minimum 6 characters" : ""}
               sx={{
-                mb: 2,
-                '& .MuiInputLabel-root': { color: '#ccc' },
-                '& .MuiOutlinedInput-root': {
-                  color: 'white',
-                  '& fieldset': { borderColor: '#555' },
-                  '&:hover fieldset': { borderColor: '#2e7d32' },
-                },
-                '& .MuiFormHelperText-root': { color: '#ccc' }
+                ...textFieldStyle,
+                '& .MuiFormHelperText-root': { color: colors.text.secondary }
               }}
             />
 
@@ -334,11 +309,11 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
               sx={{
                 mb: 2,
                 padding: '12px',
-                backgroundColor: '#2e7d32',
-                '&:hover': { backgroundColor: '#1b5e20' },
+                backgroundColor: colors.primary.main,
+                '&:hover': { backgroundColor: colors.primary.dark },
                 '&:disabled': {
-                  backgroundColor: '#555',
-                  color: '#999'
+                  backgroundColor: colors.border.main,
+                  color: colors.text.tertiary
                 }
               }}
             >
@@ -349,7 +324,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
               fullWidth
               variant="text"
               onClick={() => setIsSignUp(!isSignUp)}
-              sx={{ color: '#2e7d32', mb: 2 }}
+              sx={{ color: colors.primary.main, mb: 2 }}
             >
               {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
             </Button>
@@ -358,7 +333,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
               fullWidth
               variant="text"
               onClick={resetForm}
-              sx={{ color: '#ccc' }}
+              sx={{ color: colors.text.secondary }}
             >
               Back to login options
             </Button>
@@ -367,7 +342,7 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
 
         {!showEmailForm && !isSignUp && (
           <>
-            <Typography variant="body1" textAlign="center" mb={2} color="#ccc">
+            <Typography variant="body1" textAlign="center" mb={2} color={colors.text.secondary}>
               No profile yet?
             </Typography>
 
@@ -380,8 +355,8 @@ export default function LoginModal({ open, onClose,onLoginSuccess }: LoginModalP
                 }}
                 sx={{
                   padding: '10px 30px',
-                  backgroundColor: '#2e7d32',
-                  '&:hover': { backgroundColor: '#1b5e20' },
+                  backgroundColor: colors.primary.main,
+                  '&:hover': { backgroundColor: colors.primary.dark },
                 }}
               >
                 Create new profile

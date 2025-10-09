@@ -5,9 +5,9 @@ import AdminPanel from "./assets/pages/AdminPanel";
 import UserPanel from "./assets/pages/UserPanel";
 import OwnerPanel from "./assets/pages/OwnerPanel";
 import { Button, Box } from "@mui/material";
-import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { theme } from './theme';
+import { ThemeProvider } from '@mui/material/styles';
+import { muiTheme } from './theme';
 
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -138,7 +138,7 @@ function App() {
   };
 
   return (
-     <ThemeProvider theme={theme}>
+     <ThemeProvider theme={muiTheme}>
       <CssBaseline />
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       {renderAdminControls()}

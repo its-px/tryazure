@@ -129,6 +129,8 @@
         alert("Please complete all steps");
         return;
       }
+      
+      
 
       const { data: existingBooking, error: checkError } = await supabase
         .from("bookings")
@@ -175,6 +177,35 @@
         setSelectedServices([]);
         setSelectedProfessional(null);
         setSelectedDate("");
+ try {
+      const response = await fetch(
+        "https://qrvxmqksekxbtipdnfru.supabase.co/functions/v1/send_booking_email",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFydnhtcWtzZWt4YnRpcGRuZnJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTI5MjMsImV4cCI6MjA3MTk4ODkyM30._BiC3KYWKR5HTz7osjHxxwA-mdHIy867IelMbHvsEPc", // replace with your anon key
+          },
+          body: JSON.stringify({
+            email: user?.email,             // send to the logged-in user's email
+            name: user?.user_metadata?.full_name || "Customer",
+            bookingDate: selectedDate,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        console.log("Booking confirmation email sent:", result.data.id);
+      } else {
+        console.error("Failed to send confirmation email:", result.error);
+      }
+    } catch (err) {
+      console.error("Error calling Edge Function:", err);
+    }
+  
+
+
       }
     };
 

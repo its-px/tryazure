@@ -18,3 +18,5 @@ na do sto index.css ti paizei me auto to * {
 den doulevei to login managment 
 
 na ftiajo to admin mode kai to owner apo to login 
+na valo validator gia to email 
+na valo routers kai to admin page na fainetai isws na yparxei secret login page mono apo url 
