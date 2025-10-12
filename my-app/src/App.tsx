@@ -4,7 +4,7 @@ import { supabase } from "./assets/components/supabaseClient";
 import AdminPanel from "./assets/pages/AdminPanel";
 import UserPanel from "./assets/pages/UserPanel";
 import OwnerPanel from "./assets/pages/OwnerPanel";
-import { Button, Box } from "@mui/material";
+import {  Box } from "@mui/material";
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import { muiTheme } from './theme';
@@ -74,7 +74,7 @@ useEffect(() => {
     flexDirection: 'column'
     }}
   >
-    {session && (
+    {/* {session && (
     <Button 
       variant="outlined"
       size="small"
@@ -83,7 +83,7 @@ useEffect(() => {
     >
       Sign Out
     </Button>
-    )}
+    )} */}
   </Box>
   );
 

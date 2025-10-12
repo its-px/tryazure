@@ -86,6 +86,17 @@ export default function UserPanel() {
     });
   };
 
+const handleNextStep = () => {
+  // If moving to final step (summary/booking), check login
+  if (currentStep === 4 && !isLoggedIn) {
+    setShowLoginModal(true);
+    alert("Please login to complete your booking");
+    return;
+  }  if (canProceedNext()) {
+    setCurrentStep(currentStep + 1);
+  }
+};
+
   // Check if user is logged in
   useEffect(() => {
     const checkAuth = async () => {
@@ -114,6 +125,7 @@ export default function UserPanel() {
     setCurrentStep(2);
   };
 
+  
   const canProceedNext = () => {
     switch (currentStep) {
       case 1: return selectedLocation !== null;
@@ -130,6 +142,11 @@ export default function UserPanel() {
       alert("Please complete all steps");
       return;
     }
+    if (!isLoggedIn) {
+    setShowLoginModal(true);
+    alert("Please login to complete your booking");
+    return;
+  }
 
 
 
@@ -140,6 +157,9 @@ export default function UserPanel() {
       .eq("date", selectedDate)
       .maybeSingle();
 
+
+
+      
     if (existingBooking) {
       alert("❌ This professional is already booked on this date. Please select a different date or professional.");
       return;
@@ -163,6 +183,12 @@ export default function UserPanel() {
     };
 
     const { error } = await supabase.from("bookings").insert([bookingData]);
+
+    if (!user) {
+    setShowLoginModal(true);
+    alert("Please login to complete your booking");
+    return;
+  }
 
     if (error) {
       console.error("Booking error:", error);
@@ -280,7 +306,8 @@ export default function UserPanel() {
                 currentStep={currentStep}
                 totalSteps={totalSteps}
                 onPreviousStep={() => setCurrentStep(currentStep - 1)}
-                onNextStep={() => setCurrentStep(currentStep + 1)}
+                // onNextStep={() => setCurrentStep(currentStep + 1)}
+                  onNextStep={handleNextStep}
                 canProceedNext={canProceedNext()}
               />
             )}

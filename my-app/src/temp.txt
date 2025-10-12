@@ -22,3 +22,7 @@ na valo validator gia to email ✅ na ftiajo to ui na einai reactive me ena use 
 na valo routers kai to admin page na fainetai isws na yparxei secret login page mono apo url ✅
 na valo forgot password ( des butler )
 dynamic title  React Helmet 
+
+save step where it was before login and then going back to the begining 
+na ftiajo to pending kai to comfirmed na min einai to idio xroma sto managment tou user 
+kai na min valo to alert is a bit much when forgot to login 
