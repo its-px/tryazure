@@ -21,3 +21,4 @@ na ftiajo to admin mode kai to owner apo to login ✅
 na valo validator gia to email ✅ na ftiajo to ui na einai reactive me ena use state an kai malon tha xreiastei redux
 na valo routers kai to admin page na fainetai isws na yparxei secret login page mono apo url ✅
 na valo forgot password ( des butler )
+dynamic title  React Helmet 

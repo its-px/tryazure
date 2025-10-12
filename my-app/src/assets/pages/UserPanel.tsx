@@ -337,9 +337,10 @@ export default function UserPanel() {
                     />
                     {selectedDate && (
                       <div style={{
-                        marginTop: '20px',
-                        padding: '10px',
-                        backgroundColor: '#e3f2fd',
+                        marginTop: '10px',
+                        marginBottom: '40px',
+                        padding: '30px',
+                        backgroundColor: '#1b5e20',
                         borderRadius: '5px'
                       }}>
                         <p style={{ margin: 0, fontWeight: 'bold' }}>
@@ -387,7 +388,8 @@ export default function UserPanel() {
   return (
     <div style={{
       width: '100%', minHeight: '100vh', margin: 0,
-      padding: 0
+      padding: 0,
+       backgroundColor: '#1e1e1e',
     }}>
       {/* Login Modal - Always available, controlled by showLoginModal state */}
       <LoginModal

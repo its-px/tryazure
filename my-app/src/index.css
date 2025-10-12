@@ -42,8 +42,8 @@ html {
 
 body {
   font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
-  background-color: var(--background-light);
-  color: var(--text-primary);
+  background-color: #1e1e1e;
+  color: #ffffff;
   margin: 0;
   padding: 0;
   width: 100%;
