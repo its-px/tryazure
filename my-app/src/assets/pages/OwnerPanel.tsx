@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import dayjs, { Dayjs } from "dayjs";
 import { DateCalendar, PickersDay } from "@mui/x-date-pickers";
+import { Link } from "react-router-dom";
 
 interface Booking {
   id: string;
@@ -136,7 +137,7 @@ export default function OwnerPanel() {
   };
 
   const handleProfessionalChange = (
-    event: React.MouseEvent<HTMLElement>,
+    _event: React.MouseEvent<HTMLElement>,
     newProfessional: string | null
   ) => {
     if (newProfessional !== null) {
@@ -187,6 +188,7 @@ export default function OwnerPanel() {
       <h2 style={{ marginBottom: "20px", fontSize: "2rem", color: "#333" }}>
         Owner Panel
       </h2>
+      <Link to="/owner">Owner Panel</Link>
       
       {/* Professional Filter */}
       <Box sx={{ marginBottom: 3 }}>

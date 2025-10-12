@@ -3,6 +3,8 @@ import { Box } from "@mui/material";
 import { useState } from "react";
 import { supabase } from '../components/supabaseClient';
 import { generateWeekdaysInRange, excludeDates } from '../components/dateUtils';
+import { Link } from 'react-router-dom';
+
 
 export default function AdminPanel() {
    const [selectedDates, setSelectedDates] = useState<string[]>([]); 
@@ -44,6 +46,7 @@ export default function AdminPanel() {
       gap={2}
     >
       <h2>Admin Panel</h2>
+      <Link to="/admin">Admin Panel</Link>
       
       {/* Date Range Controls */}
       <Box display="flex" gap={2} alignItems="center">

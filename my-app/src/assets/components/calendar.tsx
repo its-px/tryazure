@@ -25,6 +25,7 @@ export const Calendar = ({ selectedDates, setSelectedDates, allowedDates }: Cale
   // In calendar.tsx, update the handleSave function
 const handleSave = async () => {
   if (!currentDate) return;
+  void handleSave 
 
   const {
     data: { user },

@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { colors, commonStyles } from "../../theme";
+//import { colors, commonStyles } from "../../theme";
 
 
 interface LocationStepProps {

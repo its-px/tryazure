@@ -11,7 +11,8 @@ import { Box } from "@mui/material";
 import LoginModal from "../components/LoginModal";
 import { Button } from "@mui/material";
 import UserAccountPage from "../components/UserAccountPage";
-import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+//import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Link } from "react-router-dom";
 
 
 export default function UserPanel() {
@@ -28,7 +29,7 @@ export default function UserPanel() {
   const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  //const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   // Load available dates based on selected professional
   useEffect(() => {
@@ -213,14 +214,14 @@ export default function UserPanel() {
   };
 
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setIsLoggedIn(false);
-    setShowLogoutDialog(false);
-    setCurrentPage('booking');
-    setCurrentStep(1);
-    alert("You have been logged out successfully");
-  };
+  // const handleLogout = async () => {
+  //   await supabase.auth.signOut();
+  //   setIsLoggedIn(false);
+  //   setShowLogoutDialog(false);
+  //   setCurrentPage('booking');
+  //   setCurrentStep(1);
+  //   alert("You have been logged out successfully");
+  // };
 
 
   // Render different pages based on currentPage
@@ -403,13 +404,14 @@ export default function UserPanel() {
         onInfoClick={() => setCurrentPage('info')}
         onQRClick={() => setCurrentPage('qr')}
         onAccountClick={() => setCurrentPage('account')}
-        onExitClick={() => setShowLogoutDialog(true)}
+        //onExitClick={() => setShowLogoutDialog(true)}
         isLoggedIn={isLoggedIn}
         currentPage={currentPage}
       />
       <div style={{ width: '100%' }}>
         {/* Render the selected page below the Hero */}
         {renderPage()}
+        <Link to="/">User panel</Link>
       </div>
 
     </div>
