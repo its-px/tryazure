@@ -411,7 +411,7 @@ export default function UserPanel() {
       <div style={{ width: '100%' }}>
         {/* Render the selected page below the Hero */}
         {renderPage()}
-        <Link to="/">User panel</Link>
+        <Link to="/"></Link>
       </div>
 
     </div>
