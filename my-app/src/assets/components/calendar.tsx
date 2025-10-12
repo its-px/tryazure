@@ -63,10 +63,17 @@ const handleSave = async () => {
         }}
         shouldDisableDate={(date) => !isDateAllowed(date)}
         
-        
+        slots={{
+      toolbar: () => null,       // removes "Select Date" text
+      actionBar: () => null,     // removes OK / Cancel buttons
+    }}
         disablePast
+
+        
+
+
          />
-             <button onClick={handleSave}>Book this date</button>
+            {/* <button onClick={handleSave}>Book this date</button> */}
     </LocalizationProvider>
   
   );

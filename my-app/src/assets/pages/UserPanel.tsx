@@ -271,7 +271,7 @@ export default function UserPanel() {
       default:
         return (
           <div style={{ textAlign: "center", marginTop: "50px" }}>
-            <h2>Customer Panel</h2>
+            {/* <h2>Customer Panel</h2> */}
 
             {currentStep > 1 && (
               <NavigationComponent
@@ -367,7 +367,7 @@ export default function UserPanel() {
                   style={{
                     marginTop: '20px',
                     padding: '10px 20px',
-                    backgroundColor: '#1976d2',
+                    backgroundColor: '#1b5e20',
                     color: 'white',
                     border: 'none',
                     borderRadius: '5px',

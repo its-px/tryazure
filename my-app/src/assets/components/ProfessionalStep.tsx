@@ -44,24 +44,24 @@ export default function ProfessionalStep({
               key={professional.id}
               onClick={() => onProfessionalSelect(professional.id)}
               sx={{
-                border: isSelected ? '3px solid #1976d2' : '2px solid #ddd',
+                border: isSelected ? '3px solid #1b5e20' : '2px solid #ddd',
                 borderRadius: '15px',
                 padding: 4,
                 cursor: 'pointer',
                 minWidth: '250px',
-                backgroundColor: isSelected ? '#e3f2fd' : 'white',
+                backgroundColor: isSelected ? '#2d2d2d' : '2d2d2d',
                 transition: 'all 0.3s ease',
                 '&:hover': { 
-                  backgroundColor: isSelected ? '#e3f2fd' : '#f5f5f5',
+                  backgroundColor: isSelected ? '#646262ff' : '#2d9c348f',
                   transform: 'translateY(-2px)',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                 }
               }}
             >
-              <h4 style={{ margin: '0 0 15px 0', color: '#1976d2' }}>
+              <h4 style={{ margin: '0 0 15px 0', color: '#979696ff' }}>
                 {professional.name}
               </h4>
-              <p style={{ margin: '0 0 10px 0', color: '#666' }}>
+              <p style={{ margin: '0 0 10px 0', color: '#b0b2b072' }}>
                 Specialties:
               </p>
               <Box display="flex" gap={1} flexWrap="wrap" justifyContent="center">
@@ -71,6 +71,7 @@ export default function ProfessionalStep({
                     label={specialty} 
                     size="small" 
                     variant="outlined"
+                    sx={{  textColor: '#5c5b5bff', }}
                   />
                 ))}
               </Box>

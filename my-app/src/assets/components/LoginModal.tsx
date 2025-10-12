@@ -12,7 +12,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import GoogleIcon from "@mui/icons-material/Google";
 import EmailIcon from "@mui/icons-material/Email";
 import { supabase } from "./supabaseClient";
-import { colors, commonStyles } from "./../../theme";
+import { colors, commonStyles } from "../../theme";
 
 interface LoginModalProps {
   open: boolean;
@@ -154,7 +154,7 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: LoginModal
     '& .MuiOutlinedInput-root': {
       color: colors.text.primary,
       '& fieldset': { borderColor: colors.border.main },
-      '&:hover fieldset': { borderColor: colors.primary.main },
+      '&:hover fieldset': { borderColor: colors.accent.main },
     }
   };
 
@@ -189,12 +189,12 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: LoginModal
               width: 80,
               height: 80,
               borderRadius: '50%',
-              border: `3px solid ${colors.primary.main}`,
+              border: `3px solid ${colors.accent.main}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '3rem',
-              color: colors.primary.main,
+              color: colors.accent.main,
             }}
           >
             i
@@ -309,8 +309,8 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: LoginModal
               sx={{
                 mb: 2,
                 padding: '12px',
-                backgroundColor: colors.primary.main,
-                '&:hover': { backgroundColor: colors.primary.dark },
+                backgroundColor: colors.accent.main,
+                '&:hover': { backgroundColor: colors.accent.hover },
                 '&:disabled': {
                   backgroundColor: colors.border.main,
                   color: colors.text.tertiary
@@ -324,7 +324,7 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: LoginModal
               fullWidth
               variant="text"
               onClick={() => setIsSignUp(!isSignUp)}
-              sx={{ color: colors.primary.main, mb: 2 }}
+              sx={{ color: colors.accent.main, mb: 2 }}
             >
               {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
             </Button>
@@ -355,8 +355,8 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: LoginModal
                 }}
                 sx={{
                   padding: '10px 30px',
-                  backgroundColor: colors.primary.main,
-                  '&:hover': { backgroundColor: colors.primary.dark },
+                  backgroundColor: colors.accent.main,
+                  '&:hover': { backgroundColor: colors.accent.hover },
                 }}
               >
                 Create new profile

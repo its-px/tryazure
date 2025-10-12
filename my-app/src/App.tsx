@@ -133,7 +133,7 @@ function App() {
       }
     }
 
-    // Public mode - always show UserPanel (no login required)
+   
     return <UserPanel />;
   };
 

@@ -1,7 +1,9 @@
 import { Box } from "@mui/material";
+import { colors, commonStyles } from "../../theme";
+
 
 interface LocationStepProps {
-  selectedLocation: 'your_place' | 'our_place' | null;
+  selectedLocation: 'your_place' | 'our_place' | null;  
   onLocationSelect: (location: 'your_place' | 'our_place') => void;
 }
 
@@ -11,7 +13,7 @@ export default function LocationStep({
 }: LocationStepProps) {
   return (
     <Box textAlign="center" padding={4}>
-      <h3 style={{ marginBottom: '30px', color: '#333' }}>
+      <h3 style={{ marginBottom: '30px', color: '#979696ff' }}>
         Where would you like your appointment?
       </h3>
       
@@ -20,24 +22,24 @@ export default function LocationStep({
         <Box
           onClick={() => onLocationSelect('your_place')}
           sx={{
-            border: selectedLocation === 'your_place' ? '3px solid #1976d2' : '2px solid #ddd',
+            border: selectedLocation === 'your_place' ? '3px solid #1b5e20' : '2px solid #1b5e20',
             borderRadius: '15px',
             padding: 4,
             cursor: 'pointer',
             minWidth: '250px',
-            backgroundColor: selectedLocation === 'your_place' ? '#e3f2fd' : 'white',
+            backgroundColor: selectedLocation === 'your_place' ? '#2d2d2d' : '#2d2d2d',
             transition: 'all 0.3s ease',
             '&:hover': { 
-              backgroundColor: selectedLocation === 'your_place' ? '#e3f2fd' : '#f5f5f5',
+              backgroundColor: selectedLocation === 'your_place' ? '#2d2d2d' : '#2d2d2d',
               transform: 'translateY(-2px)',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }
           }}
         >
-          <h4 style={{ margin: '0 0 10px 0', color: '#1976d2' }}>
+          <h4 style={{ margin: '0 0 10px 0', color: '#d9e2eaff' }}>
             Appointment at Your Place
           </h4>
-          <p style={{ margin: 0, color: '#666' }}>
+          <p style={{ margin: 0, color: '#979696ff' }}>
             We come to your location
           </p>
         </Box>
@@ -46,24 +48,24 @@ export default function LocationStep({
         <Box
           onClick={() => onLocationSelect('our_place')}
           sx={{
-            border: selectedLocation === 'our_place' ? '3px solid #1976d2' : '2px solid #ddd',
+            border: selectedLocation === 'our_place' ? '3px solid #1b5e20' : '2px solid #1b5e20',
             borderRadius: '15px',
             padding: 4,
             cursor: 'pointer',
             minWidth: '250px',
-            backgroundColor: selectedLocation === 'our_place' ? '#e3f2fd' : 'white',
+            backgroundColor: selectedLocation === 'our_place' ? '#2d2d2d' : '#2d2d2d',
             transition: 'all 0.3s ease',
             '&:hover': { 
-              backgroundColor: selectedLocation === 'our_place' ? '#e3f2fd' : '#f5f5f5',
+              backgroundColor: selectedLocation === 'our_place' ? '#2d2d2d' : '#2d2d2d',
               transform: 'translateY(-2px)',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }
           }}
         >
-          <h4 style={{ margin: '0 0 10px 0', color: '#1976d2' }}>
+          <h4 style={{ margin: '0 0 10px 0', color: '#d9e2eaff' }}>
             Appointment at Our Place
           </h4>
-          <p style={{ margin: 0, color: '#666' }}>
+          <p style={{ margin: 0, color: '#979696ff' }}>
             Visit our location
           </p>
         </Box>
