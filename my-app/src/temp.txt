@@ -26,3 +26,8 @@ dynamic title  React Helmet
 save step where it was before login and then going back to the begining 
 na ftiajo to pending kai to comfirmed na min einai to idio xroma sto managment tou user 
 kai na min valo to alert is a bit much when forgot to login 
+scaling to qr sto moile 
+otan patato retun/enter sto mobile na pigenei sto password
+na to kano pwa kai na valo push notif instead of sms kai na kanw cache me service gia na leitoyrgei kai offline 
+
+des to video fireship gia pwa 
