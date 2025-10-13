@@ -10,6 +10,8 @@ import { ThemeProvider } from '@mui/material/styles';
 import { muiTheme } from './theme';
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
+import PWAInstallPrompt from "./assets/components/PWAInstallPrompt";
+
 
 
 import { LocalizationProvider } from "@mui/x-date-pickers";
@@ -129,6 +131,7 @@ useEffect(() => {
       {/* Optional: fallback route */}
       {/* <Route path="*" element={<NotFoundPage />} /> */}
     </Routes>
+    <PWAInstallPrompt />
     </LocalizationProvider>
   </ThemeProvider>
   );
