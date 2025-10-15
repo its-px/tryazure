@@ -13,6 +13,8 @@ import { Button } from "@mui/material";
 import UserAccountPage from "../components/UserAccountPage";
 //import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import { Link } from "react-router-dom";
+import { registerSW, requestNotificationPermission ,showBookingNotification } from "../../notifications";
+
 
 
 export default function UserPanel() {
@@ -43,6 +45,10 @@ export default function UserPanel() {
         else setAvailableDates(data?.map((d: any) => d.date) || []);
         return;
       }
+      useEffect(() => {
+        registerSW();
+  requestNotificationPermission();
+      }, []);
 
       const { data: shopDates, error: shopError } = await supabase
         .from("availability")
@@ -199,6 +205,11 @@ const handleNextStep = () => {
       }
     } else {
       alert("✅ Booking confirmed successfully!");
+      await showBookingNotification({
+  date: selectedDate,
+  services: selectedServices.join(", "),
+  id: Date.now(), // fake ID for now
+});
       setCurrentStep(1);
       setSelectedLocation(null);
       setSelectedServices([]);

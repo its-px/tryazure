@@ -61,14 +61,14 @@ function BookedDay(props: CustomPickersDayProps) {
       onDaySelect={onDaySelect}
       onClick={() => isBooked && onDaySelect(day)}
       sx={{
-        backgroundColor: isBooked && isPast ? "rgba(128, 128, 128, 0.3)" : 
-                        isBooked ? "rgba(255, 0, 0, 0.5)" : undefined,
+        backgroundColor: isBooked && isPast ? "rgba(128, 128, 128, 0.4)" :
+                        isBooked ? "rgba(76, 175, 80, 0.6)" : undefined,
         color: isBooked ? "white" : undefined,
         fontWeight: isBooked ? "bold" : undefined,
         cursor: isBooked ? "pointer" : "default",
         "&:hover": {
-          backgroundColor: isBooked && isPast ? "rgba(128, 128, 128, 0.5)" :
-                          isBooked ? "rgba(255, 0, 0, 0.7)" : undefined,
+          backgroundColor: isBooked && isPast ? "rgba(128, 128, 128, 0.6)" :
+                          isBooked ? "rgba(76, 175, 80, 0.8)" : undefined,
         },
         borderRadius: "50%",
       }}
