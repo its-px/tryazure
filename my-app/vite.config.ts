@@ -7,12 +7,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      strategies: "generateSW",
       includeAssets: ["favicon.svg", "robots.txt", "apple-touch-icon.png"],
       devOptions: {
-        enabled: true,
+        enabled: true, // ✅ allow SW in dev
       },
       manifest: {
-        name: "RENDEZVOUS ME",
+        name: "RENDEZVOUS",
         short_name: "RENDEZVOUS",
         description: "My awesome PWA built with Vite + React",
         theme_color: "#1b5e20",
@@ -39,9 +40,9 @@ export default defineConfig({
           },
         ],
       },
+      workbox: {
+        runtimeCaching: [],
+      },
     }),
   ],
-  resolve: {
-    dedupe: ["react", "react-dom", "@emotion/react", "@emotion/styled"],
-  },
 });

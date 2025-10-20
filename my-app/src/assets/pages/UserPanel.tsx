@@ -13,7 +13,12 @@ import { Button } from "@mui/material";
 import UserAccountPage from "../components/UserAccountPage";
 //import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import { Link } from "react-router-dom";
-import { registerSW, requestNotificationPermission ,showBookingNotification } from "../../notifications";
+import { showBookingNotification, checkUpcomingAppointments } from "../../notifications";
+import  TimeSlotsStep  from "../components/TimeSlotsStep";
+import { fetchServices, type Service } from "../components/servicesService";
+
+
+
 
 
 
@@ -32,6 +37,28 @@ export default function UserPanel() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   //const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<{ start_time: string; end_time: string } | null>(null);
+const [serviceDuration, setServiceDuration] = useState(0);
+const [services, setServices] = useState<Service[]>([]);
+
+  // Load services from database
+  useEffect(() => {
+    const loadServices = async () => {
+      const data = await fetchServices();
+      setServices(data);
+    };
+    loadServices();
+  }, []);
+
+        useEffect(() => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'SHOW_ACCOUNT_PAGE') {
+        setCurrentPage('account'); // <-- switch to User Account
+      }
+    });
+  }
+}, []);
 
   // Load available dates based on selected professional
   useEffect(() => {
@@ -45,10 +72,13 @@ export default function UserPanel() {
         else setAvailableDates(data?.map((d: any) => d.date) || []);
         return;
       }
-      useEffect(() => {
-        registerSW();
-  requestNotificationPermission();
-      }, []);
+
+
+      
+  
+    
+   
+    
 
       const { data: shopDates, error: shopError } = await supabase
         .from("availability")
@@ -60,21 +90,9 @@ export default function UserPanel() {
         return;
       }
 
-      const { data: professionalBookings, error: profError } = await supabase
-        .from("bookings")
-        .select("date")
-        .eq("professional_id", selectedProfessional);
-
-      if (profError) {
-        console.error("Error fetching professional bookings:", profError);
-        setAvailableDates([]);
-        return;
-      }
-
-      const bookedDates = professionalBookings?.map((b: any) => b.date) || [];
-      const availableDates = shopDates
-        .map((d: any) => d.date)
-        .filter(date => !bookedDates.includes(date));
+      // Instead of removing dates with ANY bookings, we'll show all shop dates
+      // The time slot component will handle showing only available slots
+      const availableDates = shopDates.map((d: any) => d.date);
 
       setAvailableDates(availableDates);
     };
@@ -84,11 +102,19 @@ export default function UserPanel() {
 
   const handleServiceToggle = (serviceId: string) => {
     setSelectedServices(prev => {
-      if (prev.includes(serviceId)) {
-        return prev.filter(id => id !== serviceId);
-      } else {
-        return [...prev, serviceId];
-      }
+      const newSelectedServices = prev.includes(serviceId)
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId];
+
+      // Calculate total duration based on selected services from database
+      const totalDuration = newSelectedServices.reduce((sum, id) => {
+        const service = services.find(s => s.id === id);
+        return sum + (service?.duration_minutes || 0);
+      }, 0);
+
+      setServiceDuration(totalDuration);
+
+      return newSelectedServices;
     });
   };
 
@@ -108,13 +134,23 @@ const handleNextStep = () => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setIsLoggedIn(!!user);
+
+      // Check for upcoming appointments when user logs in
+      if (user) {
+        await checkUpcomingAppointments(supabase, user.id);
+      }
     };
 
     checkAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setIsLoggedIn(!!session);
+
+      // Check for upcoming appointments when user logs in
+      if (session?.user) {
+        await checkUpcomingAppointments(supabase, session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -137,15 +173,15 @@ const handleNextStep = () => {
       case 1: return selectedLocation !== null;
       case 2: return selectedServices.length > 0;
       case 3: return selectedProfessional !== null;
-      case 4: return selectedDate !== "" && availableDates.length > 0;
+      case 4: return selectedDate !== "" && availableDates.length > 0 && selectedSlot !== null;
       case 5: return false;
       default: return false;
     }
   };
 
   const handleCompleteBooking = async () => {
-    if (!selectedDate || !selectedLocation || !selectedProfessional || selectedServices.length === 0) {
-      alert("Please complete all steps");
+    if (!selectedDate || !selectedLocation || !selectedProfessional || selectedServices.length === 0 || !selectedSlot) {
+      alert("Please complete all steps including selecting a time slot");
       return;
     }
     if (!isLoggedIn) {
@@ -186,6 +222,8 @@ const handleNextStep = () => {
       services: JSON.stringify(selectedServices),
       professional_id: selectedProfessional,
       status: 'pending',
+      start_time: selectedSlot.start_time,
+      end_time: selectedSlot.end_time,
     };
 
     const { error } = await supabase.from("bookings").insert([bookingData]);
@@ -215,6 +253,8 @@ const handleNextStep = () => {
       setSelectedServices([]);
       setSelectedProfessional(null);
       setSelectedDate("");
+      setSelectedSlot(null);
+      setServiceDuration(0);
       try {
         const response = await fetch(
           "https://qrvxmqksekxbtipdnfru.supabase.co/functions/v1/send_booking_email",
@@ -373,6 +413,13 @@ const handleNextStep = () => {
                       setSelectedDates={(dates: string[]) => setSelectedDate(dates[0] || "")}
                       allowedDates={availableDates}
                     />
+                    <TimeSlotsStep
+    professionalId={selectedProfessional}
+    selectedDate={selectedDate}
+    serviceDuration={serviceDuration}
+    selectedSlot={selectedSlot}
+    onSlotSelect={setSelectedSlot}
+  />
                     {selectedDate && (
                       <div style={{
                         marginTop: '10px',
@@ -402,6 +449,9 @@ const handleNextStep = () => {
                       selectedProfessional
                 }</p>
                 <p>Date: {selectedDate}</p>
+                {selectedSlot && (
+                  <p>Time: {selectedSlot.start_time.substring(0, 5)} - {selectedSlot.end_time.substring(0, 5)}</p>
+                )}
                 <button
                   onClick={handleCompleteBooking}
                   style={{

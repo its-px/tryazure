@@ -31,3 +31,13 @@ otan patato retun/enter sto mobile na pigenei sto password
 na to kano pwa kai na valo push notif instead of sms kai na kanw cache me service gia na leitoyrgei kai offline 
 
 des to video fireship gia pwa 
+an kanei enas user cancel to booking to na janaanoijei to spot/date , na min menei greyed  out to cancel booking den diagrafei apo tin vasi
+
+mellontika na valo kai upalilosna exei mono to diko toy calendar na vlepei mono tis dikes tou kratiseis 
+
+
+make it so when a customer books a time not to delete the whole day 
+
+google calendar api sync wiht owner's phone 
+
+add exit button on admin panel and owner 

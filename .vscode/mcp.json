@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"my-mcp-server-1b08e365": {
+			"url": "https://mcp.supabase.com/mcp?project_ref=qrvxmqksekxbtipdnfru&features=functions%2Cdebugging%2Cdatabase%2Cdocs",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}

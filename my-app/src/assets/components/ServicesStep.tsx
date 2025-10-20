@@ -1,54 +1,53 @@
-import { Box, Chip } from "@mui/material";
-
-interface Service {
-  id: string;
-  name: string;
-  description: string;
-  duration: string;
-  price: string;
-}
+import { Box, Chip, CircularProgress } from "@mui/material";
+import { useEffect, useState } from "react";
+import { fetchServices, type Service } from "./servicesService";
 
 interface ServicesStepProps {
   selectedServices: string[];
   onServiceToggle: (serviceId: string) => void;
 }
 
-// Mock services - you can customize these later
-const SERVICES: Service[] = [
-  { 
-    id: 'service1', 
-    name: 'Service 1', 
-    description: 'Complete service package 1', 
-    duration: '60 min', 
-    price: '$50' 
-  },
-  { 
-    id: 'service2', 
-    name: 'Service 2', 
-    description: 'Complete service package 2', 
-    duration: '90 min', 
-    price: '$75' 
-  },
-  { 
-    id: 'service3', 
-    name: 'Service 3', 
-    description: 'Complete service package 3', 
-    duration: '45 min', 
-    price: '$40' 
-  },
-  { 
-    id: 'service4', 
-    name: 'Service 4', 
-    description: 'Complete service package 4', 
-    duration: '120 min', 
-    price: '$100' 
-  },
-];
-
 export default function ServicesStep({
   selectedServices,
   onServiceToggle
 }: ServicesStepProps) {
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadServices = async () => {
+      setLoading(true);
+      const data = await fetchServices();
+      setServices(data);
+      setLoading(false);
+    };
+
+    loadServices();
+  }, []);
+
+  if (loading) {
+    return (
+      <Box
+        textAlign="center"
+        padding={4}
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (services.length === 0) {
+    return (
+      <Box textAlign="center" padding={4}>
+        <h3 style={{ color: '#666' }}>No services available</h3>
+        <p style={{ color: '#999' }}>Please contact the administrator</p>
+      </Box>
+    );
+  }
   return (
     <Box textAlign="center" padding={4}>
       <h3 style={{ marginBottom: '20px', color: '#333' }}>
@@ -57,9 +56,9 @@ export default function ServicesStep({
       <p style={{ marginBottom: '30px', color: '#666' }}>
         Choose at least one service (you can select multiple)
       </p>
-      
+
       <Box display="flex" gap={3} justifyContent="center" flexWrap="wrap">
-        {SERVICES.map((service) => {
+        {services.map((service: Service) => {
           const isSelected = selectedServices.includes(service.id);
           
           return (
@@ -86,13 +85,13 @@ export default function ServicesStep({
                 {service.name}
               </h4>
               <p style={{ margin: '0 0 8px 0', color: '#b0b2b072', fontSize: '14px' }}>
-                {service.description}
+                {service.description || 'No description available'}
               </p>
               <p style={{ margin: '0 0 8px 0', color: '#5c5b5bff' }}>
-                <strong>Duration:</strong> {service.duration}
+                <strong>Duration:</strong> {service.duration_minutes} min
               </p>
               <p style={{ margin: 0, color: '#979696ff', fontWeight: 'bold' }}>
-                {service.price}
+                ${service.price}
               </p>
               
               {isSelected && (

@@ -20,7 +20,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonIcon from '@mui/icons-material/Person';
 import { colors, commonStyles, getStatusColor } from "../../theme";
-import { registerSW, requestNotificationPermission ,showBookingNotification } from "../../notifications";
+// import {  requestNotificationPermission ,showBookingNotification } from "../../notifications";
 
 interface Booking {
   id: string;
@@ -53,7 +53,7 @@ export default function UserAccountPage() {
 
   useEffect(() => {
     checkUser();
-    registerSW().catch(console.error);
+   // registerSW().catch(console.error);
   }, []);
 
 
