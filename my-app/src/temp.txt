@@ -41,3 +41,5 @@ make it so when a customer books a time not to delete the whole day
 google calendar api sync wiht owner's phone 
 
 add exit button on admin panel and owner 
+
+na ftiajo to google auth me to workebox kati paizei 

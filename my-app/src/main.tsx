@@ -6,13 +6,12 @@ import {BrowserRouter } from "react-router-dom"
 import { registerSW } from "virtual:pwa-register";
 
 
-const updateServiceWorker  = registerSW({
+registerSW({
   onNeedRefresh() {
-    
     if (confirm("New version available. Update now?")) {
-      updateServiceWorker ();
+      window.location.reload();
     }
-},
+  },
   onOfflineReady() {
     console.log("App ready to work offline");
   },

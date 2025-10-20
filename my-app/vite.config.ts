@@ -10,7 +10,7 @@ export default defineConfig({
       strategies: "generateSW",
       includeAssets: ["favicon.svg", "robots.txt", "apple-touch-icon.png"],
       devOptions: {
-        enabled: true, // ✅ allow SW in dev
+        enabled: true,
       },
       manifest: {
         name: "RENDEZVOUS",
@@ -41,7 +41,28 @@ export default defineConfig({
         ],
       },
       workbox: {
-        runtimeCaching: [],
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [
+          /^\/api/,
+          /^https:\/\/.+\.qrvxmqksekxbtipdnfru.supabase.com/,
+          /^https:\/\/.+\.supabase\.com/,
+          /^\/auth/,
+          /^\/login/,
+          /^\/callback/,
+          /^https:\/\/accounts\.google\.com/,
+        ],
+
+        runtimeCaching: [
+          {
+            // Example: cache images for faster loading
+            urlPattern: /^https:\/\/.+\/images\//i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "image-cache",
+              expiration: { maxEntries: 100, maxAgeSeconds: 30 * 24 * 60 * 60 }, // 30 days
+            },
+          },
+        ],
       },
     }),
   ],
