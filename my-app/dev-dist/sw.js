@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-9dc17825'], (function (workbox) { 'use strict';
+define(['./workbox-d9a5ed57'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -81,21 +81,14 @@ define(['./workbox-9dc17825'], (function (workbox) { 'use strict';
     "url": "registerSW.js",
     "revision": "d41d8cd98f00b204e9800998ecf8427e"
   }, {
-    "url": "index.html",
-    "revision": "0.4f3l9a39d5"
+    "url": "/index.html",
+    "revision": "0.a7niql4nlb8"
   }], {});
   workbox.cleanupOutdatedCaches();
-  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
-    allowlist: [/^\/$/]
+  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
+    allowlist: [/^\/$/],
+    denylist: [/^\/api/, /^https:\/\/.+\.qrvxmqksekxbtipdnfru.supabase.com/, /^https:\/\/.+\.supabase\.com/, /^\/auth/, /^\/login/, /^\/callback/, /^https:\/\/accounts\.google\.com/]
   }));
-  workbox.registerRoute(/^https:\/\/api\./i, new workbox.NetworkFirst({
-    "cacheName": "api-cache",
-    "networkTimeoutSeconds": 10,
-    plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 50,
-      maxAgeSeconds: 300
-    })]
-  }), 'GET');
   workbox.registerRoute(/^https:\/\/.+\/images\//i, new workbox.CacheFirst({
     "cacheName": "image-cache",
     plugins: [new workbox.ExpirationPlugin({

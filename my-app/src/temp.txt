@@ -42,4 +42,9 @@ google calendar api sync wiht owner's phone
 
 add exit button on admin panel and owner 
 
-na ftiajo to google auth me to workebox kati paizei 
+na ftiajo to google auth me to workebox kati paizei kai to redirect 
+na min fainetai to uuid tou service ston client 
+pali giemetai to service worker me to login ktl 
+
+
+twra to login tou localhost paei sto site 

@@ -255,6 +255,23 @@ const handleNextStep = () => {
       setSelectedDate("");
       setSelectedSlot(null);
       setServiceDuration(0);
+
+      const serviceNames = selectedServices.map(id => {
+  const s = services.find(s => s.id === id);
+  return s?.name || id; // fallback to id if not found
+});
+
+
+console.log("Booking payload:", {
+  email: user?.email,
+  name: user?.user_metadata?.full_name || "Customer",
+  bookingDate: selectedDate,
+  startTime: selectedSlot?.start_time, 
+  endTime: selectedSlot?.end_time, 
+  location: selectedLocation,
+  services: selectedServices,
+  professional: selectedProfessional,
+});
       try {
         const response = await fetch(
           "https://qrvxmqksekxbtipdnfru.supabase.co/functions/v1/send_booking_email",
@@ -268,8 +285,10 @@ const handleNextStep = () => {
               email: user?.email,
               name: user?.user_metadata?.full_name || "Customer",
               bookingDate: selectedDate,
+              startTime: selectedSlot.start_time, 
+              endTime: selectedSlot.end_time, 
               location: selectedLocation,
-              services: selectedServices,
+              services: serviceNames,
               professional: selectedProfessional,
             }),
           }

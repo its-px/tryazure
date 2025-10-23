@@ -8,7 +8,12 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       strategies: "generateSW",
-      includeAssets: ["favicon.svg", "robots.txt", "apple-touch-icon.png"],
+      includeAssets: [
+        "favicon.svg",
+        "robots.txt",
+        "apple-touch-icon.png",
+        " offline.html",
+      ],
       devOptions: {
         enabled: true,
       },
