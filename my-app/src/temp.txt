@@ -44,7 +44,9 @@ add exit button on admin panel and owner
 
 na ftiajo to google auth me to workebox kati paizei kai to redirect 
 na min fainetai to uuid tou service ston client 
-pali giemetai to service worker me to login ktl 
+pali giemetai to service worker me to login ktl
+
+na dw ti paizei me to # after login
 
 
 twra to login tou localhost paei sto site 
