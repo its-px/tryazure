@@ -40,6 +40,8 @@ make it so when a customer books a time not to delete the whole day
 
 google calendar api sync wiht owner's phone 
 
+NOMIZO TO LOADING BUG GINETAI META TO MAIL SENT
+
 add exit button on admin panel and owner 
 
 na ftiajo to google auth me to workebox kati paizei kai to redirect 
@@ -48,5 +50,10 @@ pali giemetai to service worker me to login ktl
 
 na dw ti paizei me to # after login
 
-
+na valw na mporei na kanei display for today but only after the past hour + na ftiajo to whole day booking problem 
 twra to login tou localhost paei sto site 
+
+ na valo ta dns tou resend sto netify kai na ftiajo to papaki gia production cause right now it uses the  default nameserver ( they dont currenlty point to the netify nameserver cause i use dns for resend )
+
+ na valw to email when selection our place to the location of the shop  and fix the time issue cause in the google calendar adds +3 hours to the booking 
+ 

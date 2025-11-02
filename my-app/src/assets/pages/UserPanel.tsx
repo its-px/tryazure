@@ -90,15 +90,33 @@ const [services, setServices] = useState<Service[]>([]);
         return;
       }
 
-      // Instead of removing dates with ANY bookings, we'll show all shop dates
-      // The time slot component will handle showing only available slots
-      const availableDates = shopDates.map((d: any) => d.date);
+      // Check each date to see if it has any available slots
+      // Only include dates that have at least one available slot
+      const datesWithSlots: string[] = [];
+      
+      for (const dateEntry of shopDates) {
+        const date = dateEntry.date;
+        // Check if there are any available slots for this date
+        // We'll use a minimum service duration of 30 minutes for the check
+        // If serviceDuration is set, use it; otherwise use 30 minutes as default
+        const checkDuration = serviceDuration > 0 ? serviceDuration : 30;
+        
+        const { data: slots, error: slotsError } = await supabase.rpc("get_available_slots", {
+          p_professional_id: selectedProfessional,
+          p_date: date,
+          p_service_duration_minutes: checkDuration,
+        });
 
-      setAvailableDates(availableDates);
+        if (!slotsError && slots && slots.length > 0) {
+          datesWithSlots.push(date);
+        }
+      }
+
+      setAvailableDates(datesWithSlots);
     };
 
     loadAvailableDates();
-  }, [selectedProfessional]);
+  }, [selectedProfessional, serviceDuration]);
 
   const handleServiceToggle = (serviceId: string) => {
     setSelectedServices(prev => {

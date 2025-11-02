@@ -80,5 +80,3 @@ const handleSave = async () => {
   );
 }
  
-
-//na kanno remvoe to css element me to display none 

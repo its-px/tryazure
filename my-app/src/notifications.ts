@@ -29,8 +29,8 @@ export async function showBookingNotification(booking: any) {
   const title = "Booking Confirmed!";
   const options = {
     body: `Your booking for ${booking.services} on ${booking.date} is confirmed 🎉`,
-    icon: "/icons/booking-icon-192.png",
-    badge: "/icons/badge-72.png",
+    icon: "/logo.png",
+    badge: "/logo.png",
     tag: `booking-${booking.id}`,
     data: {
       url: "/account",
@@ -50,8 +50,8 @@ export async function showAppointmentReminder(booking: any) {
   const title = "Appointment Reminder";
   const options = {
     body: `Don't forget! You have an appointment tomorrow at ${booking.start_time}`,
-    icon: "/icons/booking-icon-192.png",
-    badge: "/icons/badge-72.png",
+    icon: "/logo.png",
+    badge: "/logo.png",
     requireInteraction: true,
     tag: `reminder-${booking.id}`,
     data: {
