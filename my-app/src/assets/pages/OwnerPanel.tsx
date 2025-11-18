@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
+import { getColors } from "../../theme";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { 
-  Box, 
-  ToggleButton, 
+import {
+  Box,
+  ToggleButton,
   ToggleButtonGroup,
   Dialog,
   DialogTitle,
@@ -12,7 +15,7 @@ import {
   DialogActions,
   Button,
   Typography,
-  Divider
+  Divider,
 } from "@mui/material";
 import dayjs, { Dayjs } from "dayjs";
 import { DateCalendar, PickersDay } from "@mui/x-date-pickers";
@@ -61,14 +64,22 @@ function BookedDay(props: CustomPickersDayProps) {
       onDaySelect={onDaySelect}
       onClick={() => isBooked && onDaySelect(day)}
       sx={{
-        backgroundColor: isBooked && isPast ? "rgba(128, 128, 128, 0.4)" :
-                        isBooked ? "rgba(76, 175, 80, 0.6)" : undefined,
+        backgroundColor:
+          isBooked && isPast
+            ? "rgba(128, 128, 128, 0.4)"
+            : isBooked
+            ? "rgba(76, 175, 80, 0.6)"
+            : undefined,
         color: isBooked ? "white" : undefined,
         fontWeight: isBooked ? "bold" : undefined,
         cursor: isBooked ? "pointer" : "default",
         "&:hover": {
-          backgroundColor: isBooked && isPast ? "rgba(128, 128, 128, 0.6)" :
-                          isBooked ? "rgba(76, 175, 80, 0.8)" : undefined,
+          backgroundColor:
+            isBooked && isPast
+              ? "rgba(128, 128, 128, 0.6)"
+              : isBooked
+              ? "rgba(76, 175, 80, 0.8)"
+              : undefined,
         },
         borderRadius: "50%",
       }}
@@ -77,8 +88,11 @@ function BookedDay(props: CustomPickersDayProps) {
 }
 
 export default function OwnerPanel() {
+  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
+  const colors = getColors(mode);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
-  const [selectedProfessional, setSelectedProfessional] = useState<string>("all");
+  const [selectedProfessional, setSelectedProfessional] =
+    useState<string>("all");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
@@ -102,33 +116,33 @@ export default function OwnerPanel() {
     }
   };
 
- const loadUserProfile = async (userId: string) => {
-  const { data: profileData, error } = await supabase
-    .from("profiles")
-    .select("full_name, phone, email")
-    .eq("id", userId)
-    .single();
+  const loadUserProfile = async (userId: string) => {
+    const { data: profileData, error } = await supabase
+      .from("profiles")
+      .select("full_name, phone, email")
+      .eq("id", userId)
+      .single();
 
-  if (!error && profileData) {
-    setUserProfile({
-      full_name: profileData.full_name || "N/A",
-      phone: profileData.phone || "N/A",
-      email: profileData.email || "N/A"
-    });
-  } else {
-    console.error("Error loading profile:", error);
-    setUserProfile({
-      full_name: "N/A",
-      phone: "N/A",
-      email: "N/A"
-    });
-  }
-};
+    if (!error && profileData) {
+      setUserProfile({
+        full_name: profileData.full_name || "N/A",
+        phone: profileData.phone || "N/A",
+        email: profileData.email || "N/A",
+      });
+    } else {
+      console.error("Error loading profile:", error);
+      setUserProfile({
+        full_name: "N/A",
+        phone: "N/A",
+        email: "N/A",
+      });
+    }
+  };
 
   const handleDayClick = async (day: Dayjs) => {
     const dateStr = day.format("YYYY-MM-DD");
-    const booking = filteredBookings.find(b => b.date === dateStr);
-    
+    const booking = filteredBookings.find((b) => b.date === dateStr);
+
     if (booking) {
       setSelectedBooking(booking);
       await loadUserProfile(booking.user_id);
@@ -145,54 +159,64 @@ export default function OwnerPanel() {
     }
   };
 
-  const filteredBookings = selectedProfessional === "all" 
-    ? allBookings 
-    : allBookings.filter(b => b.professional_id === selectedProfessional);
+  const filteredBookings =
+    selectedProfessional === "all"
+      ? allBookings
+      : allBookings.filter((b) => b.professional_id === selectedProfessional);
 
-  const bookedDates = filteredBookings.map(b => b.date);
+  const bookedDates = filteredBookings.map((b) => b.date);
   const pastDates = filteredBookings
-    .filter(b => b.date < today)
-    .map(b => b.date);
-  
-  const upcomingBookings = filteredBookings.filter(b => b.date >= today);
+    .filter((b) => b.date < today)
+    .map((b) => b.date);
+
+  const upcomingBookings = filteredBookings.filter((b) => b.date >= today);
 
   const getProfessionalName = (profId: string) => {
-    if (profId === 'prof1') return 'Person 1';
-    if (profId === 'prof2') return 'Person 2';
+    if (profId === "prof1") return "Person 1";
+    if (profId === "prof2") return "Person 2";
     return profId;
   };
 
   const getServiceNames = (servicesJson: string) => {
     try {
       const services = JSON.parse(servicesJson);
-      return services.join(', ');
+      return services.join(", ");
     } catch {
       return servicesJson;
     }
   };
 
   return (
-    <Box 
-      display="flex" 
-      flexDirection="column" 
-      alignItems="center" 
+    <Box
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
       justifyContent="center"
       minHeight="100vh"
       width="100vw"
       textAlign="center"
       sx={{
-        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-        padding: 2
+        backgroundColor: colors.background.light,
+        padding: 2,
       }}
     >
-      <h2 style={{ marginBottom: "20px", fontSize: "2rem", color: "#333" }}>
+      <h2
+        style={{
+          marginBottom: "20px",
+          fontSize: "2rem",
+          color: colors.text.primary,
+        }}
+      >
         Owner Panel
       </h2>
       <Link to="/owner">Owner Panel</Link>
-      
+
       {/* Professional Filter */}
       <Box sx={{ marginBottom: 3 }}>
-        <Typography variant="body1" sx={{ marginBottom: 1, color: "#666" }}>
+        <Typography
+          variant="body1"
+          sx={{ marginBottom: 1, color: colors.text.secondary }}
+        >
           Select Professional:
         </Typography>
         <ToggleButtonGroup
@@ -200,9 +224,9 @@ export default function OwnerPanel() {
           exclusive
           onChange={handleProfessionalChange}
           sx={{
-            backgroundColor: "white",
+            backgroundColor: colors.background.medium,
             borderRadius: "10px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
           }}
         >
           <ToggleButton value="all" sx={{ px: 3 }}>
@@ -217,8 +241,16 @@ export default function OwnerPanel() {
         </ToggleButtonGroup>
       </Box>
 
-      <p style={{ marginBottom: "30px", fontSize: "1.2rem", color: "#666" }}>
-        {selectedProfessional === "all" ? "All bookings" : `${getProfessionalName(selectedProfessional)}'s bookings`} 
+      <p
+        style={{
+          marginBottom: "30px",
+          fontSize: "1.2rem",
+          color: colors.text.secondary,
+        }}
+      >
+        {selectedProfessional === "all"
+          ? "All bookings"
+          : `${getProfessionalName(selectedProfessional)}'s bookings`}
         ({filteredBookings.length} total, {upcomingBookings.length} upcoming)
         <br />
         <span style={{ fontSize: "0.9rem", color: "#999" }}>
@@ -228,9 +260,9 @@ export default function OwnerPanel() {
 
       <Box
         sx={{
-          backgroundColor: "white",
+          backgroundColor: colors.background.medium,
           borderRadius: "15px",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
           padding: 3,
           "& .MuiDateCalendar-root": {
             width: "auto",
@@ -256,8 +288,8 @@ export default function OwnerPanel() {
             onChange={() => {}}
             slots={{
               day: (dayProps) => (
-                <BookedDay 
-                  {...dayProps} 
+                <BookedDay
+                  {...dayProps}
                   bookedDates={bookedDates}
                   pastDates={pastDates}
                   onDaySelect={handleDayClick}
@@ -273,14 +305,16 @@ export default function OwnerPanel() {
         sx={{
           marginTop: 1,
           padding: 2,
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
+          backgroundColor: colors.background.medium,
           borderRadius: "10px",
           minWidth: "300px",
           maxHeight: "200px",
           overflowY: "auto",
         }}
       >
-        <h3 style={{ margin: "0 0 15px 0", color: "#333" }}>Upcoming Bookings:</h3>
+        <h3 style={{ margin: "0 0 15px 0", color: colors.text.primary }}>
+          Upcoming Bookings:
+        </h3>
         {upcomingBookings.length > 0 ? (
           <Box
             sx={{
@@ -299,8 +333,14 @@ export default function OwnerPanel() {
                   setShowBookingDialog(true);
                 }}
                 style={{
-                  backgroundColor: "rgba(255, 0, 0, 0.1)",
-                  color: "#d32f2f",
+                  backgroundColor:
+                    booking.status === "cancelled"
+                      ? "rgba(244, 67, 54, 0.08)"
+                      : "rgba(46, 125, 50, 0.06)",
+                  color:
+                    booking.status === "cancelled"
+                      ? colors.error.main
+                      : colors.accent.main,
                   padding: "4px 8px",
                   borderRadius: "5px",
                   fontSize: "0.9rem",
@@ -309,7 +349,8 @@ export default function OwnerPanel() {
                 }}
               >
                 {dayjs(booking.date).format("MMM DD")}
-                {selectedProfessional === "all" && ` (${getProfessionalName(booking.professional_id)})`}
+                {selectedProfessional === "all" &&
+                  ` (${getProfessionalName(booking.professional_id)})`}
               </span>
             ))}
             {upcomingBookings.length > 10 && (
@@ -319,20 +360,20 @@ export default function OwnerPanel() {
             )}
           </Box>
         ) : (
-          <p style={{ color: "#666", fontStyle: "italic" }}>No upcoming bookings</p>
+          <p style={{ color: colors.text.secondary, fontStyle: "italic" }}>
+            No upcoming bookings
+          </p>
         )}
       </Box>
 
       {/* Booking Details Dialog */}
-      <Dialog 
-        open={showBookingDialog} 
+      <Dialog
+        open={showBookingDialog}
         onClose={() => setShowBookingDialog(false)}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          Booking Details
-        </DialogTitle>
+        <DialogTitle>Booking Details</DialogTitle>
         <DialogContent>
           {selectedBooking && userProfile && (
             <Box sx={{ pt: 2 }}>
@@ -350,36 +391,48 @@ export default function OwnerPanel() {
                   <strong>Phone:</strong> {userProfile.phone}
                 </Typography>
               </Box>
-              
+
               <Divider sx={{ my: 2 }} />
-              
+
               <Typography variant="h6" gutterBottom color="primary">
                 Appointment Details
               </Typography>
               <Typography variant="body1">
-                <strong>Date:</strong> {dayjs(selectedBooking.date).format("MMMM DD, YYYY")}
+                <strong>Date:</strong>{" "}
+                {dayjs(selectedBooking.date).format("MMMM DD, YYYY")}
               </Typography>
               <Typography variant="body1">
-                <strong>Professional:</strong> {getProfessionalName(selectedBooking.professional_id)}
+                <strong>Professional:</strong>{" "}
+                {getProfessionalName(selectedBooking.professional_id)}
               </Typography>
               <Typography variant="body1">
-                <strong>Location:</strong> {selectedBooking.location === 'your_place' ? 'At Customer Place' : 'At Our Place'}
+                <strong>Location:</strong>{" "}
+                {selectedBooking.location === "your_place"
+                  ? "At Customer Place"
+                  : "At Our Place"}
               </Typography>
               <Typography variant="body1">
-                <strong>Services:</strong> {getServiceNames(selectedBooking.services)}
+                <strong>Services:</strong>{" "}
+                {getServiceNames(selectedBooking.services)}
               </Typography>
               <Typography variant="body1" sx={{ mb: 2 }}>
-                <strong>Status:</strong> 
-                <span style={{ 
-                  marginLeft: '8px',
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  backgroundColor: selectedBooking.status === 'confirmed' ? '#4caf50' : 
-                                  selectedBooking.status === 'pending' ? '#ff9800' : '#f44336',
-                  color: 'white',
-                  fontSize: '0.875rem',
-                  fontWeight: 'bold'
-                }}>
+                <strong>Status:</strong>
+                <span
+                  style={{
+                    marginLeft: "8px",
+                    padding: "4px 12px",
+                    borderRadius: "12px",
+                    backgroundColor:
+                      selectedBooking.status === "confirmed"
+                        ? colors.status.confirmed
+                        : selectedBooking.status === "pending"
+                        ? colors.accent.main
+                        : colors.error.main,
+                    color: "white",
+                    fontSize: "0.875rem",
+                    fontWeight: "bold",
+                  }}
+                >
                   {selectedBooking.status.toUpperCase()}
                 </span>
               </Typography>
@@ -387,14 +440,14 @@ export default function OwnerPanel() {
           )}
         </DialogContent>
         <DialogActions>
-          {selectedBooking && selectedBooking.status === 'pending' && (
-            <Button 
+          {selectedBooking && selectedBooking.status === "pending" && (
+            <Button
               onClick={async () => {
                 const { error } = await supabase
                   .from("bookings")
-                  .update({ status: 'confirmed' })
+                  .update({ status: "confirmed" })
                   .eq("id", selectedBooking.id);
-                
+
                 if (error) {
                   alert("Error updating status: " + error.message);
                 } else {
@@ -410,14 +463,14 @@ export default function OwnerPanel() {
               Confirm Booking
             </Button>
           )}
-          {selectedBooking && selectedBooking.status === 'confirmed' && (
-            <Button 
+          {selectedBooking && selectedBooking.status === "confirmed" && (
+            <Button
               onClick={async () => {
                 const { error } = await supabase
                   .from("bookings")
-                  .update({ status: 'pending' })
+                  .update({ status: "pending" })
                   .eq("id", selectedBooking.id);
-                
+
                 if (error) {
                   alert("Error updating status: " + error.message);
                 } else {
@@ -433,7 +486,10 @@ export default function OwnerPanel() {
               Set to Pending
             </Button>
           )}
-          <Button onClick={() => setShowBookingDialog(false)} variant="contained">
+          <Button
+            onClick={() => setShowBookingDialog(false)}
+            variant="contained"
+          >
             Close
           </Button>
         </DialogActions>

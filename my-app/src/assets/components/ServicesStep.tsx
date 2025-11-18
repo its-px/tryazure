@@ -1,6 +1,9 @@
 import { Box, Chip, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
 import { fetchServices, type Service } from "./servicesService";
+import { useSelector } from "react-redux";
+import type { RootState } from "../../configureStore";
+import { getColors, getComponentColors } from "../../theme";
 
 interface ServicesStepProps {
   selectedServices: string[];
@@ -9,8 +12,11 @@ interface ServicesStepProps {
 
 export default function ServicesStep({
   selectedServices,
-  onServiceToggle
+  onServiceToggle,
 }: ServicesStepProps) {
+  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
+  const colors = getColors(mode);
+  const componentColors = getComponentColors(colors);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +41,7 @@ export default function ServicesStep({
         alignItems="center"
         minHeight="200px"
       >
-        <CircularProgress />
+        <CircularProgress sx={{ color: colors.accent.main }} />
       </Box>
     );
   }
@@ -43,71 +49,100 @@ export default function ServicesStep({
   if (services.length === 0) {
     return (
       <Box textAlign="center" padding={4}>
-        <h3 style={{ color: '#666' }}>No services available</h3>
-        <p style={{ color: '#999' }}>Please contact the administrator</p>
+        <h3 style={{ color: colors.text.secondary }}>No services available</h3>
+        <p style={{ color: colors.text.tertiary }}>
+          Please contact the administrator
+        </p>
       </Box>
     );
   }
   return (
     <Box textAlign="center" padding={4}>
-      <h3 style={{ marginBottom: '20px', color: '#333' }}>
+      <h3 style={{ marginBottom: "20px", color: colors.text.primary }}>
         Select Services
       </h3>
-      <p style={{ marginBottom: '30px', color: '#666' }}>
+      <p style={{ marginBottom: "30px", color: colors.text.secondary }}>
         Choose at least one service (you can select multiple)
       </p>
 
       <Box display="flex" gap={3} justifyContent="center" flexWrap="wrap">
         {services.map((service: Service) => {
           const isSelected = selectedServices.includes(service.id);
-          
+
           return (
             <Box
               key={service.id}
               onClick={() => onServiceToggle(service.id)}
               sx={{
-                border: isSelected ? '3px solid #1b5e20' : '2px solid #add',
-                borderRadius: '15px',
+                border: isSelected
+                  ? `3px solid ${componentColors.serviceCard.selectedBorder}`
+                  : `2px solid ${componentColors.serviceCard.border}`,
+                borderRadius: "15px",
                 padding: 3,
-                cursor: 'pointer',
-                minWidth: '200px',
-                maxWidth: '220px',
-                backgroundColor: isSelected ? '#2d2d2d' : '#2d2d2d',
-                transition: 'all 0.3s ease',
-                '&:hover': { 
-                  backgroundColor: isSelected ? '#646262ff' : '#2d9c348f',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                }
+                cursor: "pointer",
+                minWidth: "200px",
+                maxWidth: "220px",
+                backgroundColor: isSelected
+                  ? componentColors.serviceCard.selected
+                  : componentColors.serviceCard.background,
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  backgroundColor: isSelected
+                    ? componentColors.serviceCard.selected
+                    : colors.background.card,
+                  transform: "translateY(-2px)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                },
               }}
             >
-              <h4 style={{ margin: '0 0 10px 0', color: '#979696ff' }}>
+              <h4 style={{ margin: "0 0 10px 0", color: colors.text.primary }}>
                 {service.name}
               </h4>
-              <p style={{ margin: '0 0 8px 0', color: '#b0b2b072', fontSize: '14px' }}>
-                {service.description || 'No description available'}
+              <p
+                style={{
+                  margin: "0 0 8px 0",
+                  color: colors.text.secondary,
+                  fontSize: "14px",
+                }}
+              >
+                {service.description || "No description available"}
               </p>
-              <p style={{ margin: '0 0 8px 0', color: '#5c5b5bff' }}>
+              <p style={{ margin: "0 0 8px 0", color: colors.text.secondary }}>
                 <strong>Duration:</strong> {service.duration_minutes} min
               </p>
-              <p style={{ margin: 0, color: '#979696ff', fontWeight: 'bold' }}>
+              <p
+                style={{
+                  margin: 0,
+                  color: colors.text.primary,
+                  fontWeight: "bold",
+                }}
+              >
                 ${service.price}
               </p>
-              
+
               {isSelected && (
-                <Chip 
-                  label="Selected" 
-                  color="primary" 
-                  size="small" 
-                  sx={{ mt: 1 }}
+                <Chip
+                  label="Selected"
+                  size="small"
+                  sx={{
+                    mt: 1,
+                    backgroundColor: componentColors.serviceCard.selected,
+                    color: colors.text.primary,
+                  }}
                 />
               )}
             </Box>
           );
         })}
       </Box>
-      
-      <p style={{ marginTop: '20px', color: '#333', fontWeight: 'bold' }}>
+
+      <p
+        style={{
+          marginTop: "20px",
+          color: colors.text.primary,
+          fontWeight: "bold",
+        }}
+      >
         Selected: {selectedServices.length} service(s)
       </p>
     </Box>

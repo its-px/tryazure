@@ -1,7 +1,7 @@
 import { Box, Chip } from "@mui/material";
 import { useSelector } from "react-redux";
 import type { RootState } from "../../configureStore";
-import { getColors } from "../../theme";
+import { getColors, getComponentColors } from "../../theme";
 
 interface Professional {
   id: string;
@@ -33,6 +33,7 @@ export default function ProfessionalStep({
 }: ProfessionalStepProps) {
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
   const colors = getColors(mode);
+  const componentColors = getComponentColors(colors);
 
   return (
     <Box
@@ -46,7 +47,7 @@ export default function ProfessionalStep({
       <h3
         style={{
           marginBottom: "30px",
-          color: "#979696ff",
+          color: colors.text.secondary,
           fontSize: window.innerWidth < 600 ? "1.25rem" : "1.5rem",
         }}
       >
@@ -72,17 +73,23 @@ export default function ProfessionalStep({
               key={professional.id}
               onClick={() => onProfessionalSelect(professional.id)}
               sx={{
-                border: isSelected ? "3px solid #1b5e20" : "2px solid #555",
+                border: isSelected
+                  ? `3px solid ${componentColors.serviceCard.selectedBorder}`
+                  : `2px solid ${componentColors.serviceCard.border}`,
                 borderRadius: "15px",
                 padding: { xs: 3, sm: 4 },
                 cursor: "pointer",
                 width: { xs: "100%", sm: "auto" },
                 minWidth: { xs: "100%", sm: "250px" },
                 maxWidth: { xs: "100%", sm: "350px" },
-                backgroundColor: isSelected ? "#2d2d2d" : "#2d2d2d",
+                backgroundColor: isSelected
+                  ? componentColors.serviceCard.selected
+                  : componentColors.serviceCard.background,
                 transition: "all 0.3s ease",
                 "&:hover": {
-                  backgroundColor: isSelected ? "#646262ff" : "#3a3a3a",
+                  backgroundColor: isSelected
+                    ? componentColors.serviceCard.selected
+                    : colors.background.card,
                   transform: "translateY(-2px)",
                   boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
                 },
@@ -94,7 +101,7 @@ export default function ProfessionalStep({
               <h4
                 style={{
                   margin: "0 0 15px 0",
-                  color: "#d9e2eaff",
+                  color: colors.text.primary,
                   fontSize: window.innerWidth < 600 ? "1.1rem" : "1.25rem",
                 }}
               >
@@ -103,7 +110,7 @@ export default function ProfessionalStep({
               <p
                 style={{
                   margin: "0 0 10px 0",
-                  color: "#b0b2b0",
+                  color: colors.text.secondary,
                   fontSize: window.innerWidth < 600 ? "0.875rem" : "1rem",
                 }}
               >
@@ -122,7 +129,7 @@ export default function ProfessionalStep({
                     size="small"
                     variant="outlined"
                     sx={{
-                      color: "#979696ff",
+                      color: colors.text.secondary,
                       borderColor: colors.accent.main,
                       fontSize: { xs: "0.7rem", sm: "0.8125rem" },
                       height: { xs: "24px", sm: "28px" },
@@ -139,7 +146,7 @@ export default function ProfessionalStep({
                   label="Selected"
                   sx={{
                     mt: 2,
-                    backgroundColor: colors.accent.main,
+                    backgroundColor: componentColors.serviceCard.selected,
                     color: colors.text.primary,
                     fontWeight: "bold",
                     fontSize: { xs: "0.75rem", sm: "0.875rem" },

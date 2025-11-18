@@ -75,8 +75,9 @@ export default function CompleteProfileModal({
       setFullName("");
       setPhone("");
       onClose();
-    } catch (err: any) {
-      alert("Error saving profile: " + err.message);
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message ?? String(err);
+      alert("Error saving profile: " + msg);
     } finally {
       setLoading(false);
     }

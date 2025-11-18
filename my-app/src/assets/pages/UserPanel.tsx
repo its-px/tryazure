@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setCurrentStep, setUserSelections } from "../../slices/appSlice";
 import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
+import { getColors } from "../../theme";
 import { Calendar } from "../components/calendar";
 import NavigationComponent from "../components/NavigationComponent";
 import LocationStep from "../components/LocationStep";
@@ -25,6 +26,8 @@ import TimeSlotsStep from "../components/TimeSlotsStep";
 import { fetchServices, type Service } from "../components/servicesService";
 
 export default function UserPanel() {
+  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
+  const colors = getColors(mode);
   // Page navigation
   const [currentPage, setCurrentPage] = React.useState<
     "booking" | "info" | "qr" | "account"
@@ -572,24 +575,26 @@ export default function UserPanel() {
                 </h3>
 
                 {availableDates.length === 0 ? (
-                  <div
-                    style={{
-                      padding: "40px",
-                      backgroundColor: "#fff3cd",
-                      border: "2px solid #ffc107",
-                      borderRadius: "10px",
-                      margin: "20px",
+                  <Box
+                    sx={{
+                      padding: 4,
+                      backgroundColor: colors.background.card,
+                      border: `2px solid ${colors.border.main}`,
+                      borderRadius: 2,
+                      margin: 2,
                     }}
                   >
-                    <h4 style={{ color: "#856404" }}>No Available Dates</h4>
-                    <p style={{ color: "#856404" }}>
+                    <h4 style={{ color: colors.text.primary }}>
+                      No Available Dates
+                    </h4>
+                    <p style={{ color: colors.text.secondary }}>
                       This professional has no available dates. Either all dates
                       are booked or the admin hasn't set any availability yet.
                     </p>
-                    <p style={{ color: "#856404" }}>
+                    <p style={{ color: colors.text.secondary }}>
                       Please go back and select a different professional.
                     </p>
-                  </div>
+                  </Box>
                 ) : (
                   <>
                     <p>Choose an available date for your appointment:</p>
@@ -620,19 +625,25 @@ export default function UserPanel() {
                       }
                     />
                     {selectedDate && (
-                      <div
-                        style={{
-                          marginTop: "10px",
-                          marginBottom: "40px",
-                          padding: "30px",
-                          backgroundColor: "#1b5e20",
-                          borderRadius: "5px",
+                      <Box
+                        sx={{
+                          mt: 1,
+                          mb: 5,
+                          p: 3,
+                          backgroundColor: colors.accent.main,
+                          borderRadius: 1,
                         }}
                       >
-                        <p style={{ margin: 0, fontWeight: "bold" }}>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontWeight: "bold",
+                            color: colors.text.primary,
+                          }}
+                        >
                           Selected Date: {selectedDate}
                         </p>
-                      </div>
+                      </Box>
                     )}
                   </>
                 )}
@@ -664,20 +675,18 @@ export default function UserPanel() {
                     {selectedSlot.end_time.substring(0, 5)}
                   </p>
                 )}
-                <button
+                <Button
                   onClick={handleCompleteBooking}
-                  style={{
-                    marginTop: "20px",
-                    padding: "10px 20px",
-                    backgroundColor: "#1b5e20",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "5px",
-                    cursor: "pointer",
+                  variant="contained"
+                  sx={{
+                    mt: 2,
+                    px: 3,
+                    backgroundColor: colors.accent.main,
+                    "&:hover": { backgroundColor: colors.accent.hover },
                   }}
                 >
                   Confirm Booking
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -692,7 +701,7 @@ export default function UserPanel() {
         minHeight: "100vh",
         margin: 0,
         padding: 0,
-        backgroundColor: "#1e1e1e",
+        backgroundColor: colors.background.dark,
       }}
     >
       {/* Login Modal - Always available, controlled by showLoginModal state */}

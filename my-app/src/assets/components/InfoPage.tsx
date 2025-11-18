@@ -1,56 +1,72 @@
-import { Box, Button,  Typography, Paper} from "@mui/material";
+import { Box, Button, Typography, Paper } from "@mui/material";
 import { Phone, Room } from "@mui/icons-material";
+import { useSelector } from "react-redux";
+import type { RootState } from "../../configureStore";
+import { getColors } from "../../theme";
 
 export default function InfoPage() {
+  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
+  const colors = getColors(mode);
   return (
-    // na to ftiajo na min einai tetoio xroma 
-    <Box sx={{ backgroundColor: "#1e1e1e", color: "#fff", minHeight: "100vh", p: 3 }}>
-     
-
-   
-
+    <Box
+      sx={{
+        backgroundColor: colors.background.dark,
+        color: colors.text.primary,
+        minHeight: "100vh",
+        p: 3,
+      }}
+    >
       {/* Banner */}
       <Box textAlign="center" mt={3}>
         <Box
           component="img"
           src="/petsas_banner.png"
           alt="Banner"
-          sx={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 2 }}
+          sx={{
+            width: "100%",
+            maxHeight: 200,
+            objectFit: "cover",
+            borderRadius: 2,
+          }}
         />
       </Box>
 
       {/* Map */}
-    {/* Map */}
-<Box textAlign="center" mt={3}>
-  <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden" }}>
-    <iframe
-      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d14953.81620692819!2d23.820820724187612!3d38.00856262005867!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14a199006a263933%3A0xe1d2d53fa6b0e3b!2sTaco%20Bell!5e0!3m2!1sel!2sgr!4v1759265315524!5m2!1sel!2sgr"
-      width="100%"
-      height="250"
-      style={{ border: 0 }}
-      allowFullScreen
-      loading="lazy"
-      referrerPolicy="no-referrer-when-downgrade"
-    />
-    <Button startIcon={<Room />} sx={{ mt: 1, color: "#2e7d32" }}>
-      Directions
-    </Button>
-  </Paper>
-</Box>
-
+      <Box textAlign="center" mt={3}>
+        <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden" }}>
+          <iframe
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d14953.81620692819!2d23.820820724187612!3d38.00856262005867!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14a199006a263933%3A0xe1d2d53fa6b0e3b!2sTaco%20Bell!5e0!3m2!1sel!2sgr!4v1759265315524!5m2!1sel!2sgr"
+            width="100%"
+            height="250"
+            style={{ border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+          <Button
+            startIcon={<Room />}
+            sx={{ mt: 1, color: colors.accent.main }}
+          >
+            Directions
+          </Button>
+        </Paper>
+      </Box>
 
       {/* Business Info */}
       <Box textAlign="center" mt={4}>
         <Typography variant="h5">Name&apos;s Company</Typography>
-        <Typography variant="body2" sx={{ color: "gray" }}>
+        <Typography variant="body2" sx={{ color: colors.text.secondary }}>
           Πεικων 22, Μεταμορφωση, Greece, 14451
         </Typography>
-
         {/* Call button */}
         <Button
           startIcon={<Phone />}
           variant="contained"
-          sx={{ mt: 2, backgroundColor: "#2e7d32" }}
+          sx={{
+            mt: 2,
+            backgroundColor: colors.accent.main,
+            "&:hover": { backgroundColor: colors.accent.hover },
+          }}
         >
           Call
         </Button>
@@ -77,7 +93,8 @@ export default function InfoPage() {
                 display: "flex",
                 justifyContent: "space-between",
                 p: 1,
-                bgcolor: idx % 2 === 0 ? "#2e2e2e" : "transparent",
+                bgcolor:
+                  idx % 2 === 0 ? colors.background.medium : "transparent",
               }}
             >
               <Typography>{item.day}</Typography>

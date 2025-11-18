@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // notif.ts
 
 // Fetch the names of services given their UUIDs
