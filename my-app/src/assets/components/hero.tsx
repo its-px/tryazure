@@ -359,19 +359,26 @@ export default function Hero({
           <InfoIcon sx={{ fontSize: "1.5rem" }} />
         </IconButton>
 
-        {/* QR Code */}
+        {/* Theme Toggle - Mobile (replaces QR code) */}
         <IconButton
-          onClick={onQRClick}
+          onClick={() => dispatch(toggleTheme())}
           sx={{
             flexDirection: "column",
             color: colors.text.primary,
             borderRadius: "8px",
             padding: "8px 12px",
-            ...activeStyle(currentPage === "qr"),
-            "&:hover": { backgroundColor: colors.background.card },
           }}
+          aria-label={
+            themeMode === "dark"
+              ? "Switch to light theme"
+              : "Switch to dark theme"
+          }
         >
-          <QrCodeIcon sx={{ fontSize: "1.5rem" }} />
+          {themeMode === "dark" ? (
+            <Brightness7Icon sx={{ fontSize: "1.5rem" }} />
+          ) : (
+            <Brightness4Icon sx={{ fontSize: "1.5rem" }} />
+          )}
         </IconButton>
 
         {/* User Account */}
