@@ -1,32 +1,32 @@
 import { createTheme } from "@mui/material/styles";
 
-// Single accent color palette - GREEN with DARK theme
-export const colors = {
+// Color palettes for dark and light themes
+const darkColors = {
   accent: {
-    main: "#2e7d32", // Main green accent
-    light: "#4caf50", // Lighter green
-    dark: "#1b5e20", // Darker green
-    hover: "#1b5e20", // Hover state
+    main: "#2e7d32",
+    light: "#4caf50",
+    dark: "#1b5e20",
+    hover: "#1b5e20",
   },
   background: {
-    dark: "#1e1e1e", // Main dark background
-    medium: "#2e2e2e", // Medium dark (cards)
-    card: "#3a3a3a", // Card background (lighter than medium)
-    light: "#4a4a4a", // Light gray for contrast
-    overlay: "rgba(46, 125, 50, 0.1)", // Green overlay
+    dark: "#1e1e1e",
+    medium: "#2e2e2e",
+    card: "#3a3a3a",
+    light: "#4a4a4a",
+    overlay: "rgba(46, 125, 50, 0.1)",
   },
   text: {
-    primary: "#ffffff", // White text
-    secondary: "#cccccc", // Light gray text
-    tertiary: "#999999", // Muted gray
-    dark: "#333333", // Dark text for light backgrounds
-    muted: "#808080", // Gray
+    primary: "#ffffff",
+    secondary: "#cccccc",
+    tertiary: "#999999",
+    dark: "#333333",
+    muted: "#808080",
   },
   status: {
-    confirmed: "#2e7d32", // Green for confirmed
-    pending: "#2e7d32", // Green for pending
-    cancelled: "#f44336", // Red for cancelled only
-    default: "#9e9e9e", // Gray default
+    confirmed: "#2e7d32",
+    pending: "#2e7d32",
+    cancelled: "#f44336",
+    default: "#9e9e9e",
   },
   error: {
     main: "#d32f2f",
@@ -34,7 +34,7 @@ export const colors = {
   },
   border: {
     main: "#555555",
-    accent: "#2e7d32", // Green border
+    accent: "#2e7d32",
   },
   neutral: {
     white: "#ffffff",
@@ -43,7 +43,6 @@ export const colors = {
     darkGray: "#666666",
     disabled: "#999999",
   },
-  // Aliases for backward compatibility
   primary: {
     main: "#2e7d32",
     light: "#4caf50",
@@ -56,8 +55,66 @@ export const colors = {
   },
 };
 
-// Common styling patterns
-export const commonStyles = {
+const lightColors = {
+  accent: {
+    main: "#388e3c", // Slightly lighter green
+    light: "#66bb6a",
+    dark: "#006400",
+    hover: "#2e7d32",
+  },
+  background: {
+    dark: "#f5f5f5", // Main light background
+    medium: "#ffffff", // Card background
+    card: "#f0f0f0", // Slightly darker than white
+    light: "#fafafa",
+    overlay: "rgba(56, 142, 60, 0.08)",
+  },
+  text: {
+    primary: "#222222",
+    secondary: "#444444",
+    tertiary: "#888888",
+    dark: "#111111",
+    muted: "#aaaaaa",
+  },
+  status: {
+    confirmed: "#388e3c",
+    pending: "#388e3c",
+    cancelled: "#e53935",
+    default: "#bdbdbd",
+  },
+  error: {
+    main: "#e53935",
+    dark: "#b71c1c",
+  },
+  border: {
+    main: "#cccccc",
+    accent: "#388e3c",
+  },
+  neutral: {
+    white: "#ffffff",
+    lightGray: "#f5f5f5",
+    mediumGray: "#cccccc",
+    darkGray: "#666666",
+    disabled: "#bbbbbb",
+  },
+  primary: {
+    main: "#388e3c",
+    light: "#66bb6a",
+    dark: "#006400",
+    hover: "#2e7d32",
+  },
+  google: {
+    main: "#ff6b6b",
+    hover: "#ff5252",
+  },
+};
+
+// Helper to get palette by mode
+export const getColors = (mode: "light" | "dark") =>
+  mode === "light" ? lightColors : darkColors;
+
+// Common styling patterns (function, accepts palette)
+export const getCommonStyles = (colors: typeof darkColors) => ({
   card: {
     boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
     borderRadius: "10px",
@@ -99,110 +156,114 @@ export const commonStyles = {
     padding: { xs: 2, sm: 3, md: 4 },
     minHeight: "100vh",
   },
-};
+});
 
-// Component-specific colors (all using green accent with dark backgrounds)
-export const componentColors = {
+// Component-specific colors (function, accepts palette)
+export const getComponentColors = (colors: typeof darkColors) => ({
   navigationButton: {
-    background: "#2e2e2e", // Dark background instead of green
-    text: "#ffffff",
-    border: "#2e7d32",
+    background: colors.background.medium,
+    text: colors.text.primary,
+    border: colors.accent.main,
     disabled: {
-      background: "#555555",
-      text: "#999999",
+      background: colors.border.main,
+      text: colors.neutral.disabled,
     },
   },
   serviceCard: {
-    background: "#2e2e2e", // Dark card background
-    border: "#555555", // Dark border
-    selected: "#2e7d32", // Green when selected
-    selectedBorder: "#2e7d32",
-    text: "#ffffff", // White text
-    textSelected: "#ffffff",
+    background: colors.background.medium,
+    border: colors.border.main,
+    selected: colors.accent.main,
+    selectedBorder: colors.accent.main,
+    text: colors.text.primary,
+    textSelected: colors.text.primary,
   },
   locationCard: {
-    background: "#2e2e2e", // Dark card background
-    border: "#555555", // Dark border
-    hover: "#3a3a3a", // Slightly lighter on hover
-    text: "#ffffff", // White text
+    background: colors.background.medium,
+    border: colors.border.main,
+    hover: colors.background.card,
+    text: colors.text.primary,
   },
   chip: {
-    background: "#3a3a3a",
-    border: "#2e7d32",
-    text: "#2e7d32",
+    background: colors.background.card,
+    border: colors.accent.main,
+    text: colors.accent.main,
     hover: {
-      background: "rgba(46, 125, 50, 0.2)",
+      background: colors.background.overlay,
     },
   },
   activeButton: {
-    background: "#2e7d32",
-    text: "#ffffff",
+    background: colors.accent.main,
+    text: colors.text.primary,
   },
   inactiveButton: {
-    background: "#555555",
-    text: "#ffffff",
+    background: colors.border.main,
+    text: colors.text.primary,
   },
-};
+});
 
-// MUI theme override - single accent color with dark theme
-export const muiTheme = createTheme({
-  palette: {
-    mode: "dark",
-    primary: {
-      main: colors.accent.main,
-      light: colors.accent.light,
-      dark: colors.accent.dark,
+// MUI theme override - returns a theme for the given mode
+export const getMuiTheme = (mode: "light" | "dark") => {
+  const colors = getColors(mode);
+  return createTheme({
+    palette: {
+      mode,
+      primary: {
+        main: colors.accent.main,
+        light: colors.accent.light,
+        dark: colors.accent.dark,
+      },
+      secondary: {
+        main: colors.accent.main,
+      },
+      error: {
+        main: colors.error.main,
+      },
+      background: {
+        default: colors.background.dark,
+        paper: colors.background.medium,
+      },
+      text: {
+        primary: colors.text.primary,
+        secondary: colors.text.secondary,
+      },
     },
-    secondary: {
-      main: colors.accent.main, // Use same green for secondary
-    },
-    error: {
-      main: colors.error.main,
-    },
-    background: {
-      default: colors.background.dark,
-      paper: colors.background.medium,
-    },
-    text: {
-      primary: colors.text.primary,
-      secondary: colors.text.secondary,
-    },
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
+    components: {
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            textTransform: "none",
+          },
+          contained: {
+            backgroundColor: colors.accent.main,
+            "&:hover": {
+              backgroundColor: colors.accent.hover,
+            },
+          },
         },
-        contained: {
-          backgroundColor: colors.accent.main,
-          "&:hover": {
-            backgroundColor: colors.accent.hover,
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            backgroundColor: colors.background.medium,
+            color: colors.text.primary,
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundColor: colors.background.medium,
+            color: colors.text.primary,
           },
         },
       },
     },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundColor: colors.background.medium,
-          color: colors.text.primary,
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundColor: colors.background.medium,
-          color: colors.text.primary,
-        },
-      },
-    },
-  },
-});
+  });
+};
 
 // Helper functions
-export const getStatusColor = (status: string) => {
+// Pass the palette you want to use (from getColors(mode))
+export const getStatusColor = (status: string, colors: typeof darkColors) => {
   switch (status) {
     case "confirmed":
       return colors.status.confirmed;
@@ -215,7 +276,10 @@ export const getStatusColor = (status: string) => {
   }
 };
 
-export const getActiveStyle = (isActive: boolean) => ({
+export const getActiveStyle = (
+  isActive: boolean,
+  colors: typeof darkColors
+) => ({
   backgroundColor: isActive ? colors.accent.main : colors.background.card,
   fontWeight: isActive ? "bold" : "normal",
 });

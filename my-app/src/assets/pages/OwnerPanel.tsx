@@ -368,13 +368,71 @@ export default function OwnerPanel() {
               <Typography variant="body1">
                 <strong>Services:</strong> {getServiceNames(selectedBooking.services)}
               </Typography>
-              <Typography variant="body1">
-                <strong>Status:</strong> {selectedBooking.status.toUpperCase()}
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                <strong>Status:</strong> 
+                <span style={{ 
+                  marginLeft: '8px',
+                  padding: '4px 12px',
+                  borderRadius: '12px',
+                  backgroundColor: selectedBooking.status === 'confirmed' ? '#4caf50' : 
+                                  selectedBooking.status === 'pending' ? '#ff9800' : '#f44336',
+                  color: 'white',
+                  fontSize: '0.875rem',
+                  fontWeight: 'bold'
+                }}>
+                  {selectedBooking.status.toUpperCase()}
+                </span>
               </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
+          {selectedBooking && selectedBooking.status === 'pending' && (
+            <Button 
+              onClick={async () => {
+                const { error } = await supabase
+                  .from("bookings")
+                  .update({ status: 'confirmed' })
+                  .eq("id", selectedBooking.id);
+                
+                if (error) {
+                  alert("Error updating status: " + error.message);
+                } else {
+                  alert("✅ Booking confirmed!");
+                  await loadBookings();
+                  setShowBookingDialog(false);
+                }
+              }}
+              variant="contained"
+              color="success"
+              sx={{ mr: 1 }}
+            >
+              Confirm Booking
+            </Button>
+          )}
+          {selectedBooking && selectedBooking.status === 'confirmed' && (
+            <Button 
+              onClick={async () => {
+                const { error } = await supabase
+                  .from("bookings")
+                  .update({ status: 'pending' })
+                  .eq("id", selectedBooking.id);
+                
+                if (error) {
+                  alert("Error updating status: " + error.message);
+                } else {
+                  alert("Booking status changed to pending");
+                  await loadBookings();
+                  setShowBookingDialog(false);
+                }
+              }}
+              variant="outlined"
+              color="warning"
+              sx={{ mr: 1 }}
+            >
+              Set to Pending
+            </Button>
+          )}
           <Button onClick={() => setShowBookingDialog(false)} variant="contained">
             Close
           </Button>

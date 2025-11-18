@@ -57,3 +57,11 @@ twra to login tou localhost paei sto site
 
  na valw to email when selection our place to the location of the shop  and fix the time issue cause in the google calendar adds +3 hours to the booking 
  
+
+
+ na valo redux gia ta steps 
+ kai sto login
+
+ na menoun oi users loged in 
+ useHistory kai userLocation gia to url 
+ na valo ta navigation me router . na pigenei /user profile ( routing to component )

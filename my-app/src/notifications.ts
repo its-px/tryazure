@@ -1,5 +1,22 @@
 // notif.ts
 
+// Fetch the names of services given their UUIDs
+export async function fetchServiceNames(supabase: any, serviceIds: string[]) {
+  if (!serviceIds || serviceIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("services")
+    .select("id, name")
+    .in("id", serviceIds);
+
+  if (error) {
+    console.error("Error fetching service names:", error);
+    return serviceIds; // fallback to showing IDs if something fails
+  }
+
+  return data.map((s: any) => s.name);
+}
+
 // Wait for whichever Service Worker is active (VitePWA or Prod)
 export async function getActiveServiceWorker() {
   if ("serviceWorker" in navigator) {
@@ -21,14 +38,39 @@ export async function requestNotificationPermission() {
 }
 
 // Show booking confirmation
-export async function showBookingNotification(booking: any) {
+export async function showBookingNotification(booking: any, supabase: any) {
   const permission = await requestNotificationPermission();
   if (permission !== "granted") return;
+
+  // Parse booking.services - it could be a JSON string, array, or comma-separated string
+  let serviceIds: string[] = [];
+  if (typeof booking.services === "string") {
+    try {
+      // Try to parse as JSON first
+      const parsed = JSON.parse(booking.services);
+      serviceIds = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      // If not JSON, try splitting by comma
+      serviceIds = booking.services
+        .split(",")
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 0);
+    }
+  } else if (Array.isArray(booking.services)) {
+    serviceIds = booking.services;
+  } else {
+    serviceIds = [booking.services];
+  }
+
+  // Fetch service names
+  const serviceNames = await fetchServiceNames(supabase, serviceIds);
+  const servicesText =
+    serviceNames.length > 0 ? serviceNames.join(", ") : serviceIds.join(", "); // Fallback to IDs if names can't be fetched
 
   const reg = await getActiveServiceWorker();
   const title = "Booking Confirmed!";
   const options = {
-    body: `Your booking for ${booking.services} on ${booking.date} is confirmed 🎉`,
+    body: `Your booking for ${servicesText} on ${booking.date} is confirmed 🎉`,
     icon: "/logo.png",
     badge: "/logo.png",
     tag: `booking-${booking.id}`,

@@ -1,6 +1,8 @@
 import { Box, Button, Typography, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
-import { colors } from "../../theme";
+import { useSelector } from "react-redux";
+import type { RootState } from "../../configureStore";
+import { getColors } from "../../theme";
 import { getAvailableSlots } from "./slotService";
 
 interface TimeSlot {
@@ -21,7 +23,7 @@ export default function TimeSlotsStep({
   selectedDate,
   serviceDuration,
   selectedSlot,
-  onSlotSelect
+  onSlotSelect,
 }: TimeSlotsStepProps) {
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,21 +40,41 @@ export default function TimeSlotsStep({
         selectedDate,
         serviceDuration
       );
-      setSlots(availableSlots);
+
+      // Filter out past time slots if booking for today
+      const today = new Date().toISOString().split("T")[0];
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
+
+      let filteredSlots = availableSlots;
+      if (selectedDate === today) {
+        // Only show slots that start after current time for today
+        filteredSlots = availableSlots.filter(
+          (slot: TimeSlot) => slot.start_time > currentTime
+        );
+      }
+
+      setSlots(filteredSlots);
       setLoading(false);
     };
 
     loadSlots();
   }, [professionalId, selectedDate, serviceDuration]);
 
+  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
+  const colors = getColors(mode);
+
   if (loading) {
     return (
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '200px',
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "200px",
           backgroundColor: colors.background.dark,
         }}
       >
@@ -66,7 +88,7 @@ export default function TimeSlotsStep({
       sx={{
         padding: { xs: 2, sm: 3, md: 4 },
         backgroundColor: colors.background.dark,
-        minHeight: '100vh',
+        minHeight: "100vh",
       }}
     >
       <Typography
@@ -75,25 +97,26 @@ export default function TimeSlotsStep({
         sx={{
           mb: 3,
           color: colors.text.primary,
-          fontSize: { xs: '1.25rem', sm: '1.5rem' },
+          fontSize: { xs: "1.25rem", sm: "1.5rem" },
         }}
       >
         Select a Time Slot
       </Typography>
 
       {slots.length === 0 ? (
-        <Typography
-          textAlign="center"
-          sx={{ color: colors.text.secondary }}
-        >
+        <Typography textAlign="center" sx={{ color: colors.text.secondary }}>
           No available slots for this date and service duration
         </Typography>
       ) : (
         <Box
           display="grid"
-          gridTemplateColumns={{ xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' }}
+          gridTemplateColumns={{
+            xs: "repeat(2, 1fr)",
+            sm: "repeat(3, 1fr)",
+            md: "repeat(4, 1fr)",
+          }}
           gap={2}
-          sx={{ maxWidth: '600px', margin: '0 auto' }}
+          sx={{ maxWidth: "600px", margin: "0 auto" }}
         >
           {slots.map((slot) => (
             <Button
@@ -109,15 +132,15 @@ export default function TimeSlotsStep({
                 backgroundColor:
                   selectedSlot?.start_time === slot.start_time
                     ? colors.accent.main
-                    : 'transparent',
+                    : "transparent",
                 color:
                   selectedSlot?.start_time === slot.start_time
                     ? colors.text.primary
                     : colors.text.secondary,
                 borderColor: colors.accent.main,
-                borderWidth: '2px',
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                '&:hover': {
+                borderWidth: "2px",
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                "&:hover": {
                   backgroundColor:
                     selectedSlot?.start_time === slot.start_time
                       ? colors.accent.main
@@ -125,7 +148,8 @@ export default function TimeSlotsStep({
                 },
               }}
             >
-              {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
+              {slot.start_time.substring(0, 5)} -{" "}
+              {slot.end_time.substring(0, 5)}
             </Button>
           ))}
         </Box>

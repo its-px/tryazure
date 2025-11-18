@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { setCurrentStep, setUserSelections } from "../../slices/appSlice";
+import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
 import { Calendar } from "../components/calendar";
 import NavigationComponent from "../components/NavigationComponent";
@@ -13,33 +17,83 @@ import { Button } from "@mui/material";
 import UserAccountPage from "../components/UserAccountPage";
 //import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import { Link } from "react-router-dom";
-import { showBookingNotification, checkUpcomingAppointments } from "../../notifications";
-import  TimeSlotsStep  from "../components/TimeSlotsStep";
+import {
+  showBookingNotification,
+  checkUpcomingAppointments,
+} from "../../notifications";
+import TimeSlotsStep from "../components/TimeSlotsStep";
 import { fetchServices, type Service } from "../components/servicesService";
-
-
-
-
-
 
 export default function UserPanel() {
   // Page navigation
-  const [currentPage, setCurrentPage] = useState<'booking' | 'info' | 'qr' | 'account'>('booking');
+  const [currentPage, setCurrentPage] = React.useState<
+    "booking" | "info" | "qr" | "account"
+  >("booking");
 
   // Booking states
-  const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  const [currentStep, setCurrentStep] = useState(1);
+  const [availableDates, setAvailableDates] = React.useState<string[]>([]);
+  const [showLoginModal, setShowLoginModal] = React.useState(false);
+  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [services, setServices] = React.useState<Service[]>([]);
+
+  const dispatch = useDispatch();
+  const currentStep =
+    useSelector((state: RootState) => state.app.currentStep) ?? 1;
+  const userSelections = useSelector(
+    (state: RootState) => state.app.userSelections
+  ) as {
+    selectedLocation: "your_place" | "our_place" | null;
+    selectedServices: string[];
+    selectedProfessional: string | null;
+    selectedDate: string;
+    selectedSlot: { start_time: string; end_time: string } | null;
+    serviceDuration: number;
+  } | null;
+  const {
+    selectedLocation = null,
+    selectedServices = [],
+    selectedProfessional = null,
+    selectedDate = "",
+    selectedSlot = null,
+    serviceDuration = 0,
+  } = userSelections || {};
   const totalSteps = 5;
-  const [selectedLocation, setSelectedLocation] = useState<'your_place' | 'our_place' | null>(null);
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  //const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<{ start_time: string; end_time: string } | null>(null);
-const [serviceDuration, setServiceDuration] = useState(0);
-const [services, setServices] = useState<Service[]>([]);
+
+  // Save booking state to localStorage whenever Redux state changes (do NOT dispatch here)
+  useEffect(() => {
+    const bookingState = {
+      selectedLocation,
+      selectedServices,
+      selectedProfessional,
+      selectedDate,
+      selectedSlot,
+      currentStep,
+      serviceDuration,
+    };
+    localStorage.setItem("bookingState", JSON.stringify(bookingState));
+  }, [
+    selectedLocation,
+    selectedServices,
+    selectedProfessional,
+    selectedDate,
+    selectedSlot,
+    currentStep,
+    serviceDuration,
+  ]);
+
+  // Restore booking state from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem("bookingState");
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        dispatch(setUserSelections(state));
+        if (state.currentStep) dispatch(setCurrentStep(state.currentStep));
+      } catch (err) {
+        console.error("Error restoring booking state:", err);
+      }
+    }
+  }, [dispatch]);
 
   // Load services from database
   useEffect(() => {
@@ -50,15 +104,26 @@ const [services, setServices] = useState<Service[]>([]);
     loadServices();
   }, []);
 
-        useEffect(() => {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data?.type === 'SHOW_ACCOUNT_PAGE') {
-        setCurrentPage('account'); // <-- switch to User Account
-      }
-    });
-  }
-}, []);
+  // Reload services when user logs in (in case services changed)
+  useEffect(() => {
+    if (isLoggedIn) {
+      const loadServices = async () => {
+        const data = await fetchServices();
+        setServices(data);
+      };
+      loadServices();
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data?.type === "SHOW_ACCOUNT_PAGE") {
+          setCurrentPage("account"); // <-- switch to User Account
+        }
+      });
+    }
+  }, []);
 
   // Load available dates based on selected professional
   useEffect(() => {
@@ -73,13 +138,6 @@ const [services, setServices] = useState<Service[]>([]);
         return;
       }
 
-
-      
-  
-    
-   
-    
-
       const { data: shopDates, error: shopError } = await supabase
         .from("availability")
         .select("date");
@@ -93,19 +151,22 @@ const [services, setServices] = useState<Service[]>([]);
       // Check each date to see if it has any available slots
       // Only include dates that have at least one available slot
       const datesWithSlots: string[] = [];
-      
+
       for (const dateEntry of shopDates) {
         const date = dateEntry.date;
         // Check if there are any available slots for this date
         // We'll use a minimum service duration of 30 minutes for the check
         // If serviceDuration is set, use it; otherwise use 30 minutes as default
         const checkDuration = serviceDuration > 0 ? serviceDuration : 30;
-        
-        const { data: slots, error: slotsError } = await supabase.rpc("get_available_slots", {
-          p_professional_id: selectedProfessional,
-          p_date: date,
-          p_service_duration_minutes: checkDuration,
-        });
+
+        const { data: slots, error: slotsError } = await supabase.rpc(
+          "get_available_slots",
+          {
+            p_professional_id: selectedProfessional,
+            p_date: date,
+            p_service_duration_minutes: checkDuration,
+          }
+        );
 
         if (!slotsError && slots && slots.length > 0) {
           datesWithSlots.push(date);
@@ -119,38 +180,46 @@ const [services, setServices] = useState<Service[]>([]);
   }, [selectedProfessional, serviceDuration]);
 
   const handleServiceToggle = (serviceId: string) => {
-    setSelectedServices(prev => {
-      const newSelectedServices = prev.includes(serviceId)
-        ? prev.filter(id => id !== serviceId)
-        : [...prev, serviceId];
-
-      // Calculate total duration based on selected services from database
-      const totalDuration = newSelectedServices.reduce((sum, id) => {
-        const service = services.find(s => s.id === id);
+    const newSelectedServices: string[] = Array.isArray(selectedServices)
+      ? selectedServices.includes(serviceId)
+        ? selectedServices.filter((id: string) => id !== serviceId)
+        : [...selectedServices, serviceId]
+      : [serviceId];
+    // Calculate total duration based on selected services from database
+    const totalDuration = newSelectedServices.reduce(
+      (sum: number, id: string) => {
+        const service = services.find((s) => s.id === id);
         return sum + (service?.duration_minutes || 0);
-      }, 0);
-
-      setServiceDuration(totalDuration);
-
-      return newSelectedServices;
-    });
+      },
+      0
+    );
+    dispatch(
+      setUserSelections({
+        ...userSelections,
+        selectedServices: newSelectedServices,
+        serviceDuration: totalDuration,
+      })
+    );
   };
 
-const handleNextStep = () => {
-  // If moving to final step (summary/booking), check login
-  if (currentStep === 4 && !isLoggedIn) {
-    setShowLoginModal(true);
-    alert("Please login to complete your booking");
-    return;
-  }  if (canProceedNext()) {
-    setCurrentStep(currentStep + 1);
-  }
-};
+  const handleNextStep = () => {
+    // If moving to final step (summary/booking), check login
+    if (currentStep === 4 && !isLoggedIn) {
+      setShowLoginModal(true);
+      alert("Please login to complete your booking");
+      return;
+    }
+    if (canProceedNext()) {
+      dispatch(setCurrentStep(currentStep + 1));
+    }
+  };
 
   // Check if user is logged in
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setIsLoggedIn(!!user);
 
       // Check for upcoming appointments when user logs in
@@ -162,68 +231,102 @@ const handleNextStep = () => {
     checkAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const wasLoggedOut = !isLoggedIn && !!session;
       setIsLoggedIn(!!session);
 
-      // Check for upcoming appointments when user logs in
-      if (session?.user) {
+      // If user just logged in, restore booking state and close login modal
+      if (wasLoggedOut && session?.user) {
+        await checkUpcomingAppointments(supabase, session.user.id);
+        setShowLoginModal(false);
+
+        // Restore booking state from localStorage
+        const savedState = localStorage.getItem("bookingState");
+        if (savedState) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const state = JSON.parse(savedState);
+            // All state is now handled by Redux, so just dispatch setUserSelections and setCurrentStep above
+          } catch (err) {
+            console.error("Error restoring booking state:", err);
+          }
+        }
+      } else if (session?.user) {
         await checkUpcomingAppointments(supabase, session.user.id);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
+  }, [isLoggedIn]);
 
   const handleProfessionalSelect = (professionalId: string) => {
-    setSelectedProfessional(professionalId);
-    setSelectedDate("");
+    dispatch(
+      setUserSelections({
+        ...userSelections,
+        selectedProfessional: professionalId,
+        selectedDate: "",
+      })
+    );
   };
 
-  const handleLocationSelect = (location: 'your_place' | 'our_place') => {
-    setSelectedLocation(location);
-    setCurrentStep(2);
+  const handleLocationSelect = (location: "your_place" | "our_place") => {
+    dispatch(
+      setUserSelections({
+        ...userSelections,
+        selectedLocation: location,
+      })
+    );
+    dispatch(setCurrentStep(2));
   };
 
-  
   const canProceedNext = () => {
     switch (currentStep) {
-      case 1: return selectedLocation !== null;
-      case 2: return selectedServices.length > 0;
-      case 3: return selectedProfessional !== null;
-      case 4: return selectedDate !== "" && availableDates.length > 0 && selectedSlot !== null;
-      case 5: return false;
-      default: return false;
+      case 1:
+        return selectedLocation !== null;
+      case 2:
+        return Array.isArray(selectedServices) && selectedServices.length > 0;
+      case 3:
+        return selectedProfessional !== null;
+      case 4:
+        return (
+          selectedDate !== "" &&
+          availableDates.length > 0 &&
+          selectedSlot !== null
+        );
+      case 5:
+        return false;
+      default:
+        return false;
     }
   };
 
   const handleCompleteBooking = async () => {
-    if (!selectedDate || !selectedLocation || !selectedProfessional || selectedServices.length === 0 || !selectedSlot) {
+    if (
+      !selectedDate ||
+      !selectedLocation ||
+      !selectedProfessional ||
+      !Array.isArray(selectedServices) ||
+      selectedServices.length === 0 ||
+      !selectedSlot
+    ) {
       alert("Please complete all steps including selecting a time slot");
       return;
     }
     if (!isLoggedIn) {
-    setShowLoginModal(true);
-    alert("Please login to complete your booking");
-    return;
-  }
-
-
-
-    const { data: existingBooking, error: checkError } = await supabase
-      .from("bookings")
-      .select("id")
-      .eq("professional_id", selectedProfessional)
-      .eq("date", selectedDate)
-      .maybeSingle();
-
-
-
-      
-    if (existingBooking) {
-      alert("❌ This professional is already booked on this date. Please select a different date or professional.");
+      setShowLoginModal(true);
+      alert("Please login to complete your booking");
       return;
     }
+
+    // Check for overlapping time slots instead of just checking if date is booked
+    // Two time slots overlap if: new_start < existing_end AND new_end > existing_start
+    const { data: conflictingBookings, error: checkError } = await supabase
+      .from("bookings")
+      .select("id, start_time, end_time")
+      .eq("professional_id", selectedProfessional)
+      .eq("date", selectedDate);
 
     if (checkError) {
       console.error("Error checking booking:", checkError);
@@ -231,7 +334,29 @@ const handleNextStep = () => {
       return;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // Check if any existing booking overlaps with the selected time slot
+    if (conflictingBookings && conflictingBookings.length > 0) {
+      const hasOverlap = conflictingBookings.some((booking: any) => {
+        const existingStart = booking.start_time;
+        const existingEnd = booking.end_time;
+        const newStart = selectedSlot.start_time;
+        const newEnd = selectedSlot.end_time;
+
+        // Two time slots overlap if: new_start < existing_end AND new_end > existing_start
+        return newStart < existingEnd && newEnd > existingStart;
+      });
+
+      if (hasOverlap) {
+        alert(
+          "❌ This time slot is already booked. Please select a different time slot."
+        );
+        return;
+      }
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     const bookingData = {
       user_id: user?.id,
@@ -239,7 +364,7 @@ const handleNextStep = () => {
       location: selectedLocation,
       services: JSON.stringify(selectedServices),
       professional_id: selectedProfessional,
-      status: 'pending',
+      status: "confirmed",
       start_time: selectedSlot.start_time,
       end_time: selectedSlot.end_time,
     };
@@ -247,49 +372,74 @@ const handleNextStep = () => {
     const { error } = await supabase.from("bookings").insert([bookingData]);
 
     if (!user) {
-    setShowLoginModal(true);
-    alert("Please login to complete your booking");
-    return;
-  }
+      setShowLoginModal(true);
+      alert("Please login to complete your booking");
+      return;
+    }
 
     if (error) {
       console.error("Booking error:", error);
-      if (error.code === '23505') {
+      if (error.code === "23505") {
         alert("❌ This professional is already booked on this date!");
       } else {
         alert("❌ Error creating booking: " + error.message);
       }
     } else {
       alert("✅ Booking confirmed successfully!");
-      await showBookingNotification({
-  date: selectedDate,
-  services: selectedServices.join(", "),
-  id: Date.now(), // fake ID for now
-});
-      setCurrentStep(1);
-      setSelectedLocation(null);
-      setSelectedServices([]);
-      setSelectedProfessional(null);
-      setSelectedDate("");
-      setSelectedSlot(null);
-      setServiceDuration(0);
+      // Get the actual booking ID from the response if available
+      const { data: insertedBooking } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("user_id", user?.id)
+        .eq("date", selectedDate)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-      const serviceNames = selectedServices.map(id => {
-  const s = services.find(s => s.id === id);
-  return s?.name || id; // fallback to id if not found
-});
+      await showBookingNotification(
+        {
+          date: selectedDate,
+          services: selectedServices, // Pass array directly
+          id: insertedBooking?.id || Date.now(),
+        },
+        supabase
+      );
+      // Clear booking state and localStorage
+      dispatch(setCurrentStep(1));
+      dispatch(
+        setUserSelections({
+          selectedLocation: null,
+          selectedServices: [],
+          selectedProfessional: null,
+          selectedDate: "",
+          selectedSlot: null,
+          serviceDuration: 0,
+        })
+      );
+      localStorage.removeItem("bookingState");
 
+      // If on account page, refresh it by toggling the key
+      if (currentPage === "account") {
+        // Force UserAccountPage to refresh by changing key
+        setCurrentPage("booking");
+        setTimeout(() => setCurrentPage("account"), 100);
+      }
 
-console.log("Booking payload:", {
-  email: user?.email,
-  name: user?.user_metadata?.full_name || "Customer",
-  bookingDate: selectedDate,
-  startTime: selectedSlot?.start_time, 
-  endTime: selectedSlot?.end_time, 
-  location: selectedLocation,
-  services: selectedServices,
-  professional: selectedProfessional,
-});
+      const serviceNames = selectedServices.map((id) => {
+        const s = services.find((s) => s.id === id);
+        return s?.name || id; // fallback to id if not found
+      });
+
+      console.log("Booking payload:", {
+        email: user?.email,
+        name: user?.user_metadata?.full_name || "Customer",
+        bookingDate: selectedDate,
+        startTime: selectedSlot?.start_time,
+        endTime: selectedSlot?.end_time,
+        location: selectedLocation,
+        services: selectedServices,
+        professional: selectedProfessional,
+      });
       try {
         const response = await fetch(
           "https://qrvxmqksekxbtipdnfru.supabase.co/functions/v1/send_booking_email",
@@ -297,14 +447,15 @@ console.log("Booking payload:", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFydnhtcWtzZWt4YnRpcGRuZnJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTI5MjMsImV4cCI6MjA3MTk4ODkyM30._BiC3KYWKR5HTz7osjHxxwA-mdHIy867IelMbHvsEPc",
+              Authorization:
+                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFydnhtcWtzZWt4YnRpcGRuZnJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTI5MjMsImV4cCI6MjA3MTk4ODkyM30._BiC3KYWKR5HTz7osjHxxwA-mdHIy867IelMbHvsEPc",
             },
             body: JSON.stringify({
               email: user?.email,
               name: user?.user_metadata?.full_name || "Customer",
               bookingDate: selectedDate,
-              startTime: selectedSlot.start_time, 
-              endTime: selectedSlot.end_time, 
+              startTime: selectedSlot.start_time,
+              endTime: selectedSlot.end_time,
               location: selectedLocation,
               services: serviceNames,
               professional: selectedProfessional,
@@ -321,30 +472,18 @@ console.log("Booking payload:", {
       } catch (err) {
         console.error("Error calling Edge Function:", err);
       }
-
-
-
     }
   };
 
-
-  // const handleLogout = async () => {
-  //   await supabase.auth.signOut();
-  //   setIsLoggedIn(false);
-  //   setShowLogoutDialog(false);
-  //   setCurrentPage('booking');
-  //   setCurrentStep(1);
-  //   alert("You have been logged out successfully");
-  // };
-
+  // All booking state is managed by Redux. No local booking state remains.
 
   // Render different pages based on currentPage
   const renderPage = () => {
     switch (currentPage) {
-      case 'info':
+      case "info":
         return <InfoPage />;
 
-      case 'qr':
+      case "qr":
         return (
           <Box sx={{ padding: 4, textAlign: "center" }}>
             <h2>QR Code Page</h2>
@@ -354,13 +493,18 @@ console.log("Booking payload:", {
                 component="img"
                 src="/qr.png"
                 alt="qr"
-                sx={{ width: "20%", maxHeight: 700, objectFit: "cover", borderRadius: 2 }}
+                sx={{
+                  width: "20%",
+                  maxHeight: 700,
+                  objectFit: "cover",
+                  borderRadius: 2,
+                }}
               />
             </Box>
           </Box>
         );
 
-      case 'account':
+      case "account":
         return (
           <Box sx={{ padding: 4, textAlign: "center" }}>
             {!isLoggedIn ? (
@@ -376,13 +520,14 @@ console.log("Booking payload:", {
                 </Button>
               </>
             ) : (
-              <UserAccountPage />
+              <UserAccountPage key={`account-${isLoggedIn}`} />
             )}
           </Box>
         );
 
-      case 'booking':
+      case "booking":
 
+      // eslint-disable-next-line no-fallthrough
       default:
         return (
           <div style={{ textAlign: "center", marginTop: "50px" }}>
@@ -390,12 +535,10 @@ console.log("Booking payload:", {
 
             {currentStep > 1 && (
               <NavigationComponent
-
                 currentStep={currentStep}
                 totalSteps={totalSteps}
-                onPreviousStep={() => setCurrentStep(currentStep - 1)}
-                // onNextStep={() => setCurrentStep(currentStep + 1)}
-                  onNextStep={handleNextStep}
+                onPreviousStep={() => dispatch(setCurrentStep(currentStep - 1))}
+                onNextStep={handleNextStep}
                 canProceedNext={canProceedNext()}
               />
             )}
@@ -423,22 +566,27 @@ console.log("Booking payload:", {
 
             {currentStep === 4 && (
               <div>
-                <h3>Select a Date for {selectedProfessional === 'prof1' ? 'Person 1' : 'Person 2'}</h3>
+                <h3>
+                  Select a Date for{" "}
+                  {selectedProfessional === "prof1" ? "Person 1" : "Person 2"}
+                </h3>
 
                 {availableDates.length === 0 ? (
-                  <div style={{
-                    padding: '40px',
-                    backgroundColor: '#fff3cd',
-                    border: '2px solid #ffc107',
-                    borderRadius: '10px',
-                    margin: '20px'
-                  }}>
-                    <h4 style={{ color: '#856404' }}>No Available Dates</h4>
-                    <p style={{ color: '#856404' }}>
-                      This professional has no available dates.
-                      Either all dates are booked or the admin hasn't set any availability yet.
+                  <div
+                    style={{
+                      padding: "40px",
+                      backgroundColor: "#fff3cd",
+                      border: "2px solid #ffc107",
+                      borderRadius: "10px",
+                      margin: "20px",
+                    }}
+                  >
+                    <h4 style={{ color: "#856404" }}>No Available Dates</h4>
+                    <p style={{ color: "#856404" }}>
+                      This professional has no available dates. Either all dates
+                      are booked or the admin hasn't set any availability yet.
                     </p>
-                    <p style={{ color: '#856404' }}>
+                    <p style={{ color: "#856404" }}>
                       Please go back and select a different professional.
                     </p>
                   </div>
@@ -447,25 +595,41 @@ console.log("Booking payload:", {
                     <p>Choose an available date for your appointment:</p>
                     <Calendar
                       selectedDates={[selectedDate]}
-                      setSelectedDates={(dates: string[]) => setSelectedDate(dates[0] || "")}
+                      setSelectedDates={(dates: string[]) =>
+                        dispatch(
+                          setUserSelections({
+                            ...userSelections,
+                            selectedDate: dates[0] || "",
+                          })
+                        )
+                      }
                       allowedDates={availableDates}
                     />
                     <TimeSlotsStep
-    professionalId={selectedProfessional}
-    selectedDate={selectedDate}
-    serviceDuration={serviceDuration}
-    selectedSlot={selectedSlot}
-    onSlotSelect={setSelectedSlot}
-  />
+                      professionalId={selectedProfessional}
+                      selectedDate={selectedDate}
+                      serviceDuration={serviceDuration}
+                      selectedSlot={selectedSlot}
+                      onSlotSelect={(slot) =>
+                        dispatch(
+                          setUserSelections({
+                            ...userSelections,
+                            selectedSlot: slot,
+                          })
+                        )
+                      }
+                    />
                     {selectedDate && (
-                      <div style={{
-                        marginTop: '10px',
-                        marginBottom: '40px',
-                        padding: '30px',
-                        backgroundColor: '#1b5e20',
-                        borderRadius: '5px'
-                      }}>
-                        <p style={{ margin: 0, fontWeight: 'bold' }}>
+                      <div
+                        style={{
+                          marginTop: "10px",
+                          marginBottom: "40px",
+                          padding: "30px",
+                          backgroundColor: "#1b5e20",
+                          borderRadius: "5px",
+                        }}
+                      >
+                        <p style={{ margin: 0, fontWeight: "bold" }}>
                           Selected Date: {selectedDate}
                         </p>
                       </div>
@@ -476,29 +640,40 @@ console.log("Booking payload:", {
             )}
 
             {currentStep === 5 && (
-              <div style={{ padding: '40px' }}>
+              <div style={{ padding: "40px" }}>
                 <h3>Booking Summary</h3>
-                <p>Location: {selectedLocation === 'your_place' ? 'At Your Place' : 'At Our Place'}</p>
+                <p>
+                  Location:{" "}
+                  {selectedLocation === "your_place"
+                    ? "At Your Place"
+                    : "At Our Place"}
+                </p>
                 <p>Services: {selectedServices.length} selected</p>
-                <p>Professional: {
-                  selectedProfessional === 'prof1' ? 'Person 1' :
-                    selectedProfessional === 'prof2' ? 'Person 2' :
-                      selectedProfessional
-                }</p>
+                <p>
+                  Professional:{" "}
+                  {selectedProfessional === "prof1"
+                    ? "Person 1"
+                    : selectedProfessional === "prof2"
+                    ? "Person 2"
+                    : selectedProfessional}
+                </p>
                 <p>Date: {selectedDate}</p>
                 {selectedSlot && (
-                  <p>Time: {selectedSlot.start_time.substring(0, 5)} - {selectedSlot.end_time.substring(0, 5)}</p>
+                  <p>
+                    Time: {selectedSlot.start_time.substring(0, 5)} -{" "}
+                    {selectedSlot.end_time.substring(0, 5)}
+                  </p>
                 )}
                 <button
                   onClick={handleCompleteBooking}
                   style={{
-                    marginTop: '20px',
-                    padding: '10px 20px',
-                    backgroundColor: '#1b5e20',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer'
+                    marginTop: "20px",
+                    padding: "10px 20px",
+                    backgroundColor: "#1b5e20",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "5px",
+                    cursor: "pointer",
                   }}
                 >
                   Confirm Booking
@@ -511,11 +686,15 @@ console.log("Booking payload:", {
   };
 
   return (
-    <div style={{
-      width: '100%', minHeight: '100vh', margin: 0,
-      padding: 0,
-       backgroundColor: '#1e1e1e',
-    }}>
+    <div
+      style={{
+        width: "100%",
+        minHeight: "100vh",
+        margin: 0,
+        padding: 0,
+        backgroundColor: "#1e1e1e",
+      }}
+    >
       {/* Login Modal - Always available, controlled by showLoginModal state */}
       <LoginModal
         open={showLoginModal}
@@ -525,23 +704,21 @@ console.log("Booking payload:", {
       {/* Hero Navigation - Always visible at top */}
       <Hero
         onBookingClick={() => {
-          setCurrentPage('booking');
+          setCurrentPage("booking");
           setCurrentStep(1);
         }}
-        onInfoClick={() => setCurrentPage('info')}
-        onQRClick={() => setCurrentPage('qr')}
-        onAccountClick={() => setCurrentPage('account')}
+        onInfoClick={() => setCurrentPage("info")}
+        onQRClick={() => setCurrentPage("qr")}
+        onAccountClick={() => setCurrentPage("account")}
         //onExitClick={() => setShowLogoutDialog(true)}
         isLoggedIn={isLoggedIn}
         currentPage={currentPage}
       />
-      <div style={{ width: '100%' }}>
+      <div style={{ width: "100%" }}>
         {/* Render the selected page below the Hero */}
         {renderPage()}
         <Link to="/"></Link>
       </div>
-
     </div>
-
   );
 }
