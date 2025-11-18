@@ -2,7 +2,6 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { StaticDatePicker } from "@mui/x-date-pickers/StaticDatePicker";
 import React from "react";
-import { supabase } from "./supabaseClient";
 import dayjs, { Dayjs } from "dayjs";
 // import { Box } from '@mui/material';
 
@@ -34,36 +33,9 @@ export const Calendar = ({
     return allowedDates.includes(date.format("YYYY-MM-DD"));
   };
 
-  //handler
-  // In calendar.tsx, update the handleSave function
-  const handleSave = async () => {
-    if (!currentDate) return;
-    void handleSave;
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    // You'll need to pass these as props to Calendar component
-    const { data, error } = await supabase.from("bookings").insert([
-      {
-        user_id: user?.id,
-        booking_date: currentDate.format("YYYY-MM-DD"),
-        // Add these if you have them as props:
-        // professional_id: professionalId,
-        // services: selectedServices,
-        // location: selectedLocation
-      },
-    ]);
-
-    if (error) {
-      console.error("Error saving booking:", error.message);
-      alert(" Failed to book date");
-    } else {
-      console.log("Booking saved:", data);
-      alert(" Booking confirmed for " + currentDate.format("YYYY-MM-DD"));
-    }
-  };
+  // Booking/save is handled by the booking flow elsewhere (TimeSlotsStep/UserPanel).
+  // This component only manages date selection. If you want a local "Book" button
+  // re-enable a handler here and wire it to the parent booking flow.
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <StaticDatePicker
