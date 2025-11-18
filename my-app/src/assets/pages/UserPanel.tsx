@@ -98,25 +98,27 @@ export default function UserPanel() {
     }
   }, [dispatch]);
 
-  // Load services from database
+  // Load services from database once on mount
   useEffect(() => {
-    const loadServices = async () => {
-      const data = await fetchServices();
-      setServices(data);
-    };
-    loadServices();
-  }, []);
+    let isMounted = true;
 
-  // Reload services when user logs in (in case services changed)
-  useEffect(() => {
-    if (isLoggedIn) {
-      const loadServices = async () => {
+    const loadServices = async () => {
+      try {
         const data = await fetchServices();
-        setServices(data);
-      };
-      loadServices();
-    }
-  }, [isLoggedIn]);
+        if (isMounted) {
+          setServices(data);
+        }
+      } catch (err) {
+        console.error("Error loading services:", err);
+      }
+    };
+
+    loadServices();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -130,56 +132,85 @@ export default function UserPanel() {
 
   // Load available dates based on selected professional
   useEffect(() => {
+    let isMounted = true;
+
     const loadAvailableDates = async () => {
-      if (!selectedProfessional) {
-        const { data, error } = await supabase
+      try {
+        if (!selectedProfessional) {
+          const { data, error } = await supabase
+            .from("availability")
+            .select("date");
+
+          if (!isMounted) return;
+
+          if (error) {
+            console.error("Error fetching available dates:", error);
+            setAvailableDates([]);
+          } else {
+            setAvailableDates(data?.map((d: any) => d.date) || []);
+          }
+          return;
+        }
+
+        const { data: shopDates, error: shopError } = await supabase
           .from("availability")
           .select("date");
 
-        if (error) console.error("Error fetching available dates:", error);
-        else setAvailableDates(data?.map((d: any) => d.date) || []);
-        return;
-      }
+        if (!isMounted) return;
 
-      const { data: shopDates, error: shopError } = await supabase
-        .from("availability")
-        .select("date");
+        if (shopError || !shopDates) {
+          console.error("Error fetching shop dates:", shopError);
+          setAvailableDates([]);
+          return;
+        }
 
-      if (shopError || !shopDates) {
-        console.error("Error fetching shop dates:", shopError);
-        setAvailableDates([]);
-        return;
-      }
+        // Check each date to see if it has any available slots
+        // Only include dates that have at least one available slot
+        const datesWithSlots: string[] = [];
 
-      // Check each date to see if it has any available slots
-      // Only include dates that have at least one available slot
-      const datesWithSlots: string[] = [];
+        for (const dateEntry of shopDates) {
+          if (!isMounted) break;
 
-      for (const dateEntry of shopDates) {
-        const date = dateEntry.date;
-        // Check if there are any available slots for this date
-        // We'll use a minimum service duration of 30 minutes for the check
-        // If serviceDuration is set, use it; otherwise use 30 minutes as default
-        const checkDuration = serviceDuration > 0 ? serviceDuration : 30;
+          const date = dateEntry.date;
+          // Check if there are any available slots for this date
+          // We'll use a minimum service duration of 30 minutes for the check
+          // If serviceDuration is set, use it; otherwise use 30 minutes as default
+          const checkDuration = serviceDuration > 0 ? serviceDuration : 30;
 
-        const { data: slots, error: slotsError } = await supabase.rpc(
-          "get_available_slots",
-          {
-            p_professional_id: selectedProfessional,
-            p_date: date,
-            p_service_duration_minutes: checkDuration,
+          try {
+            const { data: slots, error: slotsError } = await supabase.rpc(
+              "get_available_slots",
+              {
+                p_professional_id: selectedProfessional,
+                p_date: date,
+                p_service_duration_minutes: checkDuration,
+              }
+            );
+
+            if (!slotsError && slots && slots.length > 0) {
+              datesWithSlots.push(date);
+            }
+          } catch (err) {
+            console.error("Error checking slots for date:", date, err);
           }
-        );
+        }
 
-        if (!slotsError && slots && slots.length > 0) {
-          datesWithSlots.push(date);
+        if (isMounted) {
+          setAvailableDates(datesWithSlots);
+        }
+      } catch (err) {
+        console.error("Exception in loadAvailableDates:", err);
+        if (isMounted) {
+          setAvailableDates([]);
         }
       }
-
-      setAvailableDates(datesWithSlots);
     };
 
     loadAvailableDates();
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedProfessional, serviceDuration]);
 
   const handleServiceToggle = (serviceId: string) => {
@@ -217,17 +248,28 @@ export default function UserPanel() {
     }
   };
 
-  // Check if user is logged in
+  // Check if user is logged in and handle auth changes
   useEffect(() => {
+    let isMounted = true;
+    let isLoggedInRef = isLoggedIn;
+
     const checkAuth = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      setIsLoggedIn(!!user);
 
-      // Check for upcoming appointments when user logs in
-      if (user) {
-        await checkUpcomingAppointments(supabase, user.id);
+      if (isMounted) {
+        setIsLoggedIn(!!user);
+        isLoggedInRef = !!user;
+
+        // Check for upcoming appointments when user is logged in
+        if (user) {
+          try {
+            await checkUpcomingAppointments(supabase, user.id);
+          } catch (err) {
+            console.error("Error checking appointments:", err);
+          }
+        }
       }
     };
 
@@ -237,32 +279,28 @@ export default function UserPanel() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const wasLoggedOut = !isLoggedIn && !!session;
+      if (!isMounted) return;
+
+      const wasLoggedOut = !isLoggedInRef && !!session;
       setIsLoggedIn(!!session);
+      isLoggedInRef = !!session;
 
-      // If user just logged in, restore booking state and close login modal
+      // If user just logged in, handle login actions
       if (wasLoggedOut && session?.user) {
-        await checkUpcomingAppointments(supabase, session.user.id);
-        setShowLoginModal(false);
-
-        // Restore booking state from localStorage
-        const savedState = localStorage.getItem("bookingState");
-        if (savedState) {
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const state = JSON.parse(savedState);
-            // All state is now handled by Redux, so just dispatch setUserSelections and setCurrentStep above
-          } catch (err) {
-            console.error("Error restoring booking state:", err);
-          }
+        try {
+          await checkUpcomingAppointments(supabase, session.user.id);
+          setShowLoginModal(false);
+        } catch (err) {
+          console.error("Error handling login:", err);
         }
-      } else if (session?.user) {
-        await checkUpcomingAppointments(supabase, session.user.id);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [isLoggedIn]);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [isLoggedIn]); // Keep dependency but use ref to prevent infinite loops
 
   const handleProfessionalSelect = (professionalId: string) => {
     dispatch(
@@ -523,7 +561,7 @@ export default function UserPanel() {
                 </Button>
               </>
             ) : (
-              <UserAccountPage key={`account-${isLoggedIn}`} />
+              <UserAccountPage />
             )}
           </Box>
         );

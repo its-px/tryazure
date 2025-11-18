@@ -21,14 +21,31 @@ export default function ServicesStep({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadServices = async () => {
       setLoading(true);
-      const data = await fetchServices();
-      setServices(data);
-      setLoading(false);
+
+      try {
+        const data = await fetchServices();
+        if (isMounted) {
+          setServices(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error loading services in ServicesStep:", err);
+        if (isMounted) {
+          setServices([]);
+          setLoading(false);
+        }
+      }
     };
 
     loadServices();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (loading) {

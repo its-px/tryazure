@@ -30,38 +30,59 @@ export default function TimeSlotsStep({
 
   useEffect(() => {
     if (!professionalId || !selectedDate || !serviceDuration) {
+      setSlots([]);
+      setLoading(false);
       return;
     }
 
+    let isMounted = true;
+
     const loadSlots = async () => {
       setLoading(true);
-      const availableSlots = await getAvailableSlots(
-        professionalId,
-        selectedDate,
-        serviceDuration
-      );
 
-      // Filter out past time slots if booking for today
-      const today = new Date().toISOString().split("T")[0];
-      const now = new Date();
-      const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
-        .getMinutes()
-        .toString()
-        .padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
-
-      let filteredSlots = availableSlots;
-      if (selectedDate === today) {
-        // Only show slots that start after current time for today
-        filteredSlots = availableSlots.filter(
-          (slot: TimeSlot) => slot.start_time > currentTime
+      try {
+        const availableSlots = await getAvailableSlots(
+          professionalId,
+          selectedDate,
+          serviceDuration
         );
-      }
 
-      setSlots(filteredSlots);
-      setLoading(false);
+        if (!isMounted) return;
+
+        // Filter out past time slots if booking for today
+        const today = new Date().toISOString().split("T")[0];
+        const now = new Date();
+        const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
+
+        let filteredSlots = availableSlots;
+        if (selectedDate === today) {
+          // Only show slots that start after current time for today
+          filteredSlots = availableSlots.filter(
+            (slot: TimeSlot) => slot.start_time > currentTime
+          );
+        }
+
+        if (isMounted) {
+          setSlots(filteredSlots);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error in loadSlots:", err);
+        if (isMounted) {
+          setSlots([]);
+          setLoading(false);
+        }
+      }
     };
 
     loadSlots();
+
+    return () => {
+      isMounted = false;
+    };
   }, [professionalId, selectedDate, serviceDuration]);
 
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");

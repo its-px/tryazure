@@ -9,15 +9,20 @@ export interface Service {
 }
 
 export const fetchServices = async (): Promise<Service[]> => {
-  const { data, error } = await supabase
-    .from("services")
-    .select("*")
-    .order("name");
+  try {
+    const { data, error } = await supabase
+      .from("services")
+      .select("*")
+      .order("name");
 
-  if (error) {
-    console.error("Error fetching services:", error);
+    if (error) {
+      console.error("Error fetching services:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error("Exception fetching services:", err);
     return [];
   }
-
-  return data || [];
 };

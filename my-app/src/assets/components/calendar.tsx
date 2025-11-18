@@ -20,6 +20,15 @@ export const Calendar = ({
     selectedDates[0] ? dayjs(selectedDates[0]) : dayjs()
   );
 
+  // Ensure today is selected and triggers setSelectedDates on first mount
+  React.useEffect(() => {
+    if (!selectedDates[0]) {
+      const todayStr = dayjs().format("YYYY-MM-DD");
+      setSelectedDates([todayStr]);
+      setCurrentDate(dayjs());
+    }
+  }, [selectedDates, setSelectedDates]);
+
   const isDateAllowed = (date: Dayjs) => {
     if (!allowedDates) return true;
     return allowedDates.includes(date.format("YYYY-MM-DD"));

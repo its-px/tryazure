@@ -36,15 +36,18 @@ function App() {
 
       if (error) {
         console.error("OAuth error:", error);
-        // Clean up hash from URL
         window.history.replaceState(null, "", window.location.pathname);
       } else if (accessToken) {
-        // OAuth callback detected - let Supabase handle it
-        // The session will be set via onAuthStateChange below
-        // Clean up hash from URL after a brief delay to allow Supabase to process it
         setTimeout(() => {
           window.history.replaceState(null, "", window.location.pathname);
         }, 100);
+      }
+
+      // Refresh session for security and persistence
+      try {
+        await supabase.auth.refreshSession();
+      } catch (e) {
+        console.warn("Session refresh failed:", e);
       }
 
       const {

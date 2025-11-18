@@ -69,85 +69,91 @@ export default function UserAccountPage() {
   const [serviceMap, setServiceMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    checkUser();
-    loadServiceMap();
-    // registerSW().catch(console.error);
-  }, []);
+    let isMounted = true;
 
-  // Listen for auth state changes to refresh data when user logs in
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        // User logged in - refresh data
-        await loadUserProfile(session.user.id);
-        await loadUserBookings(session.user.id);
-        await loadServiceMap();
-      } else {
-        // User logged out - clear data
-        setUser(null);
-        setUpcomingBookings([]);
-        setPastBookings([]);
+    const initializeComponent = async () => {
+      setLoading(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!isMounted) return;
+
+      setUser(user);
+
+      if (user) {
+        await Promise.all([
+          loadUserProfile(user.id),
+          loadUserBookings(user.id),
+          loadServiceMap(),
+        ]);
+      }
+
+      if (isMounted) {
         setLoading(false);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initializeComponent();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const checkUser = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    setUser(user);
-
-    if (user) {
-      await loadUserProfile(user.id);
-      await loadUserBookings(user.id);
-    } else {
-      setLoading(false);
-    }
-  };
-
   const loadServiceMap = async () => {
-    const { data, error } = await supabase.from("services").select("id, name");
-    if (error) {
-      console.error("Error loading services:", error);
-      return;
-    }
+    try {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name");
+      if (error) {
+        console.error("Error loading services:", error);
+        return;
+      }
 
-    const map: Record<string, string> = {};
-    data.forEach((service) => {
-      map[service.id] = service.name;
-    });
-    setServiceMap(map);
+      const map: Record<string, string> = {};
+      data?.forEach((service) => {
+        map[service.id] = service.name;
+      });
+      setServiceMap(map);
+    } catch (err) {
+      console.error("Exception loading services:", err);
+    }
   };
 
   const loadUserProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("full_name, phone")
-      .eq("id", userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, phone")
+        .eq("id", userId)
+        .single();
 
-    if (!error && data) {
-      setProfile(data);
-      setEditedProfile(data);
+      if (!error && data) {
+        setProfile(data);
+        setEditedProfile(data);
+      } else if (error) {
+        console.error("Error loading profile:", error);
+      }
+    } catch (err) {
+      console.error("Exception loading profile:", err);
     }
   };
 
   const loadUserBookings = async (userId: string) => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("bookings")
-      .select()
-      .eq("user_id", userId)
-      .order("date", { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select()
+        .eq("user_id", userId)
+        .order("date", { ascending: true });
 
-    if (error) {
-      console.error("Error loading bookings:", error);
-    } else {
+      if (error) {
+        console.error("Error loading bookings:", error);
+        return;
+      }
+
       const today = new Date().toISOString().split("T")[0];
       const upcoming =
         data?.filter((b) => b.date >= today && b.status !== "cancelled") || [];
@@ -156,8 +162,9 @@ export default function UserAccountPage() {
 
       setUpcomingBookings(upcoming);
       setPastBookings(past);
+    } catch (err) {
+      console.error("Exception loading bookings:", err);
     }
-    setLoading(false);
   };
 
   const handleSignOut = async () => {
@@ -370,37 +377,33 @@ export default function UserAccountPage() {
   };
 
   if (loading) {
-    if (loading) {
-      return (
-        <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          minHeight="400px"
-        >
-          <CircularProgress sx={{ color: colors.accent.main }} />
-        </Box>
-      );
-    }
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="400px"
+      >
+        <CircularProgress sx={{ color: colors.accent.main }} />
+      </Box>
+    );
   }
 
   if (!user) {
-    if (!user) {
-      return (
-        <Box sx={{ ...commonStyles.pageContainer, textAlign: "center" }}>
-          <Typography
-            variant="h4"
-            gutterBottom
-            sx={{ fontSize: { xs: "1.5rem", sm: "2rem", md: "2.125rem" } }}
-          >
-            User Account
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Please login to view your account and booking history
-          </Typography>
-        </Box>
-      );
-    }
+    return (
+      <Box sx={{ ...commonStyles.pageContainer, textAlign: "center" }}>
+        <Typography
+          variant="h4"
+          gutterBottom
+          sx={{ fontSize: { xs: "1.5rem", sm: "2rem", md: "2.125rem" } }}
+        >
+          User Account
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Please login to view your account and booking history
+        </Typography>
+      </Box>
+    );
   }
 
   return (

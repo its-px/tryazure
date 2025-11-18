@@ -19,7 +19,7 @@ import {
 } from "@mui/material";
 import dayjs, { Dayjs } from "dayjs";
 import { DateCalendar, PickersDay } from "@mui/x-date-pickers";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface Booking {
   id: string;
@@ -88,6 +88,7 @@ function BookedDay(props: CustomPickersDayProps) {
 }
 
 export default function OwnerPanel() {
+  const navigate = useNavigate();
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
   const colors = getColors(mode);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
@@ -186,6 +187,11 @@ export default function OwnerPanel() {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
+
   return (
     <Box
       display="flex"
@@ -210,6 +216,24 @@ export default function OwnerPanel() {
         Owner Panel
       </h2>
       <Link to="/owner">Owner Panel</Link>
+      <button
+        onClick={handleLogout}
+        style={{
+          position: "absolute",
+          top: 20,
+          right: 20,
+          padding: "8px 20px",
+          backgroundColor: colors.error.main,
+          color: "white",
+          border: "none",
+          borderRadius: "5px",
+          fontWeight: "bold",
+          cursor: "pointer",
+          zIndex: 1000,
+        }}
+      >
+        Logout
+      </button>
 
       {/* Professional Filter */}
       <Box sx={{ marginBottom: 3 }}>
