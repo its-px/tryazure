@@ -357,14 +357,8 @@ export default function OwnerPanel() {
                   setShowBookingDialog(true);
                 }}
                 style={{
-                  backgroundColor:
-                    booking.status === "cancelled"
-                      ? "rgba(244, 67, 54, 0.08)"
-                      : "rgba(46, 125, 50, 0.06)",
-                  color:
-                    booking.status === "cancelled"
-                      ? colors.error.main
-                      : colors.accent.main,
+                  backgroundColor: "rgba(46, 125, 50, 0.06)",
+                  color: colors.accent.main,
                   padding: "4px 8px",
                   borderRadius: "5px",
                   fontSize: "0.9rem",

@@ -7,6 +7,7 @@ import {
   Button,
 } from "@mui/material";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../configureStore";
 import { toggleTheme } from "../../slices/themeSlice";
@@ -40,7 +41,10 @@ export default function Hero({
   currentPage,
 }: HeroProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState("EN");
+  const { t, i18n } = useTranslation();
+  const [selectedLanguage, setSelectedLanguage] = useState(
+    i18n.language?.toUpperCase() || "EN"
+  );
   const dispatch = useDispatch();
   const themeMode = useSelector(
     (state: RootState) => state.theme?.mode ?? "dark"
@@ -57,6 +61,7 @@ export default function Hero({
 
   const handleLanguageSelect = (lang: string) => {
     setSelectedLanguage(lang);
+    i18n.changeLanguage(lang.toLowerCase());
     handleLanguageClose();
   };
 
@@ -70,6 +75,11 @@ export default function Hero({
       document.documentElement.setAttribute("data-theme", themeMode);
     }
   }, [themeMode]);
+
+  // Sync selectedLanguage with i18n.language
+  useEffect(() => {
+    setSelectedLanguage(i18n.language?.toUpperCase() || "EN");
+  }, [i18n.language]);
 
   // Helper for active style
   const activeStyle = (isActive: boolean) => getActiveStyle(isActive, colors);
@@ -207,7 +217,7 @@ export default function Hero({
               variant="body2"
               sx={{ color: colors.text.primary, fontSize: "0.875rem" }}
             >
-              Book Appointment
+              {t("book_appointment")}
             </Typography>
           </Box>
 
@@ -230,7 +240,7 @@ export default function Hero({
               variant="body2"
               sx={{ color: colors.text.primary, fontSize: "0.875rem" }}
             >
-              Business Infos
+              {t("business_infos")}
             </Typography>
           </Box>
 
@@ -276,7 +286,7 @@ export default function Hero({
               variant="body2"
               sx={{ color: colors.text.primary, fontSize: "0.875rem" }}
             >
-              QR Code
+              {t("qr_code")}
             </Typography>
           </Box>
 
@@ -299,7 +309,7 @@ export default function Hero({
               variant="body2"
               sx={{ color: colors.text.primary, fontSize: "0.875rem" }}
             >
-              User Account
+              {t("user_account")}
             </Typography>
           </Box>
         </Box>

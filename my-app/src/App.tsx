@@ -10,6 +10,8 @@ import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
 import PWAInstallPrompt from "./assets/components/PWAInstallPrompt";
 import CompleteProfileModal from "./assets/components/CompleteProfileModal";
+import i18n from "./i18n";
+import { I18nextProvider } from "react-i18next";
 
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -180,67 +182,69 @@ function App() {
   );
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
-      {renderAdminControls()}
+    <I18nextProvider i18n={i18n}>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        {renderAdminControls()}
 
-      <Routes>
-        {/* Public route */}
-        <Route path="/" element={<UserPanel />} />
+        <Routes>
+          {/* Public route */}
+          <Route path="/" element={<UserPanel />} />
 
-        {/* Protected routes */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute
-              session={session}
-              role={role}
-              allowedRoles={["admin"]}
-              loading={loading}
-            >
-              <AdminPanel />
-            </ProtectedRoute>
-          }
+          {/* Protected routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute
+                session={session}
+                role={role}
+                allowedRoles={["admin"]}
+                loading={loading}
+              >
+                <AdminPanel />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/owner"
+            element={
+              <ProtectedRoute
+                session={session}
+                role={role}
+                allowedRoles={["owner"]}
+                loading={loading}
+              >
+                <OwnerPanel />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Optional: fallback route */}
+          {/* <Route path="*" element={<NotFoundPage />} /> */}
+        </Routes>
+        <CompleteProfileModal
+          open={showCompleteProfile}
+          onClose={() => {
+            setShowCompleteProfile(false);
+            // Reload profile to check if it's complete now
+            if (session?.user) {
+              supabase
+                .from("profiles")
+                .select("full_name, phone")
+                .eq("id", session.user.id)
+                .single()
+                .then(({ data }) => {
+                  if (data && data.full_name && data.phone) {
+                    setShowCompleteProfile(false);
+                  }
+                });
+            }
+          }}
+          userEmail={session?.user?.email}
         />
-
-        <Route
-          path="/owner"
-          element={
-            <ProtectedRoute
-              session={session}
-              role={role}
-              allowedRoles={["owner"]}
-              loading={loading}
-            >
-              <OwnerPanel />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Optional: fallback route */}
-        {/* <Route path="*" element={<NotFoundPage />} /> */}
-      </Routes>
-      <CompleteProfileModal
-        open={showCompleteProfile}
-        onClose={() => {
-          setShowCompleteProfile(false);
-          // Reload profile to check if it's complete now
-          if (session?.user) {
-            supabase
-              .from("profiles")
-              .select("full_name, phone")
-              .eq("id", session.user.id)
-              .single()
-              .then(({ data }) => {
-                if (data && data.full_name && data.phone) {
-                  setShowCompleteProfile(false);
-                }
-              });
-          }
-        }}
-        userEmail={session?.user?.email}
-      />
-      <PWAInstallPrompt />
-    </LocalizationProvider>
+        <PWAInstallPrompt />
+      </LocalizationProvider>
+    </I18nextProvider>
   );
 }
 

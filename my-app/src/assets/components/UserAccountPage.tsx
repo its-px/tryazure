@@ -155,10 +155,8 @@ export default function UserAccountPage() {
       }
 
       const today = new Date().toISOString().split("T")[0];
-      const upcoming =
-        data?.filter((b) => b.date >= today && b.status !== "cancelled") || [];
-      const past =
-        data?.filter((b) => b.date < today || b.status === "cancelled") || [];
+      const upcoming = data?.filter((b) => b.date >= today) || [];
+      const past = data?.filter((b) => b.date < today) || [];
 
       setUpcomingBookings(upcoming);
       setPastBookings(past);
@@ -199,13 +197,15 @@ export default function UserAccountPage() {
 
     const { error } = await supabase
       .from("bookings")
-      .update({ status: "cancelled" })
+      .delete()
       .eq("id", bookingToCancel);
 
     if (error) {
       alert("Error cancelling booking: " + error.message);
     } else {
-      alert("Booking cancelled successfully!");
+      alert(
+        "Booking cancelled successfully! The time slot is now available for booking again."
+      );
       if (user) loadUserBookings(user.id);
       setShowCancelDialog(false);
       setBookingToCancel(null);
@@ -252,7 +252,6 @@ export default function UserAccountPage() {
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           ...commonStyles.card,
-          opacity: booking.status === "cancelled" ? 0.6 : 1,
         }}
       >
         {/* Date Section */}
@@ -353,7 +352,7 @@ export default function UserAccountPage() {
             </Box>
 
             {/* Action Button */}
-            {isUpcoming && booking.status !== "cancelled" && (
+            {isUpcoming && (
               <IconButton
                 color="error"
                 onClick={() => {

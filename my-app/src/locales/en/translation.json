@@ -1,0 +1,11 @@
+{
+  "book_appointment": "Book Appointment",
+  "business_infos": "Business Infos",
+  "qr_code": "QR Code",
+  "user_account": "User Account",
+  "select_services": "Select Services",
+  "choose_services": "Choose at least one service (you can select multiple)",
+  "selected": "Selected",
+  "no_services": "No services available",
+  "contact_admin": "Please contact the administrator"
+}
