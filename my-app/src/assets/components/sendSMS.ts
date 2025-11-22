@@ -1,31 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import axios from "axios";
-
-const GATEWAY_API_URL = "https://gatewayapi.com/rest/mtsms";
-const API_KEY = process.env.REACT_APP_GATEWAY_API_KEY;
-const API_SECRET = process.env.REACT_APP_GATEWAY_API_SECRET;
-const API_TOKEN = process.env.REACT_APP_GATEWAY_API_TOKEN;
-
-// Debug environment variables
-console.log("🔑 Gateway API Configuration:");
-console.log("API_KEY:", API_KEY ? `${API_KEY.substring(0, 5)}...` : "NOT SET");
-console.log(
-  "API_SECRET:",
-  API_SECRET ? `${API_SECRET.substring(0, 5)}...` : "NOT SET"
-);
-console.log(
-  "API_TOKEN:",
-  API_TOKEN ? `${API_TOKEN.substring(0, 10)}...` : "NOT SET"
-);
-console.log("API_URL:", GATEWAY_API_URL);
-
-if (!API_KEY || !API_SECRET || !API_TOKEN) {
-  console.error(
-    "❌ GatewayAPI credentials are missing. Please check your environment variables."
-  );
-} else {
-  console.log("✅ All GatewayAPI credentials are loaded");
-}
+import { supabase } from "./supabaseClient";
 
 /**
  * Logs SMS activity to console.
@@ -37,44 +11,150 @@ const logSMSActivity = (logMessage: string) => {
 };
 
 /**
- * Sends an SMS using GatewayAPI.
- * @param recipient - The recipient's phone number (e.g., +4512345678).
- * @param message - The message to send.
+ * Validates phone number format
+ * @param phoneNumber - The phone number to validate
+ * @returns true if valid, false otherwise
  */
-export const sendSMS = async (recipient: string, message: string) => {
-  try {
-    logSMSActivity(
-      `Attempting to send SMS to ${recipient} with message: "${message}"`
-    );
+export const validatePhoneNumber = (phoneNumber: string): boolean => {
+  // Basic validation for international phone numbers
+  const cleaned = phoneNumber.replace(/[^\d+]/g, "");
 
-    const response = await axios.post(
-      GATEWAY_API_URL,
-      {
-        sender: "YourAppName", // Replace with your sender name
-        message,
-        recipients: [{ msisdn: recipient }],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    logSMSActivity(
-      `SMS sent successfully to ${recipient}. Response: ${JSON.stringify(
-        response.data
-      )}`
-    );
-    console.log("SMS sent successfully:", response.data);
-    return response.data;
-  } catch (error) {
-    const errorMessage = `Failed to send SMS to ${recipient}. Error: ${
-      (error as any)?.response?.data || (error as Error).message
-    }`;
-    logSMSActivity(errorMessage);
-    console.error(errorMessage);
-    throw error;
+  if (cleaned.startsWith("+")) {
+    return cleaned.length >= 9 && cleaned.length <= 16;
   }
+
+  return cleaned.length >= 8 && cleaned.length <= 15;
+};
+
+/**
+ * Formats phone number consistently
+ * @param phoneNumber - The phone number to format
+ * @returns formatted phone number
+ */
+export const formatPhoneNumber = (phoneNumber: string): string => {
+  let cleaned = phoneNumber.replace(/[^\d+]/g, "");
+
+  // Ensure it starts with + for international format
+  if (!cleaned.startsWith("+")) {
+    cleaned = "+" + cleaned;
+  }
+
+  return cleaned;
+};
+
+/**
+ * Sends an SMS using Supabase Edge Function (which calls Gateway API)
+ * @param recipient - The recipient's phone number
+ * @param message - The message to send (optional if using template)
+ * @param options - SMS options including template and Gateway API settings
+ */
+export const sendSMS = async (
+  recipient: string,
+  message?: string,
+  options?: {
+    templateType?:
+      | "booking_confirmation"
+      | "reminder"
+      | "cancellation"
+      | "verification";
+    templateData?: Record<string, any>;
+    sender?: string;
+    priority?: "BULK" | "NORMAL" | "URGENT" | "VERY_URGENT";
+    userref?: string;
+    sendtime?: number; // Unix timestamp for scheduled sending
+  }
+) => {
+  try {
+    if (!validatePhoneNumber(recipient)) {
+      throw new Error(`Invalid phone number format: ${recipient}`);
+    }
+
+    logSMSActivity(
+      `Attempting to send SMS to ${recipient} ${
+        options?.templateType
+          ? `using template: ${options.templateType}`
+          : `with message: "${message}"`
+      }`
+    );
+
+    // Call Supabase Edge Function
+    const { data, error } = await supabase.functions.invoke("send-sms", {
+      body: {
+        phoneNumber: recipient,
+        message,
+        templateType: options?.templateType,
+        templateData: options?.templateData,
+        options: {
+          sender: options?.sender,
+          priority: options?.priority || "NORMAL",
+          userref: options?.userref,
+          sendtime: options?.sendtime,
+        },
+      },
+    });
+
+    if (error) {
+      throw new Error(`Supabase function error: ${error.message}`);
+    }
+
+    if (!data.success) {
+      throw new Error(data.error || "SMS sending failed");
+    }
+
+    logSMSActivity(
+      `SMS sent successfully to ${recipient}. Message ID: ${data.messageId}, Cost: ${data.cost} ${data.currency}`
+    );
+
+    console.log("SMS sent successfully:", {
+      messageId: data.messageId,
+      recipient: data.recipient,
+      cost: data.cost,
+      currency: data.currency,
+    });
+
+    return {
+      success: true,
+      messageId: data.messageId,
+      cost: data.cost,
+      currency: data.currency,
+      recipient: data.recipient,
+      originalRecipient: recipient,
+    };
+  } catch (error) {
+    const errorMessage = `Failed to send SMS to ${recipient}. ${
+      (error as Error).message
+    }`;
+
+    logSMSActivity(errorMessage);
+    console.error("SMS Error Details:", {
+      recipient,
+      error: (error as Error).message,
+    });
+
+    throw new Error(errorMessage);
+  }
+};
+
+/**
+ * Sends SMS using predefined templates
+ */
+export const sendTemplatedSMS = async (
+  recipient: string,
+  templateType:
+    | "booking_confirmation"
+    | "reminder"
+    | "cancellation"
+    | "verification",
+  templateData: Record<string, any>,
+  options?: {
+    sender?: string;
+    priority?: "BULK" | "NORMAL" | "URGENT" | "VERY_URGENT";
+    userref?: string;
+  }
+) => {
+  return sendSMS(recipient, undefined, {
+    templateType,
+    templateData,
+    ...options,
+  });
 };

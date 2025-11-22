@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../components/supabaseClient";
 import { generateWeekdaysInRange, excludeDates } from "../components/dateUtils";
 import { Link, useNavigate } from "react-router-dom";
+import SMSAdminDashboard from "../components/SMSAdminDashboard";
 
 interface ProfessionalHours {
   professional_id: string;
@@ -303,6 +304,7 @@ export default function AdminPanel() {
         >
           <Tab label="Store Availability" />
           <Tab label="Professional Hours" />
+          <Tab label="SMS Administration" />
         </Tabs>
       </Box>
 
@@ -626,6 +628,19 @@ export default function AdminPanel() {
               configured
             </p>
           </Box>
+        </Box>
+      )}
+
+      {/* SMS Administration Tab */}
+      {currentTab === 2 && (
+        <Box
+          sx={{
+            maxWidth: "1400px",
+            margin: "20px auto",
+            padding: 0,
+          }}
+        >
+          <SMSAdminDashboard />
         </Box>
       )}
     </Box>

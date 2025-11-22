@@ -24,6 +24,7 @@ import {
 } from "../../notifications";
 import TimeSlotsStep from "../components/TimeSlotsStep";
 import { fetchServices, type Service } from "../components/servicesService";
+import BookingSMSService from "../components/BookingSMSService";
 
 export default function UserPanel() {
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
@@ -470,6 +471,106 @@ export default function UserPanel() {
         const s = services.find((s) => s.id === id);
         return s?.name || id; // fallback to id if not found
       });
+
+      // Send SMS confirmation if user has phone number
+      // Phone may come from auth metadata, auth.phone, or the `profiles` table.
+      let userPhone: string | null =
+        user?.user_metadata?.phone || (user as any)?.phone || null;
+
+      // Fallback: read profiles.phone for this user if available
+      if (!userPhone && user?.id) {
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("phone")
+            .eq("id", user.id)
+            .single();
+
+          if (!profileError && profile?.phone) {
+            userPhone = profile.phone;
+            const masked = `${profile.phone.substring(
+              0,
+              3
+            )}***${profile.phone.substring(profile.phone.length - 4)}`;
+            console.log(
+              "Found phone in profiles table for user (masked):",
+              masked
+            );
+          } else if (profileError) {
+            console.warn(
+              "Could not read phone from profiles table:",
+              profileError.message || profileError
+            );
+          }
+        } catch (err) {
+          console.error("Error querying profiles for phone fallback:", err);
+        }
+      }
+
+      console.log("🔍 Checking for SMS confirmation requirements:", {
+        userHasPhone: !!userPhone,
+        phoneNumber: userPhone
+          ? `${userPhone.substring(0, 3)}***${userPhone.substring(
+              userPhone.length - 4
+            )}`
+          : "N/A",
+        isValidPhone: userPhone
+          ? BookingSMSService.validatePhoneNumber(userPhone)
+          : false,
+        bookingId: insertedBooking?.id?.toString() || "Unknown",
+      });
+
+      if (userPhone && BookingSMSService.validatePhoneNumber(userPhone)) {
+        try {
+          const smsDetails = {
+            date: selectedDate,
+            time: `${selectedSlot.start_time} - ${selectedSlot.end_time}`,
+            service: serviceNames.join(", "),
+            professional:
+              selectedProfessional === "prof1" ? "Person 1" : "Person 2",
+            location: selectedLocation,
+            bookingId: insertedBooking?.id?.toString() || "Unknown",
+          };
+
+          console.log("📱 Initiating SMS booking confirmation...", {
+            recipient: `${userPhone.substring(0, 3)}***${userPhone.substring(
+              userPhone.length - 4
+            )}`,
+            ...smsDetails,
+          });
+
+          const smsResult = await BookingSMSService.sendBookingConfirmation(
+            userPhone,
+            smsDetails
+          );
+
+          console.log("✅ SMS booking confirmation completed successfully:", {
+            messageId: smsResult.messageId,
+            success: smsResult.success,
+            cost: smsResult.cost,
+            currency: smsResult.currency,
+            bookingId: smsDetails.bookingId,
+          });
+        } catch (smsError) {
+          console.error("❌ SMS booking confirmation failed:", {
+            error:
+              smsError instanceof Error ? smsError.message : String(smsError),
+            bookingId: insertedBooking?.id?.toString() || "Unknown",
+            phoneNumber: `${userPhone.substring(0, 3)}***${userPhone.substring(
+              userPhone.length - 4
+            )}`,
+          });
+          // Don't fail the booking if SMS fails - log for admin review
+        }
+      } else {
+        console.log("📱 SMS confirmation skipped:", {
+          reason: !userPhone
+            ? "No phone number provided"
+            : "Invalid phone number format",
+          phoneNumber: userPhone || "Not provided",
+          bookingId: insertedBooking?.id?.toString() || "Unknown",
+        });
+      }
 
       console.log("Booking payload:", {
         email: user?.email,
