@@ -1,4 +1,6 @@
 // SMS Sending Function for Gateway API
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 Deno.serve(async (req) => {
   const { method } = req;
 
@@ -104,7 +106,7 @@ Deno.serve(async (req) => {
       priority: "NORMAL",
     };
 
-    const gatewayResponse = await fetch("https://gatewayapi.com/rest/mtsms", {
+    const gatewayResponse = await fetch("https://gatewayapi.eu/rest/mtsms", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -452,8 +454,8 @@ Deno.serve(async (req: Request) => {
       userref: gatewayPayload.userref,
     });
 
-    // Call Gateway API with Token authentication
-    const gatewayResponse = await fetch("https://gatewayapi.com/rest/mtsms", {
+    // Call Gateway API with Token authentication (EU endpoint)
+    const gatewayResponse = await fetch("https://gatewayapi.eu/rest/mtsms", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

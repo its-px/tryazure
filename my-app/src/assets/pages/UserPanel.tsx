@@ -5,7 +5,7 @@ import { setCurrentStep, setUserSelections } from "../../slices/appSlice";
 import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
 import { getColors } from "../../theme";
-import { Calendar } from "../components/calendar";
+import { BigCalendar } from "../components/BigCalendar";
 import NavigationComponent from "../components/NavigationComponent";
 import LocationStep from "../components/LocationStep";
 import ServicesStep from "../components/ServicesStep";
@@ -737,7 +737,7 @@ export default function UserPanel() {
                 ) : (
                   <>
                     <p>Choose an available date for your appointment:</p>
-                    <Calendar
+                    <BigCalendar
                       selectedDates={[selectedDate]}
                       setSelectedDates={(dates: string[]) =>
                         dispatch(

@@ -3,8 +3,8 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
 import { getColors } from "../../theme";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { BigCalendar } from "../components/BigCalendar";
+import BookingStatistics from "../components/BookingStatistics";
 import {
   Box,
   ToggleButton,
@@ -17,8 +17,7 @@ import {
   Typography,
   Divider,
 } from "@mui/material";
-import dayjs, { Dayjs } from "dayjs";
-import { DateCalendar, PickersDay } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
 import { Link, useNavigate } from "react-router-dom";
 
 interface Booking {
@@ -29,62 +28,13 @@ interface Booking {
   location: string;
   services: string;
   status: string;
+  created_at: string;
 }
 
 interface UserProfile {
   full_name: string;
   phone: string;
   email: string;
-}
-
-interface CustomPickersDayProps {
-  day: Dayjs;
-  outsideCurrentMonth: boolean;
-  isFirstVisibleCell: boolean;
-  isLastVisibleCell: boolean;
-  selected?: boolean;
-  disabled?: boolean;
-  today?: boolean;
-  showDaysOutsideCurrentMonth?: boolean;
-  bookedDates: string[];
-  pastDates: string[];
-  onDaySelect: (day: Dayjs) => void;
-}
-
-function BookedDay(props: CustomPickersDayProps) {
-  const { bookedDates, pastDates, day, onDaySelect, ...other } = props;
-  const dateStr = day.format("YYYY-MM-DD");
-  const isBooked = bookedDates.includes(dateStr);
-  const isPast = pastDates.includes(dateStr);
-
-  return (
-    <PickersDay
-      {...other}
-      day={day}
-      onDaySelect={onDaySelect}
-      onClick={() => isBooked && onDaySelect(day)}
-      sx={{
-        backgroundColor:
-          isBooked && isPast
-            ? "rgba(128, 128, 128, 0.4)"
-            : isBooked
-            ? "rgba(76, 175, 80, 0.6)"
-            : undefined,
-        color: isBooked ? "white" : undefined,
-        fontWeight: isBooked ? "bold" : undefined,
-        cursor: isBooked ? "pointer" : "default",
-        "&:hover": {
-          backgroundColor:
-            isBooked && isPast
-              ? "rgba(128, 128, 128, 0.6)"
-              : isBooked
-              ? "rgba(76, 175, 80, 0.8)"
-              : undefined,
-        },
-        borderRadius: "50%",
-      }}
-    />
-  );
 }
 
 export default function OwnerPanel() {
@@ -97,11 +47,16 @@ export default function OwnerPanel() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<string[]>([
+    dayjs().format("YYYY-MM-DD"),
+  ]);
+  const [serviceMap, setServiceMap] = useState<Record<string, string>>({});
 
   const today = dayjs().format("YYYY-MM-DD");
 
   useEffect(() => {
     loadBookings();
+    loadServiceMap();
   }, []);
 
   const loadBookings = async () => {
@@ -114,6 +69,25 @@ export default function OwnerPanel() {
       console.error("Error loading bookings:", error);
     } else if (data) {
       setAllBookings(data);
+    }
+  };
+
+  const loadServiceMap = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name");
+      if (error) {
+        console.error("Error loading services:", error);
+        return;
+      }
+      const map: Record<string, string> = {};
+      data?.forEach((service) => {
+        map[service.id] = service.name;
+      });
+      setServiceMap(map);
+    } catch (err) {
+      console.error("Exception loading services:", err);
     }
   };
 
@@ -140,8 +114,7 @@ export default function OwnerPanel() {
     }
   };
 
-  const handleDayClick = async (day: Dayjs) => {
-    const dateStr = day.format("YYYY-MM-DD");
+  const handleDayClick = async (dateStr: string) => {
     const booking = filteredBookings.find((b) => b.date === dateStr);
 
     if (booking) {
@@ -166,9 +139,6 @@ export default function OwnerPanel() {
       : allBookings.filter((b) => b.professional_id === selectedProfessional);
 
   const bookedDates = filteredBookings.map((b) => b.date);
-  const pastDates = filteredBookings
-    .filter((b) => b.date < today)
-    .map((b) => b.date);
 
   const upcomingBookings = filteredBookings.filter((b) => b.date >= today);
 
@@ -180,8 +150,9 @@ export default function OwnerPanel() {
 
   const getServiceNames = (servicesJson: string) => {
     try {
-      const services = JSON.parse(servicesJson);
-      return services.join(", ");
+      const ids = JSON.parse(servicesJson);
+      const names = ids.map((id: string) => serviceMap[id] || id);
+      return names.join(", ");
     } catch {
       return servicesJson;
     }
@@ -234,6 +205,9 @@ export default function OwnerPanel() {
       >
         Logout
       </button>
+
+      {/* Booking Statistics */}
+      <BookingStatistics allBookings={allBookings} />
 
       {/* Professional Filter */}
       <Box sx={{ marginBottom: 3 }}>
@@ -288,43 +262,25 @@ export default function OwnerPanel() {
           borderRadius: "15px",
           boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
           padding: 3,
-          "& .MuiDateCalendar-root": {
-            width: "auto",
-            height: "75vh",
-          },
-          "& .MuiPickersCalendarHeader-root": {
-            fontSize: "1.5rem",
-            fontWeight: "bold",
-          },
-          "& .MuiPickersDay-root": {
-            fontSize: "1.1rem",
-            width: "calc(75vw / 7)",
-            height: "calc(75vh / 7)*1.1",
-          },
-          "& .MuiPickersCalendar-weekContainer": {
-            minHeight: "auto",
-          },
+          width: "90%",
+          maxWidth: "1200px",
         }}
       >
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <DateCalendar
-            value={dayjs()}
-            onChange={() => {}}
-            slots={{
-              day: (dayProps) => (
-                <BookedDay
-                  {...dayProps}
-                  bookedDates={bookedDates}
-                  pastDates={pastDates}
-                  onDaySelect={handleDayClick}
-                />
-              ),
-            }}
-          />
-        </LocalizationProvider>
+        <BigCalendar
+          selectedDates={selectedDates}
+          setSelectedDates={(dates) => {
+            setSelectedDates(dates);
+            if (dates[0]) {
+              handleDayClick(dates[0]);
+            }
+          }}
+          allowedDates={bookedDates}
+          enableMultipleViews={true}
+          defaultView="month"
+        />
       </Box>
 
-      {/* Summary section - Only upcoming bookings */}
+      {/* Summary section - Only upcoming bookings
       <Box
         sx={{
           marginTop: 1,
@@ -382,7 +338,7 @@ export default function OwnerPanel() {
             No upcoming bookings
           </p>
         )}
-      </Box>
+      </Box> */}
 
       {/* Booking Details Dialog */}
       <Dialog
