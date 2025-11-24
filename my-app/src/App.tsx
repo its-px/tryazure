@@ -39,22 +39,19 @@ function App() {
       if (error) {
         console.error("OAuth error:", error);
         window.history.replaceState(null, "", window.location.pathname);
+        setLoading(false);
+        return;
       } else if (accessToken) {
         setTimeout(() => {
           window.history.replaceState(null, "", window.location.pathname);
         }, 100);
       }
 
-      // Refresh session for security and persistence
-      try {
-        await supabase.auth.refreshSession();
-      } catch (e) {
-        console.warn("Session refresh failed:", e);
-      }
-
+      // Get session directly without refresh to avoid hanging
       const {
         data: { session: currentSession },
       } = await supabase.auth.getSession();
+
       setSession(currentSession);
 
       if (currentSession?.user) {

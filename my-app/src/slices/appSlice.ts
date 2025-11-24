@@ -1,10 +1,19 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
+export interface UserSelections {
+  selectedLocation: "your_place" | "our_place" | null;
+  selectedServices: string[];
+  selectedProfessional: string | null;
+  selectedDate: string;
+  selectedSlot: { start_time: string; end_time: string } | null;
+  serviceDuration: number;
+}
+
 interface AppState {
   value: number;
   currentStep: number | null;
-  userSelections: Record<string, unknown> | null;
+  userSelections: UserSelections | null;
 }
 
 const initialState: AppState = {
@@ -23,7 +32,7 @@ const appSlice = createSlice({
     setCurrentStep(state, action: PayloadAction<number>) {
       state.currentStep = action.payload;
     },
-    setUserSelections(state, action: PayloadAction<Record<string, unknown>>) {
+    setUserSelections(state, action: PayloadAction<UserSelections>) {
       state.userSelections = action.payload;
     },
     clearProgress(state) {

@@ -136,7 +136,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         alert("Account created! Check your email for confirmation.");
         resetForm();
         onClose();
-        navigate("/"); // new user
+        // Don't navigate after sign up - let user stay on current page
       } else {
         // Login
         const { error } = await supabase.auth.signInWithPassword({
@@ -165,7 +165,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           // Still allow login, just don't redirect based on role
           resetForm();
           onClose();
-          navigate("/");
+          // Stay on current page - don't navigate
           return;
         }
 
@@ -173,10 +173,11 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         resetForm();
         onClose();
 
-        // Redirect based on role
+        // Only redirect based on role if user is an admin or owner
+        // Regular users stay on the current page (important for booking flow)
         if (role === "admin") navigate("/admin");
         else if (role === "owner") navigate("/owner");
-        else navigate("/"); // regular user
+        // else stay on current page for regular users
       }
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);

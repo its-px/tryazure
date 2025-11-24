@@ -45,14 +45,7 @@ export default function UserPanel() {
     useSelector((state: RootState) => state.app.currentStep) ?? 1;
   const userSelections = useSelector(
     (state: RootState) => state.app.userSelections
-  ) as {
-    selectedLocation: "your_place" | "our_place" | null;
-    selectedServices: string[];
-    selectedProfessional: string | null;
-    selectedDate: string;
-    selectedSlot: { start_time: string; end_time: string } | null;
-    serviceDuration: number;
-  } | null;
+  );
   const {
     selectedLocation = null,
     selectedServices = [],
@@ -65,16 +58,22 @@ export default function UserPanel() {
 
   // Save booking state to localStorage whenever Redux state changes (do NOT dispatch here)
   useEffect(() => {
-    const bookingState = {
-      selectedLocation,
-      selectedServices,
-      selectedProfessional,
-      selectedDate,
-      selectedSlot,
-      currentStep,
-      serviceDuration,
-    };
-    localStorage.setItem("bookingState", JSON.stringify(bookingState));
+    // Only save if user has made selections (not just default values)
+    const hasSelections = selectedLocation || selectedServices.length > 0 || selectedProfessional;
+    
+    if (hasSelections) {
+      const bookingState = {
+        selectedLocation,
+        selectedServices,
+        selectedProfessional,
+        selectedDate,
+        selectedSlot,
+        currentStep,
+        serviceDuration,
+        timestamp: Date.now(), // Add timestamp for expiration
+      };
+      localStorage.setItem("bookingState", JSON.stringify(bookingState));
+    }
   }, [
     selectedLocation,
     selectedServices,
@@ -86,17 +85,65 @@ export default function UserPanel() {
   ]);
 
   // Restore booking state from localStorage on mount
+  // COMMENTED OUT FOR TESTING - Check if this feature causes issues with service loading
   useEffect(() => {
-    const savedState = localStorage.getItem("bookingState");
-    if (savedState) {
-      try {
-        const state = JSON.parse(savedState);
-        dispatch(setUserSelections(state));
-        if (state.currentStep) dispatch(setCurrentStep(state.currentStep));
-      } catch (err) {
-        console.error("Error restoring booking state:", err);
-      }
-    }
+    console.log("localStorage restoration is DISABLED for testing");
+    // const savedState = localStorage.getItem("bookingState");
+    
+    // if (savedState) {
+    //   try {
+    //     const state = JSON.parse(savedState);
+    //     const { currentStep: savedStep, timestamp, ...selectionsOnly } = state;
+
+    //     // Check if state is expired (older than 24 hours)
+    //     const EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    //     const isExpired = timestamp && (Date.now() - timestamp > EXPIRATION_TIME);
+
+    //     if (isExpired) {
+    //       console.log("Booking state expired, clearing localStorage");
+    //       localStorage.removeItem("bookingState");
+    //       return;
+    //     }
+
+    //     // Validate the restored state
+    //     const isValidState = () => {
+    //       // Must have selectedServices as an array
+    //       if (!selectionsOnly.selectedServices) return false;
+          
+    //       // Convert object to array if needed (serialization fix)
+    //       if (!Array.isArray(selectionsOnly.selectedServices)) {
+    //         selectionsOnly.selectedServices = Object.values(selectionsOnly.selectedServices);
+    //       }
+          
+    //       // Must have at least some selection to restore
+    //       const hasValidSelections = 
+    //         selectionsOnly.selectedLocation || 
+    //         selectionsOnly.selectedServices.length > 0 || 
+    //         selectionsOnly.selectedProfessional;
+          
+    //       return hasValidSelections && Array.isArray(selectionsOnly.selectedServices);
+    //     };
+
+    //     if (isValidState()) {
+    //       console.log("Restoring booking state from localStorage");
+    //       dispatch(setUserSelections({
+    //         selectedLocation: selectionsOnly.selectedLocation || null,
+    //         selectedServices: selectionsOnly.selectedServices || [],
+    //         selectedProfessional: selectionsOnly.selectedProfessional || null,
+    //         selectedDate: selectionsOnly.selectedDate || "",
+    //         selectedSlot: selectionsOnly.selectedSlot || null,
+    //         serviceDuration: selectionsOnly.serviceDuration || 0,
+    //       }));
+    //       if (savedStep && savedStep > 1) dispatch(setCurrentStep(savedStep));
+    //     } else {
+    //       console.log("Invalid or empty booking state, clearing localStorage");
+    //       localStorage.removeItem("bookingState");
+    //     }
+    //   } catch (err) {
+    //     console.error("Error restoring booking state, clearing localStorage:", err);
+    //     localStorage.removeItem("bookingState");
+    //   }
+    // }
   }, [dispatch]);
 
   // Load services from database once on mount
@@ -214,6 +261,21 @@ export default function UserPanel() {
     };
   }, [selectedProfessional, serviceDuration]);
 
+  // Reset booking state and clear localStorage
+  const handleResetBooking = () => {
+    localStorage.removeItem("bookingState");
+    dispatch(setCurrentStep(1));
+    dispatch(setUserSelections({
+      selectedLocation: null,
+      selectedServices: [],
+      selectedProfessional: null,
+      selectedDate: "",
+      selectedSlot: null,
+      serviceDuration: 0,
+    }));
+    console.log("Booking state reset and localStorage cleared");
+  };
+
   const handleServiceToggle = (serviceId: string) => {
     const newSelectedServices: string[] = Array.isArray(selectedServices)
       ? selectedServices.includes(serviceId)
@@ -230,8 +292,11 @@ export default function UserPanel() {
     );
     dispatch(
       setUserSelections({
-        ...userSelections,
+        selectedLocation: userSelections?.selectedLocation ?? null,
         selectedServices: newSelectedServices,
+        selectedProfessional: userSelections?.selectedProfessional ?? null,
+        selectedDate: userSelections?.selectedDate ?? "",
+        selectedSlot: userSelections?.selectedSlot ?? null,
         serviceDuration: totalDuration,
       })
     );
@@ -306,9 +371,12 @@ export default function UserPanel() {
   const handleProfessionalSelect = (professionalId: string) => {
     dispatch(
       setUserSelections({
-        ...userSelections,
+        selectedLocation: userSelections?.selectedLocation ?? null,
+        selectedServices: userSelections?.selectedServices ?? [],
         selectedProfessional: professionalId,
         selectedDate: "",
+        selectedSlot: null,
+        serviceDuration: userSelections?.serviceDuration ?? 0,
       })
     );
   };
@@ -316,8 +384,12 @@ export default function UserPanel() {
   const handleLocationSelect = (location: "your_place" | "our_place") => {
     dispatch(
       setUserSelections({
-        ...userSelections,
         selectedLocation: location,
+        selectedServices: userSelections?.selectedServices ?? [],
+        selectedProfessional: userSelections?.selectedProfessional ?? null,
+        selectedDate: userSelections?.selectedDate ?? "",
+        selectedSlot: userSelections?.selectedSlot ?? null,
+        serviceDuration: userSelections?.serviceDuration ?? 0,
       })
     );
     dispatch(setCurrentStep(2));
@@ -396,12 +468,19 @@ export default function UserPanel() {
       }
     }
 
+    // Check if user is logged in BEFORE attempting to create booking
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
+    if (!user) {
+      setShowLoginModal(true);
+      alert("Please login to complete your booking");
+      return;
+    }
+
     const bookingData = {
-      user_id: user?.id,
+      user_id: user.id,
       date: selectedDate,
       location: selectedLocation,
       services: JSON.stringify(selectedServices),
@@ -412,12 +491,6 @@ export default function UserPanel() {
     };
 
     const { error } = await supabase.from("bookings").insert([bookingData]);
-
-    if (!user) {
-      setShowLoginModal(true);
-      alert("Please login to complete your booking");
-      return;
-    }
 
     if (error) {
       console.error("Booking error:", error);
@@ -675,6 +748,21 @@ export default function UserPanel() {
           <div style={{ textAlign: "center", marginTop: "50px" }}>
             {/* <h2>Customer Panel</h2> */}
 
+            {/* Reset button - visible at all steps */}
+            {currentStep > 1 && (
+              <Box sx={{ display: "flex", justifyContent: "flex-end", px: 3, mb: 2 }}>
+                <Button
+                  onClick={handleResetBooking}
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  sx={{ fontSize: "0.75rem" }}
+                >
+                  Start Over
+                </Button>
+              </Box>
+            )}
+
             {currentStep > 1 && (
               <NavigationComponent
                 currentStep={currentStep}
@@ -742,8 +830,12 @@ export default function UserPanel() {
                       setSelectedDates={(dates: string[]) =>
                         dispatch(
                           setUserSelections({
-                            ...userSelections,
+                            selectedLocation: userSelections?.selectedLocation ?? null,
+                            selectedServices: userSelections?.selectedServices ?? [],
+                            selectedProfessional: userSelections?.selectedProfessional ?? null,
                             selectedDate: dates[0] || "",
+                            selectedSlot: userSelections?.selectedSlot ?? null,
+                            serviceDuration: userSelections?.serviceDuration ?? 0,
                           })
                         )
                       }
@@ -757,8 +849,12 @@ export default function UserPanel() {
                       onSlotSelect={(slot) =>
                         dispatch(
                           setUserSelections({
-                            ...userSelections,
+                            selectedLocation: userSelections?.selectedLocation ?? null,
+                            selectedServices: userSelections?.selectedServices ?? [],
+                            selectedProfessional: userSelections?.selectedProfessional ?? null,
+                            selectedDate: userSelections?.selectedDate ?? "",
                             selectedSlot: slot,
+                            serviceDuration: userSelections?.serviceDuration ?? 0,
                           })
                         )
                       }

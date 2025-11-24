@@ -1,13 +1,24 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true, // Enable session persistence
-    storage: localStorage, // Use localStorage for persistence across page reloads
-    autoRefreshToken: true, // Automatically refresh the token before expiry
-    detectSessionInUrl: true, // Detect auth sessions from URL (for magic links, etc.)
-  },
-});
+// Singleton instance
+let supabaseInstance: SupabaseClient | null = null;
+
+// Create singleton supabase client
+const getSupabaseClient = () => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: "sb-auth-token", // Use consistent storage key
+      },
+    });
+  }
+  return supabaseInstance;
+};
+
+export const supabase = getSupabaseClient();
