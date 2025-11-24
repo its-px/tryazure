@@ -59,8 +59,9 @@ export default function UserPanel() {
   // Save booking state to localStorage whenever Redux state changes (do NOT dispatch here)
   useEffect(() => {
     // Only save if user has made selections (not just default values)
-    const hasSelections = selectedLocation || selectedServices.length > 0 || selectedProfessional;
-    
+    const hasSelections =
+      selectedLocation || selectedServices.length > 0 || selectedProfessional;
+
     if (hasSelections) {
       const bookingState = {
         selectedLocation,
@@ -89,7 +90,7 @@ export default function UserPanel() {
   useEffect(() => {
     console.log("localStorage restoration is DISABLED for testing");
     // const savedState = localStorage.getItem("bookingState");
-    
+
     // if (savedState) {
     //   try {
     //     const state = JSON.parse(savedState);
@@ -109,18 +110,18 @@ export default function UserPanel() {
     //     const isValidState = () => {
     //       // Must have selectedServices as an array
     //       if (!selectionsOnly.selectedServices) return false;
-          
+
     //       // Convert object to array if needed (serialization fix)
     //       if (!Array.isArray(selectionsOnly.selectedServices)) {
     //         selectionsOnly.selectedServices = Object.values(selectionsOnly.selectedServices);
     //       }
-          
+
     //       // Must have at least some selection to restore
-    //       const hasValidSelections = 
-    //         selectionsOnly.selectedLocation || 
-    //         selectionsOnly.selectedServices.length > 0 || 
+    //       const hasValidSelections =
+    //         selectionsOnly.selectedLocation ||
+    //         selectionsOnly.selectedServices.length > 0 ||
     //         selectionsOnly.selectedProfessional;
-          
+
     //       return hasValidSelections && Array.isArray(selectionsOnly.selectedServices);
     //     };
 
@@ -265,14 +266,16 @@ export default function UserPanel() {
   const handleResetBooking = () => {
     localStorage.removeItem("bookingState");
     dispatch(setCurrentStep(1));
-    dispatch(setUserSelections({
-      selectedLocation: null,
-      selectedServices: [],
-      selectedProfessional: null,
-      selectedDate: "",
-      selectedSlot: null,
-      serviceDuration: 0,
-    }));
+    dispatch(
+      setUserSelections({
+        selectedLocation: null,
+        selectedServices: [],
+        selectedProfessional: null,
+        selectedDate: "",
+        selectedSlot: null,
+        serviceDuration: 0,
+      })
+    );
     console.log("Booking state reset and localStorage cleared");
   };
 
@@ -750,7 +753,14 @@ export default function UserPanel() {
 
             {/* Reset button - visible at all steps */}
             {currentStep > 1 && (
-              <Box sx={{ display: "flex", justifyContent: "flex-end", px: 3, mb: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  px: 3,
+                  mb: 2,
+                }}
+              >
                 <Button
                   onClick={handleResetBooking}
                   size="small"
@@ -830,12 +840,16 @@ export default function UserPanel() {
                       setSelectedDates={(dates: string[]) =>
                         dispatch(
                           setUserSelections({
-                            selectedLocation: userSelections?.selectedLocation ?? null,
-                            selectedServices: userSelections?.selectedServices ?? [],
-                            selectedProfessional: userSelections?.selectedProfessional ?? null,
+                            selectedLocation:
+                              userSelections?.selectedLocation ?? null,
+                            selectedServices:
+                              userSelections?.selectedServices ?? [],
+                            selectedProfessional:
+                              userSelections?.selectedProfessional ?? null,
                             selectedDate: dates[0] || "",
                             selectedSlot: userSelections?.selectedSlot ?? null,
-                            serviceDuration: userSelections?.serviceDuration ?? 0,
+                            serviceDuration:
+                              userSelections?.serviceDuration ?? 0,
                           })
                         )
                       }
@@ -849,12 +863,16 @@ export default function UserPanel() {
                       onSlotSelect={(slot) =>
                         dispatch(
                           setUserSelections({
-                            selectedLocation: userSelections?.selectedLocation ?? null,
-                            selectedServices: userSelections?.selectedServices ?? [],
-                            selectedProfessional: userSelections?.selectedProfessional ?? null,
+                            selectedLocation:
+                              userSelections?.selectedLocation ?? null,
+                            selectedServices:
+                              userSelections?.selectedServices ?? [],
+                            selectedProfessional:
+                              userSelections?.selectedProfessional ?? null,
                             selectedDate: userSelections?.selectedDate ?? "",
                             selectedSlot: slot,
-                            serviceDuration: userSelections?.serviceDuration ?? 0,
+                            serviceDuration:
+                              userSelections?.serviceDuration ?? 0,
                           })
                         )
                       }
