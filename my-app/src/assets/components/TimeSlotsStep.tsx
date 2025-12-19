@@ -37,45 +37,44 @@ export default function TimeSlotsStep({
 
     let isMounted = true;
 
-    const loadSlots = async () => {
+    const loadSlots = () => {
       setLoading(true);
+      console.log("[TimeSlotsStep] Loading slots...");
 
-      try {
-        const availableSlots = await getAvailableSlots(
-          professionalId,
-          selectedDate,
-          serviceDuration
-        );
+      getAvailableSlots(professionalId, selectedDate, serviceDuration)
+        .then((availableSlots) => {
+          if (!isMounted) return;
 
-        if (!isMounted) return;
+          console.log("[TimeSlotsStep] Slots loaded:", availableSlots.length);
 
-        // Filter out past time slots if booking for today
-        const today = new Date().toISOString().split("T")[0];
-        const now = new Date();
-        const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
-          .getMinutes()
-          .toString()
-          .padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
+          // Filter out past time slots if booking for today
+          const today = new Date().toISOString().split("T")[0];
+          const now = new Date();
+          const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
+            .getMinutes()
+            .toString()
+            .padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
 
-        let filteredSlots = availableSlots;
-        if (selectedDate === today) {
-          // Only show slots that start after current time for today
-          filteredSlots = availableSlots.filter(
-            (slot: TimeSlot) => slot.start_time > currentTime
-          );
-        }
+          let filteredSlots = availableSlots;
+          if (selectedDate === today) {
+            // Only show slots that start after current time for today
+            filteredSlots = availableSlots.filter(
+              (slot: TimeSlot) => slot.start_time > currentTime
+            );
+          }
 
-        if (isMounted) {
-          setSlots(filteredSlots);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Error in loadSlots:", err);
-        if (isMounted) {
-          setSlots([]);
-          setLoading(false);
-        }
-      }
+          if (isMounted) {
+            setSlots(filteredSlots);
+            setLoading(false);
+          }
+        })
+        .catch((err) => {
+          console.error("[TimeSlotsStep] Error in loadSlots:", err);
+          if (isMounted) {
+            setSlots([]);
+            setLoading(false);
+          }
+        });
     };
 
     loadSlots();

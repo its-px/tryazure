@@ -18,6 +18,11 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import type { Session } from "@supabase/supabase-js";
 
 export type Role = "admin" | "user" | "owner";
+
+const debugBreak = () => {
+  if (import.meta.env.MODE === "development") debugger;
+};
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<Role | null>(null);
@@ -34,6 +39,7 @@ function App() {
       // Handle OAuth callback - check for hash fragments
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
       const error = hashParams.get("error");
 
       if (error) {
@@ -41,10 +47,47 @@ function App() {
         window.history.replaceState(null, "", window.location.pathname);
         setLoading(false);
         return;
-      } else if (accessToken) {
-        setTimeout(() => {
-          window.history.replaceState(null, "", window.location.pathname);
-        }, 100);
+      }
+
+      // If we have OAuth tokens in URL, set the session manually
+      if (accessToken && refreshToken) {
+        console.log("OAuth callback detected, setting session...");
+
+        try {
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (sessionError) {
+            console.error("Error setting session:", sessionError);
+          } else {
+            console.log("Session set successfully:", data.session?.user.id);
+            debugBreak();
+            setSession(data.session);
+            debugBreak();
+
+            // Fetch user role
+            if (data.session?.user) {
+              const { data: profile, error: profileError } = await supabase
+                .from("profiles")
+                .select("role")
+                .eq("id", data.session.user.id)
+                .single();
+
+              if (profileError)
+                console.error("Error fetching profile:", profileError);
+              else setRole(profile?.role || null);
+            }
+          }
+        } catch (err) {
+          console.error("Exception setting session:", err);
+        }
+
+        // Remove hash after processing
+        window.history.replaceState(null, "", window.location.pathname);
+        setLoading(false);
+        return;
       }
 
       // Get session directly without refresh to avoid hanging
@@ -52,7 +95,9 @@ function App() {
         data: { session: currentSession },
       } = await supabase.auth.getSession();
 
+      debugBreak();
       setSession(currentSession);
+      debugBreak();
 
       if (currentSession?.user) {
         const { data, error } = await supabase
@@ -71,7 +116,9 @@ function App() {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        debugBreak();
         setSession(session);
+        debugBreak();
 
         if (session?.user) {
           // Check if this is an OAuth login by checking for hash fragments
@@ -79,6 +126,7 @@ function App() {
             window.location.hash.substring(1)
           );
           if (hashParams.get("access_token")) {
+            debugBreak();
             // OAuth login completed - fetch profile and redirect if needed
             const { data: profile, error: profileError } = await supabase
               .from("profiles")

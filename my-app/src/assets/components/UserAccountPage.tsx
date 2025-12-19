@@ -72,26 +72,57 @@ export default function UserAccountPage() {
     let isMounted = true;
 
     const initializeComponent = async () => {
-      setLoading(true);
+      try {
+        setLoading(true);
+        console.log("[UserAccountPage] Initializing component...");
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        // Try to get session from localStorage directly to avoid Supabase hang
+        const storageKey = 'sb-auth-token';
+        let sessionUser = null;
 
-      if (!isMounted) return;
+        try {
+          const storedSession = localStorage.getItem(storageKey);
+          if (storedSession) {
+            const parsed = JSON.parse(storedSession);
+            sessionUser = parsed?.user || null;
+            console.log("[UserAccountPage] Session from storage:", sessionUser ? sessionUser.id : "None");
+          }
+        } catch (err) {
+          console.error("[UserAccountPage] Error reading session from storage:", err);
+        }
 
-      setUser(user);
+        if (!isMounted) return;
 
-      if (user) {
-        await Promise.all([
-          loadUserProfile(user.id),
-          loadUserBookings(user.id),
-          loadServiceMap(),
-        ]);
-      }
+        if (sessionUser) {
+          console.log("[UserAccountPage] User:", sessionUser.id);
+          setUser(sessionUser);
 
-      if (isMounted) {
-        setLoading(false);
+          console.log("[UserAccountPage] Loading user data...");
+          
+          // Load data asynchronously and update loading state separately
+          loadUserProfile(sessionUser.id)
+            .then(() => console.log("[UserAccountPage] Profile loaded"))
+            .catch((err) => console.error("[UserAccountPage] Profile error:", err));
+          
+          loadUserBookings(sessionUser.id)
+            .then(() => console.log("[UserAccountPage] Bookings loaded"))
+            .catch((err) => console.error("[UserAccountPage] Bookings error:", err));
+          
+          loadServiceMap()
+            .then(() => console.log("[UserAccountPage] Services loaded"))
+            .catch((err) => console.error("[UserAccountPage] Services error:", err));
+        } else {
+          console.log("[UserAccountPage] No active session");
+          setUser(null);
+        }
+      } catch (err) {
+        console.error("[UserAccountPage] Error initializing:", err);
+        setUser(null);
+      } finally {
+        if (isMounted) {
+          console.log("[UserAccountPage] Setting loading to false");
+          setLoading(false);
+        }
       }
     };
 
@@ -104,11 +135,12 @@ export default function UserAccountPage() {
 
   const loadServiceMap = async () => {
     try {
+      console.log("[UserAccountPage] Loading service map...");
       const { data, error } = await supabase
         .from("services")
         .select("id, name");
       if (error) {
-        console.error("Error loading services:", error);
+        console.error("[UserAccountPage] Error loading services:", error);
         return;
       }
 
@@ -117,32 +149,40 @@ export default function UserAccountPage() {
         map[service.id] = service.name;
       });
       setServiceMap(map);
+      console.log("[UserAccountPage] Service map loaded:", Object.keys(map).length, "services");
     } catch (err) {
-      console.error("Exception loading services:", err);
+      console.error("[UserAccountPage] Exception loading services:", err);
     }
   };
 
   const loadUserProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      console.log("[UserAccountPage] Loading user profile...");
+      console.log("[UserAccountPage] About to call supabase.from...");
+      const result = supabase
         .from("profiles")
         .select("full_name, phone")
         .eq("id", userId)
         .single();
+      console.log("[UserAccountPage] Supabase query created, awaiting result...");
+      const { data, error } = await result;
+      console.log("[UserAccountPage] Query completed, data:", data, "error:", error);
 
       if (!error && data) {
         setProfile(data);
         setEditedProfile(data);
+        console.log("[UserAccountPage] User profile loaded successfully");
       } else if (error) {
-        console.error("Error loading profile:", error);
+        console.error("[UserAccountPage] Error loading profile:", error);
       }
     } catch (err) {
-      console.error("Exception loading profile:", err);
+      console.error("[UserAccountPage] Exception loading profile:", err);
     }
   };
 
   const loadUserBookings = async (userId: string) => {
     try {
+      console.log("[UserAccountPage] Loading user bookings...");
       const { data, error } = await supabase
         .from("bookings")
         .select()
@@ -150,7 +190,7 @@ export default function UserAccountPage() {
         .order("date", { ascending: true });
 
       if (error) {
-        console.error("Error loading bookings:", error);
+        console.error("[UserAccountPage] Error loading bookings:", error);
         return;
       }
 
@@ -160,8 +200,9 @@ export default function UserAccountPage() {
 
       setUpcomingBookings(upcoming);
       setPastBookings(past);
+      console.log("[UserAccountPage] Bookings loaded:", upcoming.length, "upcoming,", past.length, "past");
     } catch (err) {
-      console.error("Exception loading bookings:", err);
+      console.error("[UserAccountPage] Exception loading bookings:", err);
     }
   };
 

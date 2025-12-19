@@ -11,17 +11,16 @@ export const getAvailableSlots = async (
   serviceDuration: number
 ): Promise<TimeSlot[]> => {
   try {
-    // Add timeout to prevent infinite loading
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-    const { data, error } = await supabase.rpc("get_available_slots", {
+    console.log("[getAvailableSlots] Starting RPC call...");
+    const rpcCall = supabase.rpc("get_available_slots", {
       p_professional_id: professionalId,
       p_date: date,
       p_service_duration_minutes: serviceDuration,
     });
 
-    clearTimeout(timeoutId);
+    console.log("[getAvailableSlots] RPC call created, awaiting result...");
+    const { data, error } = await rpcCall;
+    console.log("[getAvailableSlots] RPC completed, data:", data?.length, "error:", error);
 
     if (error) {
       console.error("Error fetching slots:", error);

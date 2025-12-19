@@ -6,16 +6,71 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 // Singleton instance
 let supabaseInstance: SupabaseClient | null = null;
 
+const debugBreak = () => {
+  if (import.meta.env.MODE === "development") debugger;
+};
+
 // Create singleton supabase client
 const getSupabaseClient = () => {
   if (!supabaseInstance) {
+    console.log("[SupabaseClient] Creating new client instance...");
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storageKey: "sb-auth-token", // Use consistent storage key
+        detectSessionInUrl: false,
+        storageKey: "sb-auth-token",
+        flowType: "pkce",
       },
+      global: {
+        fetch: (url, options) => {
+          console.log('[Supabase] Making fetch request to:', url);
+          const timeoutId = setTimeout(() => {
+            console.error('[Supabase] Fetch taking longer than 10s:', url);
+          }, 10000);
+          
+          return fetch(url, options)
+            .then(response => {
+              clearTimeout(timeoutId);
+              console.log('[Supabase] Fetch completed:', url, 'status:', response.status);
+              return response;
+            })
+            .catch(err => {
+              clearTimeout(timeoutId);
+              console.error('[Supabase] Fetch failed:', url, err);
+              throw err;
+            });
+        },
+      },
+    });
+    console.log("[SupabaseClient] Client created successfully");
+    debugBreak();
+
+    // Handle auth state changes to track sessions
+    supabaseInstance.auth.onAuthStateChange(async (event, session) => {
+      debugBreak();
+      if (event === "SIGNED_IN" && session) {
+        console.log("User signed in:", session.user.id);
+
+        // Track session to prevent duplicates
+        try {
+          const { error } = await supabaseInstance!
+            .from("profiles")
+            .update({
+              last_session_id: session.access_token.substring(0, 50),
+              last_login_at: new Date().toISOString(),
+            })
+            .eq("id", session.user.id);
+
+          if (error) {
+            console.error("Error tracking session:", error);
+          }
+        } catch (err) {
+          console.error("Session tracking error:", err);
+        }
+      } else if (event === "SIGNED_OUT") {
+        console.log("User signed out");
+      }
     });
   }
   return supabaseInstance;

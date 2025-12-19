@@ -23,22 +23,34 @@ export default function ServicesStep({
   useEffect(() => {
     let isMounted = true;
 
-    const loadServices = async () => {
+    const loadServices = () => {
       setLoading(true);
+      console.log("[ServicesStep] Loading services...");
 
-      try {
-        const data = await fetchServices();
-        if (isMounted) {
-          setServices(data);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Error loading services in ServicesStep:", err);
-        if (isMounted) {
-          setServices([]);
-          setLoading(false);
-        }
-      }
+      // Load services with timeout
+      const timeout = new Promise<Service[]>((_, reject) => 
+        setTimeout(() => reject(new Error("Services load timeout")), 8000)
+      );
+
+      Promise.race([fetchServices(), timeout])
+        .then((data) => {
+          if (isMounted) {
+            console.log("[ServicesStep] Services loaded:", data.length);
+            setServices(data);
+          }
+        })
+        .catch((err) => {
+          console.error("[ServicesStep] Error loading services:", err);
+          if (isMounted) {
+            setServices([]);
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            console.log("[ServicesStep] Setting loading to false");
+            setLoading(false);
+          }
+        });
     };
 
     loadServices();

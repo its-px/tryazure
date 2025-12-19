@@ -18,6 +18,10 @@ import { getColors, getCommonStyles } from "../../theme";
 import validator from "validator";
 import { useNavigate } from "react-router-dom";
 
+const debugBreak = () => {
+  if (import.meta.env.MODE === "development") debugger;
+};
+
 interface LoginModalProps {
   open: boolean;
   onClose: () => void;
@@ -141,12 +145,14 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           email,
           password,
         });
+        debugBreak();
         if (error) throw error;
 
         // Get user from session after login
         const {
           data: { user },
         } = await supabase.auth.getUser();
+        debugBreak();
         if (!user) {
           throw new Error("Failed to get user after login");
         }
@@ -157,6 +163,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           .select("role")
           .eq("id", user.id)
           .single();
+        debugBreak();
 
         if (profileError) {
           console.error("Error fetching profile:", profileError);
@@ -168,6 +175,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         }
 
         const role = profile?.role;
+        debugBreak();
         resetForm();
         onClose();
 
@@ -176,6 +184,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         if (role === "admin") navigate("/admin");
         else if (role === "owner") navigate("/owner");
         // else stay on current page for regular users
+        debugBreak();
       }
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
