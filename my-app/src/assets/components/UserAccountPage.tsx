@@ -237,10 +237,10 @@ export default function UserAccountPage() {
 
   const handleSignOut = async () => {
     console.log("[UserAccountPage] Sign out initiated");
-    
+
     try {
       // Get token from localStorage
-      const storageKey = 'sb-auth-token';
+      const storageKey = "sb-auth-token";
       let token = null;
       try {
         const storedSession = localStorage.getItem(storageKey);
@@ -251,17 +251,17 @@ export default function UserAccountPage() {
       } catch (err) {
         console.error("[UserAccountPage] Error reading token:", err);
       }
-      
+
       if (token) {
         // Call Supabase auth API directly to sign out
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        
+
         try {
           await fetch(`${supabaseUrl}/auth/v1/logout`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
             },
           });
           console.log("[UserAccountPage] Sign out API called");
@@ -269,25 +269,25 @@ export default function UserAccountPage() {
           console.error("[UserAccountPage] Sign out API error:", err);
         }
       }
-      
+
       // Clear localStorage regardless of API response
       localStorage.removeItem(storageKey);
-      localStorage.removeItem('bookingState');
+      localStorage.removeItem("bookingState");
       console.log("[UserAccountPage] Cleared localStorage");
-      
+
       // Clear component state
       setUser(null);
       setUpcomingBookings([]);
       setPastBookings([]);
-      
+
       // Reload the page to reset all app state
       console.log("[UserAccountPage] Reloading page...");
       window.location.reload();
     } catch (err) {
       console.error("[UserAccountPage] Sign out error:", err);
       // Even if there's an error, clear local state and reload
-      localStorage.removeItem('sb-auth-token');
-      localStorage.removeItem('bookingState');
+      localStorage.removeItem("sb-auth-token");
+      localStorage.removeItem("bookingState");
       window.location.reload();
     }
   };

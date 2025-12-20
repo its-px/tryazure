@@ -185,10 +185,13 @@ export default function UserPanel() {
 
     const loadAvailableDates = async () => {
       try {
-        console.log("[loadAvailableDates] Starting, professional:", selectedProfessional);
-        
+        console.log(
+          "[loadAvailableDates] Starting, professional:",
+          selectedProfessional
+        );
+
         // Get token from localStorage
-        const storageKey = 'sb-auth-token';
+        const storageKey = "sb-auth-token";
         let token = null;
         try {
           const storedSession = localStorage.getItem(storageKey);
@@ -199,29 +202,37 @@ export default function UserPanel() {
         } catch (err) {
           console.error("[loadAvailableDates] Error reading token:", err);
         }
-        
+
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        
+
         const headers: Record<string, string> = {
-          'apikey': supabaseKey,
-          'Content-Type': 'application/json',
+          apikey: supabaseKey,
+          "Content-Type": "application/json",
         };
-        
+
         if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
+          headers["Authorization"] = `Bearer ${token}`;
         }
-        
+
         if (!selectedProfessional) {
-          console.log("[loadAvailableDates] No professional selected, loading all dates");
-          const response = await fetch(`${supabaseUrl}/rest/v1/availability?select=date`, {
-            headers,
-          });
+          console.log(
+            "[loadAvailableDates] No professional selected, loading all dates"
+          );
+          const response = await fetch(
+            `${supabaseUrl}/rest/v1/availability?select=date`,
+            {
+              headers,
+            }
+          );
 
           if (!isMounted) return;
 
           if (!response.ok) {
-            console.error("[loadAvailableDates] Error fetching dates:", response.statusText);
+            console.error(
+              "[loadAvailableDates] Error fetching dates:",
+              response.statusText
+            );
             setAvailableDates([]);
           } else {
             const data = await response.json();
@@ -232,10 +243,13 @@ export default function UserPanel() {
         }
 
         console.log("[loadAvailableDates] Loading shop dates...");
-        const shopResponse = await fetch(`${supabaseUrl}/rest/v1/availability?select=date`, {
-          headers,
-        });
-        
+        const shopResponse = await fetch(
+          `${supabaseUrl}/rest/v1/availability?select=date`,
+          {
+            headers,
+          }
+        );
+
         const shopDates = shopResponse.ok ? await shopResponse.json() : null;
 
         if (!isMounted) return;
@@ -245,8 +259,11 @@ export default function UserPanel() {
           setAvailableDates([]);
           return;
         }
-        
-        console.log("[loadAvailableDates] Shop dates loaded:", shopDates.length);
+
+        console.log(
+          "[loadAvailableDates] Shop dates loaded:",
+          shopDates.length
+        );
 
         // Check each date to see if it has any available slots
         // Only include dates that have at least one available slot
@@ -263,31 +280,51 @@ export default function UserPanel() {
 
           try {
             console.log("[loadAvailableDates] Checking slots for date:", date);
-            const slotsResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/get_available_slots`, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({
-                p_professional_id: selectedProfessional,
-                p_date: date,
-                p_service_duration_minutes: checkDuration,
-              }),
-            });
-            
+            const slotsResponse = await fetch(
+              `${supabaseUrl}/rest/v1/rpc/get_available_slots`,
+              {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                  p_professional_id: selectedProfessional,
+                  p_date: date,
+                  p_service_duration_minutes: checkDuration,
+                }),
+              }
+            );
+
             if (slotsResponse.ok) {
               const slots = await slotsResponse.json();
-              console.log("[loadAvailableDates] Slots for", date, ":", slots?.length);
+              console.log(
+                "[loadAvailableDates] Slots for",
+                date,
+                ":",
+                slots?.length
+              );
               if (slots && slots.length > 0) {
                 datesWithSlots.push(date);
               }
             } else {
-              console.error("[loadAvailableDates] Error checking slots for", date, ":", slotsResponse.statusText);
+              console.error(
+                "[loadAvailableDates] Error checking slots for",
+                date,
+                ":",
+                slotsResponse.statusText
+              );
             }
           } catch (err) {
-            console.error("[loadAvailableDates] Exception checking slots for date:", date, err);
+            console.error(
+              "[loadAvailableDates] Exception checking slots for date:",
+              date,
+              err
+            );
           }
         }
-        
-        console.log("[loadAvailableDates] Dates with slots:", datesWithSlots.length);
+
+        console.log(
+          "[loadAvailableDates] Dates with slots:",
+          datesWithSlots.length
+        );
 
         if (isMounted) {
           setAvailableDates(datesWithSlots);
