@@ -28,7 +28,7 @@ export default function ServicesStep({
       console.log("[ServicesStep] Loading services...");
 
       // Load services with timeout
-      const timeout = new Promise<Service[]>((_, reject) => 
+      const timeout = new Promise<Service[]>((_, reject) =>
         setTimeout(() => reject(new Error("Services load timeout")), 8000)
       );
 

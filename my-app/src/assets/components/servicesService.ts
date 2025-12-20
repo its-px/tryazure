@@ -11,9 +11,9 @@ export interface Service {
 export const fetchServices = async (): Promise<Service[]> => {
   try {
     console.log("[fetchServices] Fetching services via REST API...");
-    
+
     // Get token from localStorage directly to avoid auth hang
-    const storageKey = 'sb-auth-token';
+    const storageKey = "sb-auth-token";
     let token = null;
     try {
       const storedSession = localStorage.getItem(storageKey);
@@ -25,31 +25,34 @@ export const fetchServices = async (): Promise<Service[]> => {
     } catch (err) {
       console.error("[fetchServices] Error reading token:", err);
     }
-    
+
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
+
     console.log("[fetchServices] Making direct fetch request...");
     const headers: Record<string, string> = {
-      'apikey': supabaseKey,
-      'Content-Type': 'application/json',
+      apikey: supabaseKey,
+      "Content-Type": "application/json",
     };
-    
+
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers["Authorization"] = `Bearer ${token}`;
     }
-    
-    const response = await fetch(`${supabaseUrl}/rest/v1/services?select=*&order=name`, {
-      headers,
-    });
-    
+
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/services?select=*&order=name`,
+      {
+        headers,
+      }
+    );
+
     console.log("[fetchServices] Response status:", response.status);
-    
+
     if (!response.ok) {
       console.error("[fetchServices] Response not OK:", response.statusText);
       return [];
     }
-    
+
     const data = await response.json();
     console.log("[fetchServices] Services loaded:", data.length);
     return data as Service[];

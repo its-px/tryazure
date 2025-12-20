@@ -6,9 +6,9 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 // Singleton instance
 let supabaseInstance: SupabaseClient | null = null;
 
-const debugBreak = () => {
-  if (import.meta.env.MODE === "development") debugger;
-};
+// const debugBreak = () => {
+//   if (import.meta.env.MODE === "development") debugger;
+// };
 
 // Create singleton supabase client
 const getSupabaseClient = () => {
@@ -24,31 +24,36 @@ const getSupabaseClient = () => {
       },
       global: {
         fetch: (url, options) => {
-          console.log('[Supabase] Making fetch request to:', url);
+          console.log("[Supabase] Making fetch request to:", url);
           const timeoutId = setTimeout(() => {
-            console.error('[Supabase] Fetch taking longer than 10s:', url);
+            console.error("[Supabase] Fetch taking longer than 10s:", url);
           }, 10000);
-          
+
           return fetch(url, options)
-            .then(response => {
+            .then((response) => {
               clearTimeout(timeoutId);
-              console.log('[Supabase] Fetch completed:', url, 'status:', response.status);
+              console.log(
+                "[Supabase] Fetch completed:",
+                url,
+                "status:",
+                response.status
+              );
               return response;
             })
-            .catch(err => {
+            .catch((err) => {
               clearTimeout(timeoutId);
-              console.error('[Supabase] Fetch failed:', url, err);
+              console.error("[Supabase] Fetch failed:", url, err);
               throw err;
             });
         },
       },
     });
     console.log("[SupabaseClient] Client created successfully");
-    debugBreak();
+    //debugBreak();
 
     // Handle auth state changes to track sessions
     supabaseInstance.auth.onAuthStateChange(async (event, session) => {
-      debugBreak();
+      //debugBreak();
       if (event === "SIGNED_IN" && session) {
         console.log("User signed in:", session.user.id);
 

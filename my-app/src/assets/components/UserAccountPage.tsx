@@ -77,7 +77,7 @@ export default function UserAccountPage() {
         console.log("[UserAccountPage] Initializing component...");
 
         // Try to get session from localStorage directly to avoid Supabase hang
-        const storageKey = 'sb-auth-token';
+        const storageKey = "sb-auth-token";
         let sessionUser = null;
 
         try {
@@ -85,10 +85,16 @@ export default function UserAccountPage() {
           if (storedSession) {
             const parsed = JSON.parse(storedSession);
             sessionUser = parsed?.user || null;
-            console.log("[UserAccountPage] Session from storage:", sessionUser ? sessionUser.id : "None");
+            console.log(
+              "[UserAccountPage] Session from storage:",
+              sessionUser ? sessionUser.id : "None"
+            );
           }
         } catch (err) {
-          console.error("[UserAccountPage] Error reading session from storage:", err);
+          console.error(
+            "[UserAccountPage] Error reading session from storage:",
+            err
+          );
         }
 
         if (!isMounted) return;
@@ -98,19 +104,25 @@ export default function UserAccountPage() {
           setUser(sessionUser);
 
           console.log("[UserAccountPage] Loading user data...");
-          
+
           // Load data asynchronously and update loading state separately
           loadUserProfile(sessionUser.id)
             .then(() => console.log("[UserAccountPage] Profile loaded"))
-            .catch((err) => console.error("[UserAccountPage] Profile error:", err));
-          
+            .catch((err) =>
+              console.error("[UserAccountPage] Profile error:", err)
+            );
+
           loadUserBookings(sessionUser.id)
             .then(() => console.log("[UserAccountPage] Bookings loaded"))
-            .catch((err) => console.error("[UserAccountPage] Bookings error:", err));
-          
+            .catch((err) =>
+              console.error("[UserAccountPage] Bookings error:", err)
+            );
+
           loadServiceMap()
             .then(() => console.log("[UserAccountPage] Services loaded"))
-            .catch((err) => console.error("[UserAccountPage] Services error:", err));
+            .catch((err) =>
+              console.error("[UserAccountPage] Services error:", err)
+            );
         } else {
           console.log("[UserAccountPage] No active session");
           setUser(null);
@@ -149,7 +161,11 @@ export default function UserAccountPage() {
         map[service.id] = service.name;
       });
       setServiceMap(map);
-      console.log("[UserAccountPage] Service map loaded:", Object.keys(map).length, "services");
+      console.log(
+        "[UserAccountPage] Service map loaded:",
+        Object.keys(map).length,
+        "services"
+      );
     } catch (err) {
       console.error("[UserAccountPage] Exception loading services:", err);
     }
@@ -164,9 +180,16 @@ export default function UserAccountPage() {
         .select("full_name, phone")
         .eq("id", userId)
         .single();
-      console.log("[UserAccountPage] Supabase query created, awaiting result...");
+      console.log(
+        "[UserAccountPage] Supabase query created, awaiting result..."
+      );
       const { data, error } = await result;
-      console.log("[UserAccountPage] Query completed, data:", data, "error:", error);
+      console.log(
+        "[UserAccountPage] Query completed, data:",
+        data,
+        "error:",
+        error
+      );
 
       if (!error && data) {
         setProfile(data);
@@ -200,17 +223,73 @@ export default function UserAccountPage() {
 
       setUpcomingBookings(upcoming);
       setPastBookings(past);
-      console.log("[UserAccountPage] Bookings loaded:", upcoming.length, "upcoming,", past.length, "past");
+      console.log(
+        "[UserAccountPage] Bookings loaded:",
+        upcoming.length,
+        "upcoming,",
+        past.length,
+        "past"
+      );
     } catch (err) {
       console.error("[UserAccountPage] Exception loading bookings:", err);
     }
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setUpcomingBookings([]);
-    setPastBookings([]);
+    console.log("[UserAccountPage] Sign out initiated");
+    
+    try {
+      // Get token from localStorage
+      const storageKey = 'sb-auth-token';
+      let token = null;
+      try {
+        const storedSession = localStorage.getItem(storageKey);
+        if (storedSession) {
+          const parsed = JSON.parse(storedSession);
+          token = parsed?.access_token;
+        }
+      } catch (err) {
+        console.error("[UserAccountPage] Error reading token:", err);
+      }
+      
+      if (token) {
+        // Call Supabase auth API directly to sign out
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        
+        try {
+          await fetch(`${supabaseUrl}/auth/v1/logout`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          console.log("[UserAccountPage] Sign out API called");
+        } catch (err) {
+          console.error("[UserAccountPage] Sign out API error:", err);
+        }
+      }
+      
+      // Clear localStorage regardless of API response
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem('bookingState');
+      console.log("[UserAccountPage] Cleared localStorage");
+      
+      // Clear component state
+      setUser(null);
+      setUpcomingBookings([]);
+      setPastBookings([]);
+      
+      // Reload the page to reset all app state
+      console.log("[UserAccountPage] Reloading page...");
+      window.location.reload();
+    } catch (err) {
+      console.error("[UserAccountPage] Sign out error:", err);
+      // Even if there's an error, clear local state and reload
+      localStorage.removeItem('sb-auth-token');
+      localStorage.removeItem('bookingState');
+      window.location.reload();
+    }
   };
 
   const handleUpdateProfile = async () => {

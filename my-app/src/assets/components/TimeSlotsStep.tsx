@@ -50,7 +50,10 @@ export default function TimeSlotsStep({
           // Filter out past time slots if booking for today
           const today = new Date().toISOString().split("T")[0];
           const now = new Date();
-          const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
+          const currentTime = `${now
+            .getHours()
+            .toString()
+            .padStart(2, "0")}:${now
             .getMinutes()
             .toString()
             .padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
