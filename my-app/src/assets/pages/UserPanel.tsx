@@ -400,11 +400,9 @@ export default function UserPanel() {
               setIsLoggedIn(true);
               setShowLoginModal(false);
               // Check upcoming appointments
-              checkUpcomingAppointments(supabase, session.user.id).catch(
-                (err) => {
-                  console.error("Error checking appointments:", err);
-                }
-              );
+              checkUpcomingAppointments(session.user.id).catch((err) => {
+                console.error("Error checking appointments:", err);
+              });
             }
           } else {
             console.log("[UserPanel] Session expired or invalid");
@@ -643,14 +641,11 @@ export default function UserPanel() {
       // Use setTimeout to make it non-blocking
       setTimeout(async () => {
         try {
-          await showBookingNotification(
-            {
-              date: capturedDate,
-              services: capturedServices,
-              id: insertedBooking?.id || Date.now(),
-            },
-            supabase
-          );
+          await showBookingNotification({
+            date: capturedDate,
+            services: capturedServices,
+            id: insertedBooking?.id || Date.now(),
+          });
           console.log("✅ Browser notification sent");
         } catch (notifError) {
           console.error("❌ Notification error:", notifError);

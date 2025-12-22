@@ -1,45 +1,52 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // notif.ts
 
-// Helper to add timeout to promises
-function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  fallback: T
-): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), timeoutMs)),
-  ]);
-}
+import { supabase } from "./assets/components/supabaseClient";
 
-// Fetch the names of services given their UUIDs
-export async function fetchServiceNames(supabase: any, serviceIds: string[]) {
+// Use direct fetch for service names to avoid React callback issues
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Fetch the names of services given their UUIDs using direct REST API
+export async function fetchServiceNames(
+  serviceIds: string[]
+): Promise<string[]> {
   if (!serviceIds || serviceIds.length === 0) return [];
 
   try {
     console.log("🔔 Fetching service names for IDs:", serviceIds);
 
-    const queryPromise = supabase
-      .from("services")
-      .select("id, name")
-      .in("id", serviceIds);
+    // Build the query URL with in() filter
+    const idsParam = serviceIds.map((id) => `"${id}"`).join(",");
+    const url = `${SUPABASE_URL}/rest/v1/services?id=in.(${idsParam})&select=id,name`;
 
-    // Add 3 second timeout to prevent hanging
-    const result: any = await withTimeout(queryPromise, 3000, {
-      data: null,
-      error: { message: "Timeout" },
+    const response = await fetch(url, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+      },
     });
-    const { data, error } = result;
 
-    if (error) {
-      console.error("Error fetching service names:", error);
-      return serviceIds; // fallback to showing IDs if something fails
+    if (!response.ok) {
+      console.error(
+        "Error fetching service names:",
+        response.status,
+        response.statusText
+      );
+      return serviceIds;
     }
 
-    if (data && Array.isArray(data)) {
-      return data.map((s: any) => s.name);
+    const data = await response.json();
+    console.log("🔔 Query result:", data);
+
+    if (data && Array.isArray(data) && data.length > 0) {
+      const names = data.map((s: { name: string }) => s.name);
+      console.log("🔔 Successfully fetched names:", names);
+      return names;
     }
+
+    console.warn("🔔 No data returned, falling back to IDs");
     return serviceIds;
   } catch (err) {
     console.error("Exception in fetchServiceNames:", err);
@@ -80,7 +87,7 @@ export async function requestNotificationPermission() {
 }
 
 // Show booking confirmation
-export async function showBookingNotification(booking: any, supabase: any) {
+export async function showBookingNotification(booking: any) {
   console.log("🔔 showBookingNotification called with:", booking);
 
   const permission = await requestNotificationPermission();
@@ -111,8 +118,8 @@ export async function showBookingNotification(booking: any, supabase: any) {
     serviceIds = [booking.services];
   }
 
-  // Fetch service names
-  const serviceNames = await fetchServiceNames(supabase, serviceIds);
+  // Fetch service names (using imported supabase client)
+  const serviceNames = await fetchServiceNames(serviceIds);
   const servicesText =
     serviceNames.length > 0 ? serviceNames.join(", ") : serviceIds.join(", "); // Fallback to IDs if names can't be fetched
 
@@ -201,7 +208,7 @@ export function scheduleAppointmentReminder(booking: any) {
 }
 
 // Check upcoming appointments in Supabase
-export async function checkUpcomingAppointments(supabase: any, userId: string) {
+export async function checkUpcomingAppointments(userId: string) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowDate = tomorrow.toISOString().split("T")[0];
