@@ -110,11 +110,16 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
     setLoading(true);
     try {
       if (isSignUp) {
-        // Sign up
+        // Sign up - for email auth, phone goes in user_metadata (options.data)
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { full_name: fullName, phone } },
+          options: {
+            data: {
+              full_name: fullName,
+              phone: phone, // Store phone in user metadata
+            },
+          },
         });
         if (error) throw error;
 
@@ -129,6 +134,16 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
               role: "user",
             },
           ]);
+
+          // Sync phone to auth.users.phone field using Edge Function
+          try {
+            await supabase.functions.invoke("sync-user-phone", {
+              body: { userId: data.user.id, phone: phone },
+            });
+          } catch (syncError) {
+            console.error("Error syncing phone to auth:", syncError);
+            // Don't throw - profile was created successfully
+          }
         } else {
           console.error(
             "Sign-up succeeded but no user data returned from Supabase."
@@ -141,10 +156,11 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         // Don't navigate after sign up - let user stay on current page
       } else {
         // Login
-        const { data: authData, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { data: authData, error } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
         //debugBreak();
         if (error) throw error;
 
@@ -182,22 +198,29 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           resetForm();
           onClose();
           // Dispatch event to show CompleteProfileModal
-          window.dispatchEvent(new CustomEvent('show-complete-profile'));
+          window.dispatchEvent(new CustomEvent("show-complete-profile"));
           return;
         }
 
         const role = profile?.role;
         const isProfileIncomplete = !profile?.full_name || !profile?.phone;
-        
-        console.log("[LoginModal] User role:", role, "Profile incomplete:", isProfileIncomplete);
-        
+
+        console.log(
+          "[LoginModal] User role:",
+          role,
+          "Profile incomplete:",
+          isProfileIncomplete
+        );
+
         resetForm();
         onClose();
 
         // If profile is incomplete, show the complete profile modal
         if (isProfileIncomplete) {
-          console.log("[LoginModal] Profile incomplete, triggering CompleteProfileModal");
-          window.dispatchEvent(new CustomEvent('show-complete-profile'));
+          console.log(
+            "[LoginModal] Profile incomplete, triggering CompleteProfileModal"
+          );
+          window.dispatchEvent(new CustomEvent("show-complete-profile"));
           // Still redirect based on role after modal is shown
         }
 
@@ -214,11 +237,19 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           } else if (role === "user") {
             // If user is on admin/owner page, redirect to user panel
             // Otherwise stay on current page (important for booking flow)
-            if (window.location.pathname === "/admin" || window.location.pathname === "/owner") {
-              console.log("[LoginModal] User on protected route, navigating to /");
+            if (
+              window.location.pathname === "/admin" ||
+              window.location.pathname === "/owner"
+            ) {
+              console.log(
+                "[LoginModal] User on protected route, navigating to /"
+              );
               navigate("/");
             } else {
-              console.log("[LoginModal] User staying on current page:", window.location.pathname);
+              console.log(
+                "[LoginModal] User staying on current page:",
+                window.location.pathname
+              );
             }
           }
         }, 100);

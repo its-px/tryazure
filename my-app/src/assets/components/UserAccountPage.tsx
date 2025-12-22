@@ -147,14 +147,14 @@ export default function UserAccountPage() {
   const loadServiceMap = async () => {
     try {
       console.log("[UserAccountPage] Loading service map...");
-      
+
       const storedSession = localStorage.getItem("sb-auth-token");
       if (!storedSession) return;
-      
+
       const session = JSON.parse(storedSession);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       const response = await fetch(
         `${supabaseUrl}/rest/v1/services?select=id,name`,
         {
@@ -164,12 +164,15 @@ export default function UserAccountPage() {
           },
         }
       );
-      
+
       if (!response.ok) {
-        console.error("[UserAccountPage] Error loading services:", response.statusText);
+        console.error(
+          "[UserAccountPage] Error loading services:",
+          response.statusText
+        );
         return;
       }
-      
+
       const data = await response.json();
       const map: Record<string, string> = {};
       data?.forEach((service: { id: string; name: string }) => {
@@ -189,14 +192,14 @@ export default function UserAccountPage() {
   const loadUserProfile = async (userId: string) => {
     try {
       console.log("[UserAccountPage] Loading user profile...");
-      
+
       const storedSession = localStorage.getItem("sb-auth-token");
       if (!storedSession) return;
-      
+
       const session = JSON.parse(storedSession);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       const response = await fetch(
         `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=full_name,phone`,
         {
@@ -207,15 +210,18 @@ export default function UserAccountPage() {
           },
         }
       );
-      
+
       if (!response.ok) {
-        console.error("[UserAccountPage] Error loading profile:", response.statusText);
+        console.error(
+          "[UserAccountPage] Error loading profile:",
+          response.statusText
+        );
         return;
       }
-      
+
       const data = await response.json();
       console.log("[UserAccountPage] Query completed, data:", data);
-      
+
       // data is an array, get the first item
       if (data && data.length > 0) {
         setProfile(data[0]);
@@ -230,14 +236,14 @@ export default function UserAccountPage() {
   const loadUserBookings = async (userId: string) => {
     try {
       console.log("[UserAccountPage] Loading user bookings...");
-      
+
       const storedSession = localStorage.getItem("sb-auth-token");
       if (!storedSession) return;
-      
+
       const session = JSON.parse(storedSession);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       const response = await fetch(
         `${supabaseUrl}/rest/v1/bookings?user_id=eq.${userId}&order=date.asc`,
         {
@@ -247,12 +253,15 @@ export default function UserAccountPage() {
           },
         }
       );
-      
+
       if (!response.ok) {
-        console.error("[UserAccountPage] Error loading bookings:", response.statusText);
+        console.error(
+          "[UserAccountPage] Error loading bookings:",
+          response.statusText
+        );
         return;
       }
-      
+
       const data = await response.json();
       const today = new Date().toISOString().split("T")[0];
       const upcoming = data?.filter((b: Booking) => b.date >= today) || [];
@@ -305,7 +314,10 @@ export default function UserAccountPage() {
             console.log("[UserAccountPage] Sign out API called successfully");
           } else {
             // 401 is expected if token already expired - that's fine
-            console.log("[UserAccountPage] Sign out API returned:", response.status);
+            console.log(
+              "[UserAccountPage] Sign out API returned:",
+              response.status
+            );
           }
         } catch (err) {
           console.error("[UserAccountPage] Sign out API error:", err);
@@ -321,10 +333,10 @@ export default function UserAccountPage() {
       setUser(null);
       setUpcomingBookings([]);
       setPastBookings([]);
-      
+
       // Trigger a storage event to notify other listeners (like onAuthStateChange)
-      window.dispatchEvent(new Event('storage'));
-      
+      window.dispatchEvent(new Event("storage"));
+
       console.log("[UserAccountPage] Sign out complete");
     } catch (err) {
       console.error("[UserAccountPage] Sign out error:", err);
@@ -334,7 +346,7 @@ export default function UserAccountPage() {
       setUser(null);
       setUpcomingBookings([]);
       setPastBookings([]);
-      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event("storage"));
     }
   };
 
@@ -402,11 +414,11 @@ export default function UserAccountPage() {
         alert("Session expired - please log in again");
         return;
       }
-      
+
       const session = JSON.parse(storedSession);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       const response = await fetch(
         `${supabaseUrl}/rest/v1/bookings?id=eq.${bookingToCancel}`,
         {
@@ -417,12 +429,12 @@ export default function UserAccountPage() {
           },
         }
       );
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(errorText);
       }
-      
+
       alert(
         "Booking cancelled successfully! The time slot is now available for booking again."
       );

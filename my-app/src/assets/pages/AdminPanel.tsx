@@ -256,7 +256,7 @@ export default function AdminPanel() {
       if (storedSession) {
         const parsed = JSON.parse(storedSession);
         const token = parsed?.access_token;
-        
+
         if (token) {
           // Call Supabase auth API directly to sign out
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -276,14 +276,14 @@ export default function AdminPanel() {
     } catch (err) {
       console.error("[AdminPanel] Error during logout:", err);
     }
-    
+
     // Clear localStorage regardless of API response
     localStorage.removeItem("sb-auth-token");
     localStorage.removeItem("bookingState");
-    
+
     // Trigger storage event for App.tsx to detect
-    window.dispatchEvent(new Event('storage'));
-    
+    window.dispatchEvent(new Event("storage"));
+
     navigate("/");
   };
 

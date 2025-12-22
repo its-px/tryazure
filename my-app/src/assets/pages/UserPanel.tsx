@@ -647,46 +647,35 @@ export default function UserPanel() {
         return s?.name || id; // fallback to id if not found
       });
 
-      // Send SMS confirmation if user has phone number
-      // Phone may come from auth metadata, auth.phone, or the `profiles` table.
-      let userPhone: string | null =
-        user?.user_metadata?.phone || (user as any)?.phone || null;
+      // Get phone number from profiles table
+      let userPhone: string | null = null;
 
-      // Fallback: read profiles.phone for this user if available
-      if (!userPhone && user?.id) {
+      if (user?.id) {
         try {
-          const profileResponse = await fetch(
-            `${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=phone`,
-            {
-              headers: {
-                apikey: supabaseKey,
-                Authorization: `Bearer ${session.access_token}`,
-                Accept: "application/vnd.pgjson.object+json",
-              },
-            }
-          );
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("phone")
+            .eq("id", user.id)
+            .single();
 
-          if (profileResponse.ok) {
-            const profile = await profileResponse.json();
-            if (profile?.phone) {
-              userPhone = profile.phone;
-              const masked = `${profile.phone.substring(
-                0,
-                3
-              )}***${profile.phone.substring(profile.phone.length - 4)}`;
-              console.log(
-                "Found phone in profiles table for user (masked):",
-                masked
-              );
-            }
-          } else {
+          if (profileError) {
             console.warn(
               "Could not read phone from profiles table:",
-              profileResponse.statusText
+              profileError.message
+            );
+          } else if (profile?.phone) {
+            userPhone = profile.phone;
+            const masked = `${profile.phone.substring(
+              0,
+              3
+            )}***${profile.phone.substring(profile.phone.length - 4)}`;
+            console.log(
+              "Found phone in profiles table for user (masked):",
+              masked
             );
           }
         } catch (err) {
-          console.error("Error querying profiles for phone fallback:", err);
+          console.error("Error querying profiles for phone:", err);
         }
       }
 

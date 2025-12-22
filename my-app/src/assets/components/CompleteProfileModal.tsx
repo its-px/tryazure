@@ -9,6 +9,7 @@ import {
 import { useSelector } from "react-redux";
 import type { RootState } from "../../configureStore";
 import { getColors, getCommonStyles } from "../../theme";
+import { supabase } from "./supabaseClient";
 
 interface CompleteProfileModalProps {
   open: boolean;
@@ -37,89 +38,82 @@ export default function CompleteProfileModal({
 
     setLoading(true);
     try {
-      console.log("[CompleteProfileModal] Getting user from localStorage...");
+      console.log("[CompleteProfileModal] Getting current user...");
 
-      // Get user from localStorage instead of hanging Supabase client
-      const storedSession = localStorage.getItem("sb-auth-token");
-      if (!storedSession) {
-        throw new Error("No session found - please log in again");
+      // Get current user session
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error("No user session found - please log in again");
       }
 
-      const session = JSON.parse(storedSession);
-      if (!session.user || !session.access_token) {
-        throw new Error("Invalid session - please log in again");
-      }
-
-      const user = session.user;
       console.log("[CompleteProfileModal] User ID:", user.id);
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      // Step 1: Update auth metadata (for email auth, phone goes in user_metadata)
+      console.log("[CompleteProfileModal] Updating auth metadata...");
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          full_name: fullName.trim(),
+          phone: phone.trim(), // Store phone in user metadata
+        },
+      });
 
-      const headers = {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${session.access_token}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      };
+      if (authError) {
+        console.error("[CompleteProfileModal] Auth update failed:", authError);
+        throw new Error(`Failed to update auth metadata: ${authError.message}`);
+      }
 
-      // Try to update profile first
-      console.log("[CompleteProfileModal] Updating profile...");
-      const updateResponse = await fetch(
-        `${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`,
+      console.log("[CompleteProfileModal] Auth metadata updated successfully");
+
+      // Step 2: Update or create profile in profiles table
+      console.log("[CompleteProfileModal] Updating profile table...");
+
+      const { error: upsertError } = await supabase.from("profiles").upsert(
         {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify({
-            full_name: fullName.trim(),
-            phone: phone.trim(),
-          }),
+          id: user.id,
+          email: user.email || userEmail || "",
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          role: "user",
+        },
+        {
+          onConflict: "id",
         }
       );
 
-      if (updateResponse.ok) {
-        console.log("[CompleteProfileModal] Profile updated successfully");
-        setFullName("");
-        setPhone("");
-        onClose();
-        // Trigger page reload to refresh UI with new profile data
-        window.location.reload();
-        return;
+      if (upsertError) {
+        console.error(
+          "[CompleteProfileModal] Profile upsert failed:",
+          upsertError
+        );
+        throw new Error(`Failed to update profile: ${upsertError.message}`);
       }
-      
-      // If update failed with 404, the profile doesn't exist - try to create it
-      if (updateResponse.status === 404) {
-        console.log("[CompleteProfileModal] Profile not found, creating new profile...");
-        const insertResponse = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            id: user.id,
-            email: user.email || userEmail || "",
-            full_name: fullName.trim(),
-            phone: phone.trim(),
-            role: "user",
-          }),
+
+      console.log("[CompleteProfileModal] Profile updated successfully");
+
+      // Step 3: Sync phone to auth.users.phone field using Edge Function
+      try {
+        await supabase.functions.invoke("sync-user-phone", {
+          body: { userId: user.id, phone: phone.trim() },
         });
-
-        if (!insertResponse.ok) {
-          const errorText = await insertResponse.text();
-          console.error("[CompleteProfileModal] Insert failed:", errorText);
-          throw new Error(`Failed to create profile: ${errorText}`);
-        }
-
-        console.log("[CompleteProfileModal] Profile created successfully");
-        setFullName("");
-        setPhone("");
-        onClose();
-        window.location.reload();
-        return;
+        console.log("[CompleteProfileModal] Phone synced to auth successfully");
+      } catch (syncError) {
+        console.error(
+          "[CompleteProfileModal] Error syncing phone to auth:",
+          syncError
+        );
+        // Don't throw - profile was updated successfully
       }
-      
-      // Update failed for some other reason
-      const errorText = await updateResponse.text();
-      console.error("[CompleteProfileModal] Update failed:", errorText);
-      throw new Error(`Failed to update profile: ${errorText}`);
+
+      setFullName("");
+      setPhone("");
+      onClose();
+
+      // Trigger page reload to refresh UI with new profile data
+      window.location.reload();
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
       console.error("[CompleteProfileModal] Error:", msg);

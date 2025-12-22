@@ -31,9 +31,12 @@ function App() {
       setShowCompleteProfile(true);
     };
 
-    window.addEventListener('show-complete-profile', handleShowCompleteProfile);
+    window.addEventListener("show-complete-profile", handleShowCompleteProfile);
     return () => {
-      window.removeEventListener('show-complete-profile', handleShowCompleteProfile);
+      window.removeEventListener(
+        "show-complete-profile",
+        handleShowCompleteProfile
+      );
     };
   }, []);
 
@@ -210,15 +213,19 @@ function App() {
                 if (profiles && profiles.length > 0) {
                   const profile = profiles[0];
                   setRole(profile.role || null);
-                  
+
                   // Check if profile needs to be completed on every session load
                   if (!profile.full_name || !profile.phone) {
-                    console.log("[App] Profile incomplete on session restore, showing modal");
+                    console.log(
+                      "[App] Profile incomplete on session restore, showing modal"
+                    );
                     setShowCompleteProfile(true);
                   }
                 } else {
                   // No profile exists - show complete profile modal
-                  console.log("[App] No profile found on session restore, showing modal");
+                  console.log(
+                    "[App] No profile found on session restore, showing modal"
+                  );
                   setShowCompleteProfile(true);
                 }
               }
@@ -311,34 +318,11 @@ function App() {
           {/* Public route */}
           <Route path="/" element={<UserPanel />} />
 
-          {/* Protected routes */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute
-                session={session}
-                role={role}
-                allowedRoles={["admin"]}
-                loading={loading}
-              >
-                <AdminPanel />
-              </ProtectedRoute>
-            }
-          />
+          {/* Temporarily disable ProtectedRoute for admin */}
+          <Route path="/admin" element={<AdminPanel />} />
 
-          <Route
-            path="/owner"
-            element={
-              <ProtectedRoute
-                session={session}
-                role={role}
-                allowedRoles={["owner"]}
-                loading={loading}
-              >
-                <OwnerPanel />
-              </ProtectedRoute>
-            }
-          />
+          {/* Temporarily disable ProtectedRoute for owner */}
+          <Route path="/owner" element={<OwnerPanel />} />
 
           {/* Optional: fallback route */}
           {/* <Route path="*" element={<NotFoundPage />} /> */}
