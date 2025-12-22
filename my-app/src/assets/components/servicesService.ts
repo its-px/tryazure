@@ -1,5 +1,3 @@
-import { supabase } from "./supabaseClient";
-
 export interface Service {
   id: string;
   name: string;

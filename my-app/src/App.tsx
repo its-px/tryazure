@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./assets/components/supabaseClient";
-//import Auth from "./assets/components/Auth";
 import AdminPanel from "./assets/pages/AdminPanel";
 import UserPanel from "./assets/pages/UserPanel";
 import OwnerPanel from "./assets/pages/OwnerPanel";
 import { Box } from "@mui/material";
-//import ThemeProviderWrapper from "./ThemeProviderWrapper";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
 import PWAInstallPrompt from "./assets/components/PWAInstallPrompt";
@@ -19,10 +16,6 @@ import type { Session } from "@supabase/supabase-js";
 
 export type Role = "admin" | "user" | "owner";
 
-const debugBreak = () => {
-  if (import.meta.env.MODE === "development") debugger;
-};
-
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<Role | null>(null);
@@ -31,8 +24,18 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  //type Role = "admin" | "user" | "owner";
-  //type AppMode = "public" | "admin";
+  // Listen for custom event from LoginModal to show CompleteProfileModal
+  useEffect(() => {
+    const handleShowCompleteProfile = () => {
+      console.log("[App] Received show-complete-profile event");
+      setShowCompleteProfile(true);
+    };
+
+    window.addEventListener('show-complete-profile', handleShowCompleteProfile);
+    return () => {
+      window.removeEventListener('show-complete-profile', handleShowCompleteProfile);
+    };
+  }, []);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -40,6 +43,8 @@ function App() {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get("access_token");
       const refreshToken = hashParams.get("refresh_token");
+      const expiresIn = hashParams.get("expires_in");
+      const tokenType = hashParams.get("token_type");
       const error = hashParams.get("error");
 
       if (error) {
@@ -49,39 +54,120 @@ function App() {
         return;
       }
 
-      // If we have OAuth tokens in URL, set the session manually
+      // If we have OAuth tokens in URL, handle them directly without Supabase client
       if (accessToken && refreshToken) {
-        console.log("OAuth callback detected, setting session...");
+        console.log(
+          "[App] OAuth callback detected, handling tokens directly..."
+        );
 
         try {
-          const { data, error: sessionError } = await supabase.auth.setSession({
+          // Decode the JWT to get user info
+          const tokenParts = accessToken.split(".");
+          if (tokenParts.length !== 3) {
+            throw new Error("Invalid JWT format");
+          }
+
+          const payload = JSON.parse(atob(tokenParts[1]));
+          console.log("[App] Token payload decoded:", payload.sub);
+
+          // Calculate expiry time
+          const expiresAt =
+            Math.floor(Date.now() / 1000) + parseInt(expiresIn || "3600");
+
+          // Construct session object that matches Supabase Session type
+          const user = {
+            id: payload.sub,
+            aud: payload.aud,
+            role: payload.role,
+            email: payload.email,
+            email_confirmed_at: payload.email_confirmed_at,
+            phone: payload.phone,
+            app_metadata: payload.app_metadata || {},
+            user_metadata: payload.user_metadata || {},
+            identities: payload.identities || [],
+            created_at: payload.created_at || new Date().toISOString(),
+            updated_at: payload.updated_at || new Date().toISOString(),
+          };
+
+          const sessionData = {
             access_token: accessToken,
             refresh_token: refreshToken,
-          });
+            expires_in: parseInt(expiresIn || "3600"),
+            expires_at: expiresAt,
+            token_type: tokenType || "bearer",
+            user: user,
+          };
 
-          if (sessionError) {
-            console.error("Error setting session:", sessionError);
-          } else {
-            console.log("Session set successfully:", data.session?.user.id);
-            debugBreak();
-            setSession(data.session);
-            debugBreak();
+          // Store in localStorage with the same key Supabase uses
+          localStorage.setItem("sb-auth-token", JSON.stringify(sessionData));
+          console.log("[App] Session stored in localStorage");
 
-            // Fetch user role
-            if (data.session?.user) {
-              const { data: profile, error: profileError } = await supabase
-                .from("profiles")
-                .select("role")
-                .eq("id", data.session.user.id)
-                .single();
+          // Set session state
+          setSession(sessionData as unknown as Session);
 
-              if (profileError)
-                console.error("Error fetching profile:", profileError);
-              else setRole(profile?.role || null);
+          // Fetch user role using direct REST API
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+          try {
+            const profileResponse = await fetch(
+              `${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=role,full_name,phone`,
+              {
+                headers: {
+                  apikey: supabaseKey,
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            if (profileResponse.ok) {
+              const profiles = await profileResponse.json();
+              if (profiles && profiles.length > 0) {
+                const profile = profiles[0];
+                setRole(profile.role || null);
+                console.log("[App] Profile loaded, role:", profile.role);
+
+                // Check if profile needs to be completed
+                if (!profile.full_name || !profile.phone) {
+                  setShowCompleteProfile(true);
+                }
+
+                // Redirect based on role
+                if (
+                  profile.role === "admin" &&
+                  location.pathname !== "/admin"
+                ) {
+                  navigate("/admin");
+                } else if (
+                  profile.role === "owner" &&
+                  location.pathname !== "/owner"
+                ) {
+                  navigate("/owner");
+                } else if (
+                  profile.role === "user" &&
+                  location.pathname !== "/"
+                ) {
+                  navigate("/");
+                }
+              } else {
+                // Profile doesn't exist - show complete profile modal
+                console.log(
+                  "[App] No profile found, showing complete profile modal"
+                );
+                setShowCompleteProfile(true);
+              }
+            } else {
+              console.error(
+                "[App] Error fetching profile:",
+                profileResponse.statusText
+              );
             }
+          } catch (profileErr) {
+            console.error("[App] Exception fetching profile:", profileErr);
           }
         } catch (err) {
-          console.error("Exception setting session:", err);
+          console.error("[App] Exception handling OAuth tokens:", err);
         }
 
         // Remove hash after processing
@@ -90,115 +176,105 @@ function App() {
         return;
       }
 
-      // Get session directly without refresh to avoid hanging
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
+      // No OAuth tokens - try to get session from localStorage
+      console.log("[App] Checking for existing session in localStorage...");
+      try {
+        const storedSession = localStorage.getItem("sb-auth-token");
+        if (storedSession) {
+          const sessionData = JSON.parse(storedSession);
 
-      debugBreak();
-      setSession(currentSession);
-      debugBreak();
+          // Check if session is expired
+          const now = Math.floor(Date.now() / 1000);
+          if (sessionData.expires_at && sessionData.expires_at > now) {
+            console.log("[App] Found valid session in localStorage");
+            setSession(sessionData as unknown as Session);
 
-      if (currentSession?.user) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", currentSession.user.id)
-          .single();
+            // Fetch role and profile info using REST API
+            if (sessionData.user?.id) {
+              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+              const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-        if (error) console.error("Error fetching profile:", error);
-        else setRole(data?.role || null);
+              const profileResponse = await fetch(
+                `${supabaseUrl}/rest/v1/profiles?id=eq.${sessionData.user.id}&select=role,full_name,phone`,
+                {
+                  headers: {
+                    apikey: supabaseKey,
+                    Authorization: `Bearer ${sessionData.access_token}`,
+                    "Content-Type": "application/json",
+                  },
+                }
+              );
+
+              if (profileResponse.ok) {
+                const profiles = await profileResponse.json();
+                if (profiles && profiles.length > 0) {
+                  const profile = profiles[0];
+                  setRole(profile.role || null);
+                  
+                  // Check if profile needs to be completed on every session load
+                  if (!profile.full_name || !profile.phone) {
+                    console.log("[App] Profile incomplete on session restore, showing modal");
+                    setShowCompleteProfile(true);
+                  }
+                } else {
+                  // No profile exists - show complete profile modal
+                  console.log("[App] No profile found on session restore, showing modal");
+                  setShowCompleteProfile(true);
+                }
+              }
+            }
+          } else {
+            console.log("[App] Session expired, clearing localStorage");
+            localStorage.removeItem("sb-auth-token");
+          }
+        } else {
+          console.log("[App] No session found in localStorage");
+        }
+      } catch (err) {
+        console.error("[App] Error reading session from localStorage:", err);
       }
+
       setLoading(false);
     };
 
     loadSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        debugBreak();
-        setSession(session);
-        debugBreak();
-
-        if (session?.user) {
-          // Check if this is an OAuth login by checking for hash fragments
-          const hashParams = new URLSearchParams(
-            window.location.hash.substring(1)
-          );
-          if (hashParams.get("access_token")) {
-            debugBreak();
-            // OAuth login completed - fetch profile and redirect if needed
-            const { data: profile, error: profileError } = await supabase
-              .from("profiles")
-              .select("role, full_name, phone")
-              .eq("id", session.user.id)
-              .single();
-
-            if (!profileError && profile) {
-              setRole(profile.role || null);
-
-              // Check if profile needs to be completed (missing phone or name)
-              if (!profile.full_name || !profile.phone) {
-                setShowCompleteProfile(true);
-              }
-
-              // Redirect based on role only if we just logged in via OAuth
-              const redirectPath = location.pathname;
-              if (profile.role === "admin" && redirectPath !== "/admin") {
-                navigate("/admin");
-              } else if (
-                profile.role === "owner" &&
-                redirectPath !== "/owner"
-              ) {
-                navigate("/owner");
-              }
-            } else if (profileError && profileError.code === "PGRST116") {
-              // Profile doesn't exist - show complete profile modal for OAuth user
-              setShowCompleteProfile(true);
-              // Create minimal profile
-              const { error: insertError } = await supabase
-                .from("profiles")
-                .insert([
-                  {
-                    id: session.user.id,
-                    email: session.user.email || "",
-                    full_name:
-                      session.user.user_metadata?.full_name ||
-                      session.user.user_metadata?.name ||
-                      "",
-                    role: "user",
-                  },
-                ]);
-
-              if (!insertError) {
-                setRole("user");
-              }
-            }
-
-            // Clean up hash fragments from URL after OAuth processing
-            setTimeout(() => {
-              if (window.location.hash) {
-                window.history.replaceState(
-                  null,
-                  "",
-                  window.location.pathname + window.location.search
-                );
-              }
-            }, 200);
-          } else {
-            // Regular session check - just fetch role
-            supabase
-              .from("profiles")
-              .select("role")
-              .eq("id", session.user.id)
-              .single()
-              .then(({ data }) => setRole(data?.role || null));
+    // Listen for storage events to detect sign-out from other components
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "sb-auth-token") {
+        if (!e.newValue) {
+          console.log("[App] Session cleared from storage, logging out");
+          setSession(null);
+          setRole(null);
+        } else {
+          try {
+            const newSession = JSON.parse(e.newValue);
+            setSession(newSession as unknown as Session);
+          } catch (err) {
+            console.error("[App] Error parsing new session:", err);
           }
-        } else setRole(null);
+        }
       }
-    );
+    };
 
-    return () => listener.subscription.unsubscribe();
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also listen for custom storage events (for same-tab signout)
+    const handleCustomStorage = () => {
+      const storedSession = localStorage.getItem("sb-auth-token");
+      if (!storedSession) {
+        console.log("[App] Custom storage event: session cleared");
+        setSession(null);
+        setRole(null);
+      }
+    };
+
+    window.addEventListener("storage", handleCustomStorage);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("storage", handleCustomStorage);
+    };
   }, [navigate, location]);
 
   const renderAdminControls = () => (
@@ -270,20 +346,8 @@ function App() {
         <CompleteProfileModal
           open={showCompleteProfile}
           onClose={() => {
+            console.log("[App] CompleteProfileModal closed");
             setShowCompleteProfile(false);
-            // Reload profile to check if it's complete now
-            if (session?.user) {
-              supabase
-                .from("profiles")
-                .select("full_name, phone")
-                .eq("id", session.user.id)
-                .single()
-                .then(({ data }) => {
-                  if (data && data.full_name && data.phone) {
-                    setShowCompleteProfile(false);
-                  }
-                });
-            }
           }}
           userEmail={session?.user?.email}
         />

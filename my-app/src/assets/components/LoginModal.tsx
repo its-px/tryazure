@@ -141,50 +141,87 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         // Don't navigate after sign up - let user stay on current page
       } else {
         // Login
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: authData, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         //debugBreak();
         if (error) throw error;
 
+        // Store session in localStorage for consistency with App.tsx
+        if (authData?.session) {
+          const sessionData = {
+            access_token: authData.session.access_token,
+            refresh_token: authData.session.refresh_token,
+            expires_in: authData.session.expires_in,
+            expires_at: authData.session.expires_at,
+            token_type: authData.session.token_type || "bearer",
+            user: authData.session.user,
+          };
+          localStorage.setItem("sb-auth-token", JSON.stringify(sessionData));
+          console.log("[LoginModal] Session stored in localStorage");
+        }
+
         // Get user from session after login
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const user = authData?.user;
         // debugBreak();
         if (!user) {
           throw new Error("Failed to get user after login");
         }
 
-        // Fetch role by user ID (not email)
+        // Fetch role and profile info by user ID
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, full_name, phone")
           .eq("id", user.id)
           .single();
-        //debugBreak();
 
         if (profileError) {
           console.error("Error fetching profile:", profileError);
-          // Still allow login, just don't redirect based on role
+          // Profile might not exist - trigger profile completion
           resetForm();
           onClose();
-          // Stay on current page - don't navigate
+          // Dispatch event to show CompleteProfileModal
+          window.dispatchEvent(new CustomEvent('show-complete-profile'));
           return;
         }
 
         const role = profile?.role;
-        // debugBreak();
+        const isProfileIncomplete = !profile?.full_name || !profile?.phone;
+        
+        console.log("[LoginModal] User role:", role, "Profile incomplete:", isProfileIncomplete);
+        
         resetForm();
         onClose();
 
-        // Only redirect based on role if user is an admin or owner
-        // Regular users stay on the current page (important for booking flow)
-        if (role === "admin") navigate("/admin");
-        else if (role === "owner") navigate("/owner");
-        // else stay on current page for regular users
-        // debugBreak();
+        // If profile is incomplete, show the complete profile modal
+        if (isProfileIncomplete) {
+          console.log("[LoginModal] Profile incomplete, triggering CompleteProfileModal");
+          window.dispatchEvent(new CustomEvent('show-complete-profile'));
+          // Still redirect based on role after modal is shown
+        }
+
+        // Redirect based on role after successful login
+        // Use setTimeout to ensure modal closes first and state updates
+        setTimeout(() => {
+          console.log("[LoginModal] Redirecting user with role:", role);
+          if (role === "admin") {
+            console.log("[LoginModal] Navigating to /admin");
+            navigate("/admin");
+          } else if (role === "owner") {
+            console.log("[LoginModal] Navigating to /owner");
+            navigate("/owner");
+          } else if (role === "user") {
+            // If user is on admin/owner page, redirect to user panel
+            // Otherwise stay on current page (important for booking flow)
+            if (window.location.pathname === "/admin" || window.location.pathname === "/owner") {
+              console.log("[LoginModal] User on protected route, navigating to /");
+              navigate("/");
+            } else {
+              console.log("[LoginModal] User staying on current page:", window.location.pathname);
+            }
+          }
+        }, 100);
       }
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);

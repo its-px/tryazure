@@ -15,7 +15,6 @@ import {
   TextField,
   IconButton,
 } from "@mui/material";
-import { supabase } from "./supabaseClient";
 import type { User } from "@supabase/supabase-js";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -148,16 +147,32 @@ export default function UserAccountPage() {
   const loadServiceMap = async () => {
     try {
       console.log("[UserAccountPage] Loading service map...");
-      const { data, error } = await supabase
-        .from("services")
-        .select("id, name");
-      if (error) {
-        console.error("[UserAccountPage] Error loading services:", error);
+      
+      const storedSession = localStorage.getItem("sb-auth-token");
+      if (!storedSession) return;
+      
+      const session = JSON.parse(storedSession);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/services?select=id,name`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        console.error("[UserAccountPage] Error loading services:", response.statusText);
         return;
       }
-
+      
+      const data = await response.json();
       const map: Record<string, string> = {};
-      data?.forEach((service) => {
+      data?.forEach((service: { id: string; name: string }) => {
         map[service.id] = service.name;
       });
       setServiceMap(map);
@@ -174,29 +189,38 @@ export default function UserAccountPage() {
   const loadUserProfile = async (userId: string) => {
     try {
       console.log("[UserAccountPage] Loading user profile...");
-      console.log("[UserAccountPage] About to call supabase.from...");
-      const result = supabase
-        .from("profiles")
-        .select("full_name, phone")
-        .eq("id", userId)
-        .single();
-      console.log(
-        "[UserAccountPage] Supabase query created, awaiting result..."
+      
+      const storedSession = localStorage.getItem("sb-auth-token");
+      if (!storedSession) return;
+      
+      const session = JSON.parse(storedSession);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=full_name,phone`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+        }
       );
-      const { data, error } = await result;
-      console.log(
-        "[UserAccountPage] Query completed, data:",
-        data,
-        "error:",
-        error
-      );
-
-      if (!error && data) {
-        setProfile(data);
-        setEditedProfile(data);
+      
+      if (!response.ok) {
+        console.error("[UserAccountPage] Error loading profile:", response.statusText);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log("[UserAccountPage] Query completed, data:", data);
+      
+      // data is an array, get the first item
+      if (data && data.length > 0) {
+        setProfile(data[0]);
+        setEditedProfile(data[0]);
         console.log("[UserAccountPage] User profile loaded successfully");
-      } else if (error) {
-        console.error("[UserAccountPage] Error loading profile:", error);
       }
     } catch (err) {
       console.error("[UserAccountPage] Exception loading profile:", err);
@@ -206,20 +230,33 @@ export default function UserAccountPage() {
   const loadUserBookings = async (userId: string) => {
     try {
       console.log("[UserAccountPage] Loading user bookings...");
-      const { data, error } = await supabase
-        .from("bookings")
-        .select()
-        .eq("user_id", userId)
-        .order("date", { ascending: true });
-
-      if (error) {
-        console.error("[UserAccountPage] Error loading bookings:", error);
+      
+      const storedSession = localStorage.getItem("sb-auth-token");
+      if (!storedSession) return;
+      
+      const session = JSON.parse(storedSession);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/bookings?user_id=eq.${userId}&order=date.asc`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        console.error("[UserAccountPage] Error loading bookings:", response.statusText);
         return;
       }
-
+      
+      const data = await response.json();
       const today = new Date().toISOString().split("T")[0];
-      const upcoming = data?.filter((b) => b.date >= today) || [];
-      const past = data?.filter((b) => b.date < today) || [];
+      const upcoming = data?.filter((b: Booking) => b.date >= today) || [];
+      const past = data?.filter((b: Booking) => b.date < today) || [];
 
       setUpcomingBookings(upcoming);
       setPastBookings(past);
@@ -257,14 +294,19 @@ export default function UserAccountPage() {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
         try {
-          await fetch(`${supabaseUrl}/auth/v1/logout`, {
+          const response = await fetch(`${supabaseUrl}/auth/v1/logout`, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
           });
-          console.log("[UserAccountPage] Sign out API called");
+          if (response.ok) {
+            console.log("[UserAccountPage] Sign out API called successfully");
+          } else {
+            // 401 is expected if token already expired - that's fine
+            console.log("[UserAccountPage] Sign out API returned:", response.status);
+          }
         } catch (err) {
           console.error("[UserAccountPage] Sign out API error:", err);
         }
@@ -279,56 +321,117 @@ export default function UserAccountPage() {
       setUser(null);
       setUpcomingBookings([]);
       setPastBookings([]);
-
-      // Reload the page to reset all app state
-      console.log("[UserAccountPage] Reloading page...");
-      window.location.reload();
+      
+      // Trigger a storage event to notify other listeners (like onAuthStateChange)
+      window.dispatchEvent(new Event('storage'));
+      
+      console.log("[UserAccountPage] Sign out complete");
     } catch (err) {
       console.error("[UserAccountPage] Sign out error:", err);
-      // Even if there's an error, clear local state and reload
+      // Even if there's an error, clear local state
       localStorage.removeItem("sb-auth-token");
       localStorage.removeItem("bookingState");
-      window.location.reload();
+      setUser(null);
+      setUpcomingBookings([]);
+      setPastBookings([]);
+      window.dispatchEvent(new Event('storage'));
     }
   };
 
   const handleUpdateProfile = async () => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: editedProfile.full_name,
-        phone: editedProfile.phone,
-      })
-      .eq("id", user.id);
+    try {
+      // Get session from localStorage instead of hanging Supabase client
+      const storedSession = localStorage.getItem("sb-auth-token");
+      if (!storedSession) {
+        alert("Session expired - please log in again");
+        return;
+      }
 
-    if (error) {
-      alert("Error updating profile: " + error.message);
-    } else {
+      const session = JSON.parse(storedSession);
+      if (!session.access_token) {
+        alert("Invalid session - please log in again");
+        return;
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const headers = {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      };
+
+      // Use direct REST API instead of hanging Supabase client
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`,
+        {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({
+            full_name: editedProfile.full_name,
+            phone: editedProfile.phone,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+
       setProfile(editedProfile);
       setShowEditProfile(false);
       alert("Profile updated successfully!");
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message ?? String(err);
+      console.error("[UserAccountPage] Error updating profile:", msg);
+      alert("Error updating profile: " + msg);
     }
   };
 
   const handleCancelBooking = async () => {
     if (!bookingToCancel) return;
 
-    const { error } = await supabase
-      .from("bookings")
-      .delete()
-      .eq("id", bookingToCancel);
-
-    if (error) {
-      alert("Error cancelling booking: " + error.message);
-    } else {
+    try {
+      const storedSession = localStorage.getItem("sb-auth-token");
+      if (!storedSession) {
+        alert("Session expired - please log in again");
+        return;
+      }
+      
+      const session = JSON.parse(storedSession);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/bookings?id=eq.${bookingToCancel}`,
+        {
+          method: "DELETE",
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+      
       alert(
         "Booking cancelled successfully! The time slot is now available for booking again."
       );
       if (user) loadUserBookings(user.id);
       setShowCancelDialog(false);
       setBookingToCancel(null);
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message ?? String(err);
+      alert("Error cancelling booking: " + msg);
     }
   };
 

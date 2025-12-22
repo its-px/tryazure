@@ -279,7 +279,7 @@ export default function UserPanel() {
           const checkDuration = serviceDuration > 0 ? serviceDuration : 30;
 
           try {
-            console.log("[loadAvailableDates] Checking slots for date:", date);
+            //console.log("[loadAvailableDates] Checking slots for date:", date);
             const slotsResponse = await fetch(
               `${supabaseUrl}/rest/v1/rpc/get_available_slots`,
               {
@@ -295,12 +295,6 @@ export default function UserPanel() {
 
             if (slotsResponse.ok) {
               const slots = await slotsResponse.json();
-              console.log(
-                "[loadAvailableDates] Slots for",
-                date,
-                ":",
-                slots?.length
-              );
               if (slots && slots.length > 0) {
                 datesWithSlots.push(date);
               }
@@ -345,21 +339,6 @@ export default function UserPanel() {
   }, [selectedProfessional, serviceDuration]);
 
   // Reset booking state and clear localStorage
-  const handleResetBooking = () => {
-    localStorage.removeItem("bookingState");
-    dispatch(setCurrentStep(1));
-    dispatch(
-      setUserSelections({
-        selectedLocation: null,
-        selectedServices: [],
-        selectedProfessional: null,
-        selectedDate: "",
-        selectedSlot: null,
-        serviceDuration: 0,
-      })
-    );
-    console.log("Booking state reset and localStorage cleared");
-  };
 
   const handleServiceToggle = (serviceId: string) => {
     const newSelectedServices: string[] = Array.isArray(selectedServices)
@@ -400,58 +379,67 @@ export default function UserPanel() {
   };
 
   // Check if user is logged in and handle auth changes
+  // Check auth state from localStorage (bypass hanging Supabase client)
   useEffect(() => {
     let isMounted = true;
-    let isLoggedInRef = isLoggedIn;
 
-    const checkAuth = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (isMounted) {
-        setIsLoggedIn(!!user);
-        isLoggedInRef = !!user;
-
-        // Check for upcoming appointments when user is logged in
-        if (user) {
-          try {
-            await checkUpcomingAppointments(supabase, user.id);
-          } catch (err) {
-            console.error("Error checking appointments:", err);
+    const checkAuth = () => {
+      console.log("[UserPanel] Checking auth from localStorage...");
+      try {
+        const storedSession = localStorage.getItem("sb-auth-token");
+        if (storedSession) {
+          const session = JSON.parse(storedSession);
+          // Check if session is expired
+          const now = Math.floor(Date.now() / 1000);
+          if (session.expires_at && session.expires_at > now && session.user) {
+            console.log(
+              "[UserPanel] Found valid session for user:",
+              session.user.id
+            );
+            if (isMounted) {
+              setIsLoggedIn(true);
+              setShowLoginModal(false);
+              // Check upcoming appointments
+              checkUpcomingAppointments(supabase, session.user.id).catch(
+                (err) => {
+                  console.error("Error checking appointments:", err);
+                }
+              );
+            }
+          } else {
+            console.log("[UserPanel] Session expired or invalid");
+            if (isMounted) setIsLoggedIn(false);
           }
+        } else {
+          console.log("[UserPanel] No session in localStorage");
+          if (isMounted) setIsLoggedIn(false);
         }
+      } catch (err) {
+        console.error("[UserPanel] Error checking auth:", err);
+        if (isMounted) setIsLoggedIn(false);
       }
     };
 
+    // Check auth immediately
     checkAuth();
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!isMounted) return;
+    // Listen for storage changes (sign-in/sign-out from other components)
+    const handleStorageChange = () => {
+      console.log("[UserPanel] Storage changed, rechecking auth...");
+      checkAuth();
+    };
 
-      const wasLoggedOut = !isLoggedInRef && !!session;
-      setIsLoggedIn(!!session);
-      isLoggedInRef = !!session;
+    window.addEventListener("storage", handleStorageChange);
 
-      // If user just logged in, handle login actions
-      if (wasLoggedOut && session?.user) {
-        try {
-          await checkUpcomingAppointments(supabase, session.user.id);
-          setShowLoginModal(false);
-        } catch (err) {
-          console.error("Error handling login:", err);
-        }
-      }
-    });
+    // Also poll periodically in case storage event doesn't fire
+    const pollInterval = setInterval(checkAuth, 2000);
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(pollInterval);
     };
-  }, [isLoggedIn]); // Keep dependency but use ref to prevent infinite loops
+  }, []); // Only run once on mount
 
   const handleProfessionalSelect = (professionalId: string) => {
     dispatch(
@@ -519,48 +507,75 @@ export default function UserPanel() {
       return;
     }
 
-    // Check for overlapping time slots instead of just checking if date is booked
-    // Two time slots overlap if: new_start < existing_end AND new_end > existing_start
-    const { data: conflictingBookings, error: checkError } = await supabase
-      .from("bookings")
-      .select("id, start_time, end_time")
-      .eq("professional_id", selectedProfessional)
-      .eq("date", selectedDate);
-
-    if (checkError) {
-      console.error("Error checking booking:", checkError);
-      alert("Error checking availability");
+    // Get session from localStorage
+    const storedSession = localStorage.getItem("sb-auth-token");
+    if (!storedSession) {
+      setShowLoginModal(true);
+      alert("Please login to complete your booking");
       return;
     }
 
-    // Check if any existing booking overlaps with the selected time slot
-    if (conflictingBookings && conflictingBookings.length > 0) {
-      const hasOverlap = conflictingBookings.some((booking: any) => {
-        const existingStart = booking.start_time;
-        const existingEnd = booking.end_time;
-        const newStart = selectedSlot.start_time;
-        const newEnd = selectedSlot.end_time;
-
-        // Two time slots overlap if: new_start < existing_end AND new_end > existing_start
-        return newStart < existingEnd && newEnd > existingStart;
-      });
-
-      if (hasOverlap) {
-        alert(
-          "❌ This time slot is already booked. Please select a different time slot."
-        );
-        return;
-      }
-    }
-
-    // Check if user is logged in BEFORE attempting to create booking
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const session = JSON.parse(storedSession);
+    const user = session?.user;
 
     if (!user) {
       setShowLoginModal(true);
       alert("Please login to complete your booking");
+      return;
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const headers = {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    };
+
+    // Check for overlapping time slots using direct REST API
+    try {
+      const checkResponse = await fetch(
+        `${supabaseUrl}/rest/v1/bookings?professional_id=eq.${selectedProfessional}&date=eq.${selectedDate}&select=id,start_time,end_time`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (!checkResponse.ok) {
+        console.error("Error checking booking:", checkResponse.statusText);
+        alert("Error checking availability");
+        return;
+      }
+
+      const conflictingBookings = await checkResponse.json();
+
+      // Check if any existing booking overlaps with the selected time slot
+      if (conflictingBookings && conflictingBookings.length > 0) {
+        const hasOverlap = conflictingBookings.some((booking: any) => {
+          const existingStart = booking.start_time;
+          const existingEnd = booking.end_time;
+          const newStart = selectedSlot.start_time;
+          const newEnd = selectedSlot.end_time;
+
+          // Two time slots overlap if: new_start < existing_end AND new_end > existing_start
+          return newStart < existingEnd && newEnd > existingStart;
+        });
+
+        if (hasOverlap) {
+          alert(
+            "❌ This time slot is already booked. Please select a different time slot."
+          );
+          return;
+        }
+      }
+    } catch (checkError) {
+      console.error("Error checking for conflicts:", checkError);
+      alert("Error checking availability. Please try again.");
       return;
     }
 
@@ -575,26 +590,28 @@ export default function UserPanel() {
       end_time: selectedSlot.end_time,
     };
 
-    const { error } = await supabase.from("bookings").insert([bookingData]);
+    try {
+      const response = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(bookingData),
+      });
 
-    if (error) {
-      console.error("Booking error:", error);
-      if (error.code === "23505") {
-        alert("❌ This professional is already booked on this date!");
-      } else {
-        alert("❌ Error creating booking: " + error.message);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Booking error:", errorText);
+        if (errorText.includes("23505") || errorText.includes("duplicate")) {
+          alert("❌ This professional is already booked on this date!");
+        } else {
+          alert("❌ Error creating booking: " + errorText);
+        }
+        return;
       }
-    } else {
+
+      const insertedBookings = await response.json();
+      const insertedBooking = insertedBookings?.[0];
+
       alert("✅ Booking confirmed successfully!");
-      // Get the actual booking ID from the response if available
-      const { data: insertedBooking } = await supabase
-        .from("bookings")
-        .select("id")
-        .eq("user_id", user?.id)
-        .eq("date", selectedDate)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
 
       await showBookingNotification(
         {
@@ -638,26 +655,34 @@ export default function UserPanel() {
       // Fallback: read profiles.phone for this user if available
       if (!userPhone && user?.id) {
         try {
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("phone")
-            .eq("id", user.id)
-            .single();
+          const profileResponse = await fetch(
+            `${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=phone`,
+            {
+              headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${session.access_token}`,
+                Accept: "application/vnd.pgjson.object+json",
+              },
+            }
+          );
 
-          if (!profileError && profile?.phone) {
-            userPhone = profile.phone;
-            const masked = `${profile.phone.substring(
-              0,
-              3
-            )}***${profile.phone.substring(profile.phone.length - 4)}`;
-            console.log(
-              "Found phone in profiles table for user (masked):",
-              masked
-            );
-          } else if (profileError) {
+          if (profileResponse.ok) {
+            const profile = await profileResponse.json();
+            if (profile?.phone) {
+              userPhone = profile.phone;
+              const masked = `${profile.phone.substring(
+                0,
+                3
+              )}***${profile.phone.substring(profile.phone.length - 4)}`;
+              console.log(
+                "Found phone in profiles table for user (masked):",
+                masked
+              );
+            }
+          } else {
             console.warn(
               "Could not read phone from profiles table:",
-              profileError.message || profileError
+              profileResponse.statusText
             );
           }
         } catch (err) {
@@ -772,6 +797,9 @@ export default function UserPanel() {
       } catch (err) {
         console.error("Error calling Edge Function:", err);
       }
+    } catch (bookingError) {
+      console.error("Overall booking error:", bookingError);
+      alert("❌ Error creating booking. Please try again.");
     }
   };
 

@@ -17,12 +17,12 @@ interface ProfessionalStepProps {
 const PROFESSIONALS: Professional[] = [
   {
     id: "prof1",
-    name: "Person 1",
-    specialties: ["Service 1", "Service 2"],
+    name: "Christos",
+    specialties: ["Service 1", "Service 2",],
   },
   {
     id: "prof2",
-    name: "Person 2",
+    name: "Aggelos",
     specialties: ["Service 3", "Service 4"],
   },
 ];
