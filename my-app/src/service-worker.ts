@@ -1,61 +1,22 @@
 /// <reference lib="webworker" />
-export {}; // Make this a module, so TS uses the correct scope
 
-declare let self: ServiceWorkerGlobalScope & typeof globalThis;
-// import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
-// import { registerRoute } from "workbox-routing";
-// import { NetworkFirst, CacheFirst } from "workbox-strategies";
-// declare const __WB_MANIFEST: any;
-
-// cleanupOutdatedCaches();
-
-// Injected by VitePWA at build time
-//precacheAndRoute(self.__WB_MANIFEST);
-
-// // Example: Cache API calls with NetworkFirst
-// registerRoute(
-//   ({ url }) => url.origin.includes("api."),
-//   new NetworkFirst({
-//     cacheName: "api-cache",
-//     networkTimeoutSeconds: 10,
-//   })
-// );
-
-// // Example: Cache images with CacheFirst
-// registerRoute(
-//   ({ request }) => request.destination === "image",
-//   new CacheFirst({
-//     cacheName: "image-cache",
-//     matchOptions: { ignoreVary: true },
-//   })
-// );
-
-// // Example: Listen for notifications and post messages to app
-// self.addEventListener("notificationclick", (event) => {
-//   event.notification.close();
-
-//   const targetUrl = event.notification.data?.url || "/";
-//   event.waitUntil(
-//     self.clients
-//       .matchAll({ type: "window", includeUncontrolled: true })
-//       .then((clientList) => {
-//         for (const client of clientList) {
-//           if ("focus" in client) {
-//             client.postMessage({ type: "SHOW_ACCOUNT_PAGE" }); // send to React listener
-//             return client.focus();
-//           }
-//         }
-//         if (self.clients.openWindow) {
-//           return self.clients.openWindow(targetUrl);
-//         }
-//       })
-//   );
-// });
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { offlineFallback, warmStrategyCache } from "workbox-recipes";
 import { CacheFirst, StaleWhileRevalidate } from "workbox-strategies";
 import { registerRoute } from "workbox-routing";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 import { ExpirationPlugin } from "workbox-expiration";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare let self: ServiceWorkerGlobalScope & {
+  __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
+};
+
+// Cleanup outdated caches from previous versions
+cleanupOutdatedCaches();
+
+// Precache and route assets injected by VitePWA at build time
+precacheAndRoute(self.__WB_MANIFEST || []);
 
 // Set up page cache
 const pageCache = new CacheFirst({
@@ -74,6 +35,7 @@ warmStrategyCache({
   urls: ["/index.html", "/"],
   strategy: pageCache,
 });
+
 // Set up asset cache
 registerRoute(
   ({ request }) => ["style", "script", "worker"].includes(request.destination),
@@ -86,11 +48,13 @@ registerRoute(
     ],
   })
 );
+
 // Set up offline fallback
 offlineFallback({
   pageFallback: "/offline.html",
 });
 
+// Cache images
 registerRoute(
   ({ request }) => request.destination === "image",
   new StaleWhileRevalidate({
@@ -98,7 +62,10 @@ registerRoute(
   })
 );
 
-// Example: Listen for notifications and post messages to app
+// Handle navigation requests
+registerRoute(({ request }) => request.mode === "navigate", pageCache);
+
+// Listen for notifications and post messages to app
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
@@ -109,7 +76,7 @@ self.addEventListener("notificationclick", (event) => {
       .then((clientList) => {
         for (const client of clientList) {
           if ("focus" in client) {
-            client.postMessage({ type: "SHOW_ACCOUNT_PAGE" }); // send to React listener
+            client.postMessage({ type: "SHOW_ACCOUNT_PAGE" });
             return client.focus();
           }
         }
@@ -120,4 +87,9 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
-registerRoute(({ request }) => request.mode === "navigate", pageCache);
+// Log when service worker is activated
+self.addEventListener("activate", () => {
+  console.log("Service Worker activated - notifications are ready!");
+});
+
+export {};

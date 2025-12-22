@@ -198,8 +198,8 @@ async function updateBookingNotificationStatus(
 async function sendEmailFallback(payload: GatewayAPIWebhookPayload) {
   console.log(`Sending email fallback for failed SMS ${payload.id}`);
 
-  // Implement email sending logic here
-  // You might use Resend, SendGrid, or another email service
+  // Log the payload for debugging
+  console.log("Payload details:", JSON.stringify(payload, null, 2));
 
   try {
     // Example with Resend (adjust as needed)
@@ -211,15 +211,20 @@ async function sendEmailFallback(payload: GatewayAPIWebhookPayload) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'notifications@yourapp.com',
-        to: 'user@example.com', // Get from database
-        subject: 'Important Notification',
-        html: 'Your SMS notification failed to deliver. Here\'s the information...'
+        to: payload.email,
+        subject: 'Fallback Notification',
+        text: 'Your SMS failed, here is the fallback email.',
       }),
     });
+
+    if (!response.ok) {
+      throw new Error(`Failed to send email: ${response.statusText}`);
+    }
+
+    console.log('Email sent successfully');
     */
   } catch (error) {
-    console.error("Email fallback failed:", error);
+    console.error("Error sending email fallback:", error);
   }
 }
 

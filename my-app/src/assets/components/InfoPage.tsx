@@ -17,7 +17,7 @@ export default function InfoPage() {
       }}
     >
       {/* Banner */}
-      <Box textAlign="center" mt={3}>
+      {/* <Box textAlign="center" mt={3}>
         <Box
           component="img"
           src="/petsas_banner.png"
@@ -29,7 +29,7 @@ export default function InfoPage() {
             borderRadius: 2,
           }}
         />
-      </Box>
+      </Box> */}
 
       {/* Map */}
       <Box textAlign="center" mt={3}>
@@ -56,7 +56,7 @@ export default function InfoPage() {
       <Box textAlign="center" mt={4}>
         <Typography variant="h5">Name&apos;s Company</Typography>
         <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-          Πεικων 22, Μεταμορφωση, Greece, 14451
+          Πεικων 22, Νεο Ηράκλειο, Greece, 14451
         </Typography>
         {/* Call button */}
         <Button

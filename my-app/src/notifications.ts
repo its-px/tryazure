@@ -1,31 +1,72 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // notif.ts
 
+// Helper to add timeout to promises
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  fallback: T
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), timeoutMs)),
+  ]);
+}
+
 // Fetch the names of services given their UUIDs
 export async function fetchServiceNames(supabase: any, serviceIds: string[]) {
   if (!serviceIds || serviceIds.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from("services")
-    .select("id, name")
-    .in("id", serviceIds);
+  try {
+    console.log("🔔 Fetching service names for IDs:", serviceIds);
 
-  if (error) {
-    console.error("Error fetching service names:", error);
-    return serviceIds; // fallback to showing IDs if something fails
+    const queryPromise = supabase
+      .from("services")
+      .select("id, name")
+      .in("id", serviceIds);
+
+    // Add 3 second timeout to prevent hanging
+    const result: any = await withTimeout(queryPromise, 3000, {
+      data: null,
+      error: { message: "Timeout" },
+    });
+    const { data, error } = result;
+
+    if (error) {
+      console.error("Error fetching service names:", error);
+      return serviceIds; // fallback to showing IDs if something fails
+    }
+
+    if (data && Array.isArray(data)) {
+      return data.map((s: any) => s.name);
+    }
+    return serviceIds;
+  } catch (err) {
+    console.error("Exception in fetchServiceNames:", err);
+    return serviceIds; // fallback to IDs
   }
-
-  return data.map((s: any) => s.name);
 }
 
-// Wait for whichever Service Worker is active (VitePWA or Prod)
+// Wait for whichever Service Worker is active (VitePWA or Prod) - with timeout
 export async function getActiveServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    const reg = await navigator.serviceWorker.ready;
+  if (!("serviceWorker" in navigator)) {
+    throw new Error("Service Worker not supported in this browser.");
+  }
+
+  // Add 3 second timeout to prevent hanging
+  const swPromise = navigator.serviceWorker.ready;
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Service Worker ready timeout")), 3000)
+  );
+
+  try {
+    const reg = await Promise.race([swPromise, timeoutPromise]);
     console.log("Using active Service Worker:", reg);
     return reg;
+  } catch (err) {
+    console.error("Service Worker not ready:", err);
+    throw err;
   }
-  throw new Error("Service Worker not supported in this browser.");
 }
 
 // Ask user permission for notifications
@@ -40,8 +81,15 @@ export async function requestNotificationPermission() {
 
 // Show booking confirmation
 export async function showBookingNotification(booking: any, supabase: any) {
+  console.log("🔔 showBookingNotification called with:", booking);
+
   const permission = await requestNotificationPermission();
-  if (permission !== "granted") return;
+  console.log("🔔 Notification permission:", permission);
+
+  if (permission !== "granted") {
+    console.warn("⚠️ Notification permission not granted:", permission);
+    return;
+  }
 
   // Parse booking.services - it could be a JSON string, array, or comma-separated string
   let serviceIds: string[] = [];
@@ -68,9 +116,10 @@ export async function showBookingNotification(booking: any, supabase: any) {
   const servicesText =
     serviceNames.length > 0 ? serviceNames.join(", ") : serviceIds.join(", "); // Fallback to IDs if names can't be fetched
 
-  const reg = await getActiveServiceWorker();
+  console.log("🔔 Fetched service names:", servicesText);
+
   const title = "Booking Confirmed!";
-  const options = {
+  const notificationOptions = {
     body: `Your booking for ${servicesText} on ${booking.date} is confirmed 🎉`,
     icon: "/logo.png",
     badge: "/logo.png",
@@ -81,7 +130,36 @@ export async function showBookingNotification(booking: any, supabase: any) {
     },
   };
 
-  reg.showNotification(title, options);
+  try {
+    // Try service worker notification first (works in background)
+    const reg = await getActiveServiceWorker();
+    console.log("🔔 Service worker ready, showing notification via SW...");
+    await reg.showNotification(title, notificationOptions);
+    console.log("✅ Notification displayed via Service Worker!");
+  } catch (swError) {
+    console.warn(
+      "⚠️ Service Worker notification failed, trying direct Notification API:",
+      swError
+    );
+
+    // Fallback to direct Notification API (works when page is focused)
+    try {
+      const notification = new Notification(title, {
+        body: notificationOptions.body,
+        icon: notificationOptions.icon,
+        tag: notificationOptions.tag,
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+
+      console.log("✅ Notification displayed via direct API!");
+    } catch (directError) {
+      console.error("❌ Both notification methods failed:", directError);
+    }
+  }
 }
 
 // Appointment reminder notification

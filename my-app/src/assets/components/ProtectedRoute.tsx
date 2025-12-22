@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/ProtectedRoute.tsx
 
 import { Navigate } from "react-router-dom";
@@ -11,7 +12,13 @@ interface ProtectedRouteProps {
   loading: boolean;
 }
 
-export default function ProtectedRoute({ children, session, role, allowedRoles, loading }: ProtectedRouteProps) {
+export default function ProtectedRoute({
+  children,
+  session,
+  role,
+  allowedRoles,
+  loading,
+}: ProtectedRouteProps) {
   if (loading) return <div>Loading...</div>;
 
   if (!session) {

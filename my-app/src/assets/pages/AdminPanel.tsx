@@ -88,50 +88,73 @@ export default function AdminPanel() {
   };
 
   const handleSaveProfessionalHours = async () => {
-    const hoursToSave = professionalHours[selectedProfessional];
+    console.log("=== Starting Save Professional Hours ===");
+    console.log("Selected Professional:", selectedProfessional);
+    console.log("Professional Hours State:", professionalHours);
 
-    if (hoursToSave.length === 0) {
+    const hoursToSave = professionalHours[selectedProfessional];
+    console.log("Hours to Save:", hoursToSave);
+
+    if (!hoursToSave || hoursToSave.length === 0) {
+      console.warn("No working days to save");
       alert("Please add at least one working day");
       return;
     }
 
-    // First, try to delete existing hours for this professional
-    // Use the correct column type - if it fails, we'll handle it
-    const { error: deleteError } = await supabase
-      .from("professional_hours")
-      .delete()
-      .eq("professional_id", selectedProfessional);
+    // Prepare data for insertion - remove 'id' field if it exists
+    const hoursData = hoursToSave.map(
+      ({ professional_id, day_of_week, start_time, end_time }) => ({
+        professional_id,
+        day_of_week,
+        start_time,
+        end_time,
+      })
+    );
 
-    if (deleteError) {
-      console.error("Error deleting old hours:", deleteError);
-      // Check if it's a UUID type error
-      if (deleteError.code === "22P02") {
-        alert(
-          "❌ Database Schema Error: The 'professional_id' column in 'professional_hours' table should be TEXT type, not UUID.\n\nPlease run this SQL in your Supabase SQL Editor:\n\nALTER TABLE professional_hours ALTER COLUMN professional_id TYPE TEXT;"
-        );
+    console.log("Prepared Hours Data for Insert:", hoursData);
+
+    try {
+      // First, delete existing hours for this professional
+      console.log(
+        "Deleting existing hours for professional:",
+        selectedProfessional
+      );
+      const { error: deleteError } = await supabase
+        .from("professional_hours")
+        .delete()
+        .eq("professional_id", selectedProfessional);
+
+      if (deleteError) {
+        console.error("Error deleting old hours:", deleteError);
+        alert("❌ Error deleting old hours: " + deleteError.message);
         return;
       }
-      alert("❌ Error saving hours: " + deleteError.message);
-      return;
-    }
+      console.log("✅ Successfully deleted old hours");
 
-    // Insert new hours
-    const { error: insertError } = await supabase
-      .from("professional_hours")
-      .insert(hoursToSave);
+      // Insert new hours
+      console.log("Inserting new hours...");
+      const { data: insertedData, error: insertError } = await supabase
+        .from("professional_hours")
+        .insert(hoursData)
+        .select();
 
-    if (insertError) {
-      console.error("Error saving professional hours:", insertError);
-      if (insertError.code === "22P02") {
-        alert(
-          "❌ Database Schema Error: The 'professional_id' column in 'professional_hours' table should be TEXT type, not UUID.\n\nPlease run this SQL in your Supabase SQL Editor:\n\nALTER TABLE professional_hours ALTER COLUMN professional_id TYPE TEXT;"
-        );
+      if (insertError) {
+        console.error("Error inserting professional hours:", insertError);
+        alert("❌ Error saving professional hours: " + insertError.message);
         return;
       }
-      alert("❌ Error saving professional hours: " + insertError.message);
-    } else {
+
+      console.log("✅ Successfully inserted hours:", insertedData);
       alert("✅ Professional hours saved successfully");
+
+      // Reload hours from database to sync state
+      await loadProfessionalHours();
+    } catch (error) {
+      console.error("Unexpected error in handleSaveProfessionalHours:", error);
+      alert("❌ An unexpected error occurred. Check the console for details.");
     }
+
+    console.log("=== End Save Professional Hours ===");
   };
 
   const handleAddWorkingDay = (dayOfWeek: number) => {

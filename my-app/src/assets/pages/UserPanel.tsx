@@ -611,16 +611,52 @@ export default function UserPanel() {
       const insertedBookings = await response.json();
       const insertedBooking = insertedBookings?.[0];
 
+      // IMPORTANT: Capture values BEFORE clearing state for email/SMS sending
+      const capturedUser = user; // Capture user object
+      const capturedDate = selectedDate;
+      const capturedSlot = selectedSlot;
+      const capturedLocation = selectedLocation;
+      const capturedProfessional = selectedProfessional;
+      const capturedServices = selectedServices;
+      const serviceNames = selectedServices.map((id) => {
+        const s = services.find((s) => s.id === id);
+        return s?.name || id; // fallback to id if not found
+      });
+
+      // Get user email - handle both object and string cases
+      const userEmail =
+        typeof capturedUser === "string" ? capturedUser : capturedUser?.email;
+
+      console.log("📋 Captured booking data:", {
+        user: userEmail,
+        userType: typeof capturedUser,
+        date: capturedDate,
+        slot: `${capturedSlot?.start_time} - ${capturedSlot?.end_time}`,
+        location: capturedLocation,
+        professional: capturedProfessional,
+        services: serviceNames,
+      });
+
       alert("✅ Booking confirmed successfully!");
 
-      await showBookingNotification(
-        {
-          date: selectedDate,
-          services: selectedServices, // Pass array directly
-          id: insertedBooking?.id || Date.now(),
-        },
-        supabase
-      );
+      // Show notification with captured values - run in background, don't block email
+      // Use setTimeout to make it non-blocking
+      setTimeout(async () => {
+        try {
+          await showBookingNotification(
+            {
+              date: capturedDate,
+              services: capturedServices,
+              id: insertedBooking?.id || Date.now(),
+            },
+            supabase
+          );
+          console.log("✅ Browser notification sent");
+        } catch (notifError) {
+          console.error("❌ Notification error:", notifError);
+        }
+      }, 0);
+
       // Clear booking state and localStorage
       dispatch(setCurrentStep(1));
       dispatch(
@@ -642,21 +678,29 @@ export default function UserPanel() {
         setTimeout(() => setCurrentPage("account"), 100);
       }
 
-      const serviceNames = selectedServices.map((id) => {
-        const s = services.find((s) => s.id === id);
-        return s?.name || id; // fallback to id if not found
-      });
-
-      // Get phone number from profiles table
+      // Get phone number from profiles table (with timeout to prevent hanging)
       let userPhone: string | null = null;
+      const userId = typeof capturedUser === "object" ? capturedUser?.id : null;
 
-      if (user?.id) {
+      console.log("🔍 Step 1: About to fetch phone number for user:", userId);
+
+      if (userId) {
         try {
-          const { data: profile, error: profileError } = await supabase
+          // Add 5 second timeout for phone lookup
+          const phonePromise = supabase
             .from("profiles")
             .select("phone")
-            .eq("id", user.id)
+            .eq("id", userId)
             .single();
+
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Phone lookup timeout")), 5000)
+          );
+
+          const { data: profile, error: profileError } = (await Promise.race([
+            phonePromise,
+            timeoutPromise,
+          ])) as { data: { phone: string } | null; error: Error | null };
 
           if (profileError) {
             console.warn(
@@ -676,8 +720,13 @@ export default function UserPanel() {
           }
         } catch (err) {
           console.error("Error querying profiles for phone:", err);
+          // Continue without phone - don't block email
         }
+      } else {
+        console.log("🔍 No user ID found, skipping phone lookup");
       }
+
+      console.log("🔍 Step 2: Phone lookup complete. Moving to SMS check...");
 
       console.log("🔍 Checking for SMS confirmation requirements:", {
         userHasPhone: !!userPhone,
@@ -692,48 +741,62 @@ export default function UserPanel() {
         bookingId: insertedBooking?.id?.toString() || "Unknown",
       });
 
+      // Run SMS in background with timeout - don't block email
       if (userPhone && BookingSMSService.validatePhoneNumber(userPhone)) {
-        try {
-          const smsDetails = {
-            date: selectedDate,
-            time: `${selectedSlot.start_time} - ${selectedSlot.end_time}`,
-            service: serviceNames.join(", "),
-            professional:
-              selectedProfessional === "prof1" ? "Person 1" : "Person 2",
-            location: selectedLocation,
-            bookingId: insertedBooking?.id?.toString() || "Unknown",
-          };
+        const smsDetails = {
+          date: capturedDate,
+          time: `${capturedSlot.start_time} - ${capturedSlot.end_time}`,
+          service: serviceNames.join(", "),
+          professional:
+            capturedProfessional === "prof1" ? "Person 1" : "Person 2",
+          location: capturedLocation,
+          bookingId: insertedBooking?.id?.toString() || "Unknown",
+        };
 
-          console.log("📱 Initiating SMS booking confirmation...", {
-            recipient: `${userPhone.substring(0, 3)}***${userPhone.substring(
-              userPhone.length - 4
-            )}`,
-            ...smsDetails,
-          });
+        // Run SMS async with timeout - don't await, don't block email
+        (async () => {
+          try {
+            console.log("📱 Initiating SMS booking confirmation...", {
+              recipient: `${userPhone.substring(0, 3)}***${userPhone.substring(
+                userPhone.length - 4
+              )}`,
+              ...smsDetails,
+            });
 
-          const smsResult = await BookingSMSService.sendBookingConfirmation(
-            userPhone,
-            smsDetails
-          );
+            const smsPromise = BookingSMSService.sendBookingConfirmation(
+              userPhone,
+              smsDetails
+            );
 
-          console.log("✅ SMS booking confirmation completed successfully:", {
-            messageId: smsResult.messageId,
-            success: smsResult.success,
-            cost: smsResult.cost,
-            currency: smsResult.currency,
-            bookingId: smsDetails.bookingId,
-          });
-        } catch (smsError) {
-          console.error("❌ SMS booking confirmation failed:", {
-            error:
-              smsError instanceof Error ? smsError.message : String(smsError),
-            bookingId: insertedBooking?.id?.toString() || "Unknown",
-            phoneNumber: `${userPhone.substring(0, 3)}***${userPhone.substring(
-              userPhone.length - 4
-            )}`,
-          });
-          // Don't fail the booking if SMS fails - log for admin review
-        }
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("SMS timeout")), 10000)
+            );
+
+            const smsResult = (await Promise.race([
+              smsPromise,
+              timeoutPromise,
+            ])) as {
+              messageId: string;
+              success: boolean;
+              cost: string;
+              currency: string;
+            };
+
+            console.log("✅ SMS booking confirmation completed successfully:", {
+              messageId: smsResult.messageId,
+              success: smsResult.success,
+              cost: smsResult.cost,
+              currency: smsResult.currency,
+              bookingId: smsDetails.bookingId,
+            });
+          } catch (smsError) {
+            console.error("❌ SMS booking confirmation failed:", {
+              error:
+                smsError instanceof Error ? smsError.message : String(smsError),
+              bookingId: insertedBooking?.id?.toString() || "Unknown",
+            });
+          }
+        })();
       } else {
         console.log("📱 SMS confirmation skipped:", {
           reason: !userPhone
@@ -744,48 +807,81 @@ export default function UserPanel() {
         });
       }
 
-      console.log("Booking payload:", {
-        email: user?.email,
-        name: user?.user_metadata?.full_name || "Customer",
-        bookingDate: selectedDate,
-        startTime: selectedSlot?.start_time,
-        endTime: selectedSlot?.end_time,
-        location: selectedLocation,
-        services: selectedServices,
-        professional: selectedProfessional,
-      });
-      try {
-        const response = await fetch(
-          "https://qrvxmqksekxbtipdnfru.supabase.co/functions/v1/send_booking_email",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization:
-                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFydnhtcWtzZWt4YnRpcGRuZnJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTI5MjMsImV4cCI6MjA3MTk4ODkyM30._BiC3KYWKR5HTz7osjHxxwA-mdHIy867IelMbHvsEPc",
-            },
-            body: JSON.stringify({
-              email: user?.email,
-              name: user?.user_metadata?.full_name || "Customer",
-              bookingDate: selectedDate,
-              startTime: selectedSlot.start_time,
-              endTime: selectedSlot.end_time,
-              location: selectedLocation,
-              services: serviceNames,
-              professional: selectedProfessional,
-            }),
-          }
-        );
+      console.log("🔍 Step 3: SMS section complete. Starting email section...");
 
-        const result = await response.json();
-        if (result.success) {
-          console.log("Booking confirmation email sent:", result.data.id);
-        } else {
-          console.error("Failed to send confirmation email:", result.error);
+      // Send booking confirmation email
+      console.log("📧 Preparing to send booking email...");
+      console.log("📧 Email validation:", {
+        hasUser: !!capturedUser,
+        userEmail: userEmail,
+        userType: typeof capturedUser,
+        hasSlot: !!capturedSlot,
+        hasStartTime: !!capturedSlot?.start_time,
+        hasEndTime: !!capturedSlot?.end_time,
+      });
+
+      if (!userEmail) {
+        console.error("❌ Cannot send email: user email is missing", {
+          user: capturedUser,
+          userEmail,
+        });
+      } else if (!capturedSlot?.start_time || !capturedSlot?.end_time) {
+        console.error("❌ Cannot send email: time slot is missing", {
+          slot: capturedSlot,
+        });
+      } else {
+        const userName =
+          typeof capturedUser === "object"
+            ? capturedUser?.user_metadata?.full_name
+            : null;
+        const emailPayload = {
+          email: userEmail,
+          name: userName || "Customer",
+          bookingDate: capturedDate,
+          startTime: capturedSlot.start_time,
+          endTime: capturedSlot.end_time,
+          location: capturedLocation,
+          services: serviceNames,
+          professional: capturedProfessional,
+        };
+
+        console.log("📧 Email payload:", emailPayload);
+
+        try {
+          const response = await fetch(
+            "https://qrvxmqksekxbtipdnfru.supabase.co/functions/v1/send_booking_email",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization:
+                  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFydnhtcWtzZWt4YnRpcGRuZnJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTI5MjMsImV4cCI6MjA3MTk4ODkyM30._BiC3KYWKR5HTz7osjHxxwA-mdHIy867IelMbHvsEPc",
+              },
+              body: JSON.stringify(emailPayload),
+            }
+          );
+
+          const result = await response.json();
+          if (result.success) {
+            console.log(
+              "✅ Booking confirmation email sent successfully!",
+              result.data?.id
+            );
+          } else {
+            console.error("❌ Email API returned error:", result.error);
+            alert(
+              "⚠️ Booking confirmed but email notification failed. Please check your email settings."
+            );
+          }
+        } catch (err) {
+          console.error("❌ Exception calling email Edge Function:", err);
+          alert(
+            "⚠️ Booking confirmed but email notification failed. Please check your email settings."
+          );
         }
-      } catch (err) {
-        console.error("Error calling Edge Function:", err);
       }
+
+      console.log("🔍 Step 4: Email section complete. Booking flow finished!");
     } catch (bookingError) {
       console.error("Overall booking error:", bookingError);
       alert("❌ Error creating booking. Please try again.");

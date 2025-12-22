@@ -3,19 +3,26 @@ import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // Use relative asset paths so `dist` can be served from any static host
+  // and local previews (file-based or static servers) will resolve assets.
+  base: "./",
   plugins: [
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      strategies: "generateSW",
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "service-worker.ts",
+      injectRegister: "auto",
       includeAssets: [
         "favicon.svg",
         "robots.txt",
         "apple-touch-icon.png",
-        " offline.html",
+        "offline.html",
       ],
       devOptions: {
         enabled: true,
+        type: "module",
       },
       manifest: {
         name: "RENDEZVOUS",

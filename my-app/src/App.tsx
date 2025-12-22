@@ -318,11 +318,35 @@ function App() {
           {/* Public route */}
           <Route path="/" element={<UserPanel />} />
 
-          {/* Temporarily disable ProtectedRoute for admin */}
-          <Route path="/admin" element={<AdminPanel />} />
+          {/* Protected admin route */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute
+                session={session}
+                role={role}
+                allowedRoles={["admin", "owner"]}
+                loading={loading}
+              >
+                <AdminPanel />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Temporarily disable ProtectedRoute for owner */}
-          <Route path="/owner" element={<OwnerPanel />} />
+          {/* Protected owner route */}
+          <Route
+            path="/owner"
+            element={
+              <ProtectedRoute
+                session={session}
+                role={role}
+                allowedRoles={["owner"]}
+                loading={loading}
+              >
+                <OwnerPanel />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Optional: fallback route */}
           {/* <Route path="*" element={<NotFoundPage />} /> */}
