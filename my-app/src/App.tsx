@@ -13,6 +13,7 @@ import { I18nextProvider } from "react-i18next";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import type { Session } from "@supabase/supabase-js";
+import { supabase } from "./assets/components/supabaseClient";
 
 export type Role = "admin" | "user" | "owner";
 
@@ -39,6 +40,64 @@ function App() {
       );
     };
   }, []);
+
+  // Listen for auth state changes (login/logout from LoginModal)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        console.log("[App] Auth state changed:", event, newSession?.user?.email);
+        
+        if (event === "SIGNED_IN" && newSession) {
+          setSession(newSession);
+          setLoading(true);
+
+          // Fetch user role
+          try {
+            const { data: profile, error: profileError } = await supabase
+              .from("profiles")
+              .select("role, full_name, phone")
+              .eq("id", newSession.user.id)
+              .single();
+
+            if (!profileError && profile) {
+              const userRole = profile.role as Role;
+              setRole(userRole);
+              console.log("[App] User role from auth change:", userRole);
+
+              // Check if profile needs to be completed
+              if (!profile.full_name || !profile.phone) {
+                setShowCompleteProfile(true);
+              }
+
+              // Redirect based on role
+              if (userRole === "admin" && location.pathname !== "/admin") {
+                console.log("[App] Redirecting admin to /admin");
+                navigate("/admin");
+              } else if (userRole === "owner" && location.pathname !== "/owner") {
+                console.log("[App] Redirecting owner to /owner");
+                navigate("/owner");
+              }
+            } else {
+              console.log("[App] No profile found, showing complete profile");
+              setShowCompleteProfile(true);
+            }
+          } catch (err) {
+            console.error("[App] Error fetching profile on auth change:", err);
+          }
+
+          setLoading(false);
+        } else if (event === "SIGNED_OUT") {
+          setSession(null);
+          setRole(null);
+          navigate("/");
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate, location.pathname]);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -220,6 +279,29 @@ function App() {
                       "[App] Profile incomplete on session restore, showing modal"
                     );
                     setShowCompleteProfile(true);
+                  }
+
+                  // Redirect based on role on session restore
+                  if (
+                    profile.role === "admin" &&
+                    location.pathname !== "/admin"
+                  ) {
+                    console.log("[App] Redirecting admin to /admin");
+                    navigate("/admin");
+                  } else if (
+                    profile.role === "owner" &&
+                    location.pathname !== "/owner"
+                  ) {
+                    console.log("[App] Redirecting owner to /owner");
+                    navigate("/owner");
+                  } else if (
+                    profile.role === "user" &&
+                    location.pathname !== "/" &&
+                    location.pathname !== "/admin" &&
+                    location.pathname !== "/owner"
+                  ) {
+                    console.log("[App] Redirecting user to /");
+                    navigate("/");
                   }
                 } else {
                   // No profile exists - show complete profile modal

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
 import { getColors } from "../../theme";
+import { toggleTheme } from "../../slices/themeSlice";
 import { BigCalendar } from "../components/BigCalendar";
 import BookingStatistics from "../components/BookingStatistics";
 import {
@@ -16,7 +17,10 @@ import {
   Button,
   Typography,
   Divider,
+  IconButton,
 } from "@mui/material";
+import Brightness4Icon from "@mui/icons-material/Brightness4";
+import Brightness7Icon from "@mui/icons-material/Brightness7";
 import dayjs from "dayjs";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -39,6 +43,7 @@ interface UserProfile {
 
 export default function OwnerPanel() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
   const colors = getColors(mode);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
@@ -220,6 +225,26 @@ export default function OwnerPanel() {
         Owner Panel
       </h2>
       <Link to="/owner">Owner Panel</Link>
+      
+      {/* Theme Toggle Button */}
+      <IconButton
+        onClick={() => dispatch(toggleTheme())}
+        sx={{
+          position: "absolute",
+          top: 20,
+          right: 100,
+          color: colors.text.primary,
+          backgroundColor: colors.background.medium,
+          "&:hover": { backgroundColor: colors.background.light },
+          width: 40,
+          height: 40,
+          zIndex: 1000,
+        }}
+        aria-label={mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      >
+        {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
+      </IconButton>
+      
       <button
         onClick={handleLogout}
         style={{

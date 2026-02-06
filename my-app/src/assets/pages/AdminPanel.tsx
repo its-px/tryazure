@@ -1,10 +1,16 @@
 import { Calendar } from "../components/calendar";
-import { Box, Tabs, Tab } from "@mui/material";
+import { Box, Tabs, Tab, IconButton } from "@mui/material";
 import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
 import { generateWeekdaysInRange, excludeDates } from "../components/dateUtils";
 import { Link, useNavigate } from "react-router-dom";
 import SMSAdminDashboard from "../components/SMSAdminDashboard";
+import { getColors } from "../../theme";
+import { toggleTheme } from "../../slices/themeSlice";
+import Brightness4Icon from "@mui/icons-material/Brightness4";
+import Brightness7Icon from "@mui/icons-material/Brightness7";
 
 interface ProfessionalHours {
   professional_id: string;
@@ -15,6 +21,9 @@ interface ProfessionalHours {
 
 export default function AdminPanel() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
+  const colors = getColors(mode);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("2025-01-01");
   const [endDate, setEndDate] = useState("2025-12-31");
@@ -36,18 +45,58 @@ export default function AdminPanel() {
   const handleSaveAvailability = async () => {
     if (!selectedDates.length) return alert("Select at least one date");
 
-    // Format the dates for upsert
-    const formattedDates: { date: string }[] = selectedDates.map((date) => ({
-      date,
-    }));
+    console.log("[handleSaveAvailability] Saving", selectedDates.length, "dates");
 
-    // Fix: Use correct table name "availability"
-    const { error } = await supabase
-      .from("availability")
-      .upsert(formattedDates, { onConflict: "date" });
+    try {
+      // Format the dates for upsert
+      const formattedDates: { date: string }[] = selectedDates.map((date) => ({
+        date,
+      }));
 
-    if (error) console.error("Error saving availability:", error);
-    else alert("✅ Available dates saved");
+      console.log("[handleSaveAvailability] Formatted dates:", formattedDates.slice(0, 5), "...");
+
+      // First, delete all existing dates to avoid conflicts
+      console.log("[handleSaveAvailability] Clearing existing availability...");
+      const { error: deleteError } = await supabase
+        .from("availability")
+        .delete()
+        .neq("date", "1900-01-01"); // Delete all records
+
+      if (deleteError) {
+        console.error("[handleSaveAvailability] Error clearing old dates:", deleteError);
+        alert("❌ Error clearing old dates: " + deleteError.message);
+        return;
+      }
+
+      console.log("[handleSaveAvailability] Old dates cleared, inserting new dates...");
+
+      // Insert new dates in batches to avoid payload size issues
+      const batchSize = 100;
+      let insertedCount = 0;
+
+      for (let i = 0; i < formattedDates.length; i += batchSize) {
+        const batch = formattedDates.slice(i, i + batchSize);
+        console.log(`[handleSaveAvailability] Inserting batch ${i / batchSize + 1}/${Math.ceil(formattedDates.length / batchSize)}`);
+
+        const { error: insertError } = await supabase
+          .from("availability")
+          .insert(batch);
+
+        if (insertError) {
+          console.error("[handleSaveAvailability] Error inserting batch:", insertError);
+          alert(`❌ Error saving dates: ${insertError.message}`);
+          return;
+        }
+
+        insertedCount += batch.length;
+      }
+
+      console.log("[handleSaveAvailability] Successfully saved", insertedCount, "dates");
+      alert(`✅ Successfully saved ${insertedCount} available dates`);
+    } catch (err) {
+      console.error("[handleSaveAvailability] Exception:", err);
+      alert("❌ Unexpected error: " + (err as Error).message);
+    }
   };
 
   const handleGenerateWeekdays = () => {
@@ -315,17 +364,37 @@ export default function AdminPanel() {
       sx={{
         minHeight: "100vh",
         width: "100vw",
-        backgroundColor: "#f5f5f5",
+        backgroundColor: colors.background.light,
         padding: 3,
       }}
     >
-      <h2 style={{ textAlign: "center", marginBottom: "20px" }}>Admin Panel</h2>
+      <h2 style={{ textAlign: "center", marginBottom: "20px", color: colors.text.primary }}>Admin Panel</h2>
       <Link
         to="/admin"
         style={{ display: "block", textAlign: "center", marginBottom: "20px" }}
       >
         Admin Panel
       </Link>
+      
+      {/* Theme Toggle Button */}
+      <IconButton
+        onClick={() => dispatch(toggleTheme())}
+        sx={{
+          position: "absolute",
+          top: 20,
+          right: 100,
+          color: colors.text.primary,
+          backgroundColor: colors.background.medium,
+          "&:hover": { backgroundColor: colors.background.light },
+          width: 40,
+          height: 40,
+          zIndex: 1000,
+        }}
+        aria-label={mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      >
+        {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
+      </IconButton>
+      
       <button
         onClick={handleLogout}
         style={{
@@ -333,7 +402,7 @@ export default function AdminPanel() {
           top: 20,
           right: 20,
           padding: "8px 20px",
-          backgroundColor: "#d32f2f",
+          backgroundColor: colors.error.main,
           color: "white",
           border: "none",
           borderRadius: "5px",
@@ -471,12 +540,12 @@ export default function AdminPanel() {
             maxWidth: "900px",
             margin: "20px auto",
             padding: 3,
-            backgroundColor: "white",
+            backgroundColor: colors.background.medium,
             borderRadius: 2,
             boxShadow: 1,
           }}
         >
-          <h3 style={{ textAlign: "center", marginBottom: "20px" }}>
+          <h3 style={{ textAlign: "center", marginBottom: "20px", color: colors.text.primary }}>
             Manage Professional Working Hours
           </h3>
 
@@ -488,8 +557,8 @@ export default function AdminPanel() {
                 padding: "10px 30px",
                 cursor: "pointer",
                 backgroundColor:
-                  selectedProfessional === "prof1" ? "#1b5e20" : "#ccc",
-                color: selectedProfessional === "prof1" ? "white" : "black",
+                  selectedProfessional === "prof1" ? colors.accent.main : colors.background.light,
+                color: selectedProfessional === "prof1" ? "white" : colors.text.primary,
                 border: "none",
                 borderRadius: "5px",
                 fontWeight: "bold",
@@ -503,8 +572,8 @@ export default function AdminPanel() {
                 padding: "10px 30px",
                 cursor: "pointer",
                 backgroundColor:
-                  selectedProfessional === "prof2" ? "#1b5e20" : "#ccc",
-                color: selectedProfessional === "prof2" ? "white" : "black",
+                  selectedProfessional === "prof2" ? colors.accent.main : colors.background.light,
+                color: selectedProfessional === "prof2" ? "white" : colors.text.primary,
                 border: "none",
                 borderRadius: "5px",
                 fontWeight: "bold",
@@ -527,7 +596,7 @@ export default function AdminPanel() {
               style={{
                 padding: "8px 16px",
                 cursor: "pointer",
-                backgroundColor: "#2196f3",
+                backgroundColor: colors.status.confirmed,
                 color: "white",
                 border: "none",
                 borderRadius: "5px",
@@ -540,7 +609,7 @@ export default function AdminPanel() {
               style={{
                 padding: "8px 16px",
                 cursor: "pointer",
-                backgroundColor: "#ff9800",
+                backgroundColor: colors.accent.light,
                 color: "white",
                 border: "none",
                 borderRadius: "5px",
@@ -553,8 +622,8 @@ export default function AdminPanel() {
 
           {/* Working Days Management */}
           <Box>
-            <h4>Working Days</h4>
-            <p style={{ color: "#666", marginBottom: "15px" }}>
+            <h4 style={{ color: colors.text.primary }}>Working Days</h4>
+            <p style={{ color: colors.text.secondary, marginBottom: "15px" }}>
               Select which days{" "}
               {selectedProfessional === "prof1" ? "Person 1" : "Person 2"} works
               and set their hours:
@@ -576,14 +645,14 @@ export default function AdminPanel() {
                   mb={2}
                   p={2}
                   sx={{
-                    backgroundColor: workingDay ? "#e8f5e9" : "#fafafa",
+                    backgroundColor: workingDay ? colors.background.light : colors.background.medium,
                     borderRadius: 1,
                     border: "1px solid",
-                    borderColor: workingDay ? "#1b5e20" : "#e0e0e0",
+                    borderColor: workingDay ? colors.accent.main : colors.background.light,
                   }}
                 >
                   <Box flex={1}>
-                    <strong>{getDayName(dayOfWeek)}</strong>
+                    <strong style={{ color: colors.text.primary }}>{getDayName(dayOfWeek)}</strong>
                   </Box>
 
                   {workingDay && dayHours ? (
@@ -623,7 +692,7 @@ export default function AdminPanel() {
                         style={{
                           padding: "5px 15px",
                           cursor: "pointer",
-                          backgroundColor: "#f44336",
+                          backgroundColor: colors.error.main,
                           color: "white",
                           border: "none",
                           borderRadius: "5px",
@@ -638,7 +707,7 @@ export default function AdminPanel() {
                       style={{
                         padding: "5px 15px",
                         cursor: "pointer",
-                        backgroundColor: "#4caf50",
+                        backgroundColor: colors.status.confirmed,
                         color: "white",
                         border: "none",
                         borderRadius: "5px",
@@ -659,7 +728,7 @@ export default function AdminPanel() {
               style={{
                 padding: "12px 40px",
                 cursor: "pointer",
-                backgroundColor: "#1b5e20",
+                backgroundColor: colors.accent.main,
                 color: "white",
                 border: "none",
                 borderRadius: "5px",
@@ -675,10 +744,10 @@ export default function AdminPanel() {
           <Box
             mt={3}
             p={2}
-            sx={{ backgroundColor: "#f5f5f5", borderRadius: 1 }}
+            sx={{ backgroundColor: colors.background.light, borderRadius: 1 }}
           >
-            <strong>Current Status:</strong>
-            <p style={{ margin: "5px 0" }}>
+            <strong style={{ color: colors.text.primary }}>Current Status:</strong>
+            <p style={{ margin: "5px 0", color: colors.text.secondary }}>
               {selectedProfessional === "prof1" ? "Person 1" : "Person 2"} has{" "}
               {professionalHours[selectedProfessional].length} working day(s)
               configured

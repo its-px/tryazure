@@ -108,11 +108,8 @@ export default function CompleteProfileModal({
         // Don't throw - profile was updated successfully
       }
 
-      setFullName("");
-      setPhone("");
-      onClose();
-
       // Trigger page reload to refresh UI with new profile data
+      // Reload before calling onClose to avoid stale callback error
       window.location.reload();
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
