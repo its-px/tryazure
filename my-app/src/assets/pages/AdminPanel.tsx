@@ -45,7 +45,11 @@ export default function AdminPanel() {
   const handleSaveAvailability = async () => {
     if (!selectedDates.length) return alert("Select at least one date");
 
-    console.log("[handleSaveAvailability] Saving", selectedDates.length, "dates");
+    console.log(
+      "[handleSaveAvailability] Saving",
+      selectedDates.length,
+      "dates",
+    );
 
     try {
       // Format the dates for upsert
@@ -53,7 +57,11 @@ export default function AdminPanel() {
         date,
       }));
 
-      console.log("[handleSaveAvailability] Formatted dates:", formattedDates.slice(0, 5), "...");
+      console.log(
+        "[handleSaveAvailability] Formatted dates:",
+        formattedDates.slice(0, 5),
+        "...",
+      );
 
       // First, delete all existing dates to avoid conflicts
       console.log("[handleSaveAvailability] Clearing existing availability...");
@@ -63,12 +71,17 @@ export default function AdminPanel() {
         .neq("date", "1900-01-01"); // Delete all records
 
       if (deleteError) {
-        console.error("[handleSaveAvailability] Error clearing old dates:", deleteError);
+        console.error(
+          "[handleSaveAvailability] Error clearing old dates:",
+          deleteError,
+        );
         alert("❌ Error clearing old dates: " + deleteError.message);
         return;
       }
 
-      console.log("[handleSaveAvailability] Old dates cleared, inserting new dates...");
+      console.log(
+        "[handleSaveAvailability] Old dates cleared, inserting new dates...",
+      );
 
       // Insert new dates in batches to avoid payload size issues
       const batchSize = 100;
@@ -76,14 +89,19 @@ export default function AdminPanel() {
 
       for (let i = 0; i < formattedDates.length; i += batchSize) {
         const batch = formattedDates.slice(i, i + batchSize);
-        console.log(`[handleSaveAvailability] Inserting batch ${i / batchSize + 1}/${Math.ceil(formattedDates.length / batchSize)}`);
+        console.log(
+          `[handleSaveAvailability] Inserting batch ${i / batchSize + 1}/${Math.ceil(formattedDates.length / batchSize)}`,
+        );
 
         const { error: insertError } = await supabase
           .from("availability")
           .insert(batch);
 
         if (insertError) {
-          console.error("[handleSaveAvailability] Error inserting batch:", insertError);
+          console.error(
+            "[handleSaveAvailability] Error inserting batch:",
+            insertError,
+          );
           alert(`❌ Error saving dates: ${insertError.message}`);
           return;
         }
@@ -91,7 +109,11 @@ export default function AdminPanel() {
         insertedCount += batch.length;
       }
 
-      console.log("[handleSaveAvailability] Successfully saved", insertedCount, "dates");
+      console.log(
+        "[handleSaveAvailability] Successfully saved",
+        insertedCount,
+        "dates",
+      );
       alert(`✅ Successfully saved ${insertedCount} available dates`);
     } catch (err) {
       console.error("[handleSaveAvailability] Exception:", err);
@@ -157,7 +179,7 @@ export default function AdminPanel() {
         day_of_week,
         start_time,
         end_time,
-      })
+      }),
     );
 
     console.log("Prepared Hours Data for Insert:", hoursData);
@@ -166,7 +188,7 @@ export default function AdminPanel() {
       // First, delete existing hours for this professional
       console.log(
         "Deleting existing hours for professional:",
-        selectedProfessional
+        selectedProfessional,
       );
       const { error: deleteError } = await supabase
         .from("professional_hours")
@@ -224,7 +246,7 @@ export default function AdminPanel() {
     setProfessionalHours((prev) => ({
       ...prev,
       [selectedProfessional]: prev[selectedProfessional].filter(
-        (h) => h.day_of_week !== dayOfWeek
+        (h) => h.day_of_week !== dayOfWeek,
       ),
     }));
   };
@@ -232,12 +254,12 @@ export default function AdminPanel() {
   const handleUpdateTime = (
     dayOfWeek: number,
     field: "start_time" | "end_time",
-    value: string
+    value: string,
   ) => {
     setProfessionalHours((prev) => ({
       ...prev,
       [selectedProfessional]: prev[selectedProfessional].map((h) =>
-        h.day_of_week === dayOfWeek ? { ...h, [field]: value } : h
+        h.day_of_week === dayOfWeek ? { ...h, [field]: value } : h,
       ),
     }));
   };
@@ -317,7 +339,7 @@ export default function AdminPanel() {
 
   const isWorkingDay = (dayOfWeek: number) => {
     return professionalHours[selectedProfessional].some(
-      (h) => h.day_of_week === dayOfWeek
+      (h) => h.day_of_week === dayOfWeek,
     );
   };
 
@@ -368,14 +390,22 @@ export default function AdminPanel() {
         padding: 3,
       }}
     >
-      <h2 style={{ textAlign: "center", marginBottom: "20px", color: colors.text.primary }}>Admin Panel</h2>
+      <h2
+        style={{
+          textAlign: "center",
+          marginBottom: "20px",
+          color: colors.text.primary,
+        }}
+      >
+        Admin Panel
+      </h2>
       <Link
         to="/admin"
         style={{ display: "block", textAlign: "center", marginBottom: "20px" }}
       >
         Admin Panel
       </Link>
-      
+
       {/* Theme Toggle Button */}
       <IconButton
         onClick={() => dispatch(toggleTheme())}
@@ -390,11 +420,13 @@ export default function AdminPanel() {
           height: 40,
           zIndex: 1000,
         }}
-        aria-label={mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        aria-label={
+          mode === "dark" ? "Switch to light theme" : "Switch to dark theme"
+        }
       >
         {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
       </IconButton>
-      
+
       <button
         onClick={handleLogout}
         style={{
@@ -474,14 +506,14 @@ export default function AdminPanel() {
                           setWeekdays([...weekdays, index]);
                         } else {
                           setWeekdays(
-                            weekdays.filter((d: number) => d !== index)
+                            weekdays.filter((d: number) => d !== index),
                           );
                         }
                       }}
                     />
                     {day}
                   </label>
-                )
+                ),
               )}
             </div>
           </Box>
@@ -494,7 +526,7 @@ export default function AdminPanel() {
               value={holidays.join(", ")}
               onChange={(e) =>
                 setHolidays(
-                  e.target.value.split(",").map((d: string) => d.trim())
+                  e.target.value.split(",").map((d: string) => d.trim()),
                 )
               }
               style={{ width: "300px" }}
@@ -545,7 +577,13 @@ export default function AdminPanel() {
             boxShadow: 1,
           }}
         >
-          <h3 style={{ textAlign: "center", marginBottom: "20px", color: colors.text.primary }}>
+          <h3
+            style={{
+              textAlign: "center",
+              marginBottom: "20px",
+              color: colors.text.primary,
+            }}
+          >
             Manage Professional Working Hours
           </h3>
 
@@ -557,8 +595,13 @@ export default function AdminPanel() {
                 padding: "10px 30px",
                 cursor: "pointer",
                 backgroundColor:
-                  selectedProfessional === "prof1" ? colors.accent.main : colors.background.light,
-                color: selectedProfessional === "prof1" ? "white" : colors.text.primary,
+                  selectedProfessional === "prof1"
+                    ? colors.accent.main
+                    : colors.background.light,
+                color:
+                  selectedProfessional === "prof1"
+                    ? "white"
+                    : colors.text.primary,
                 border: "none",
                 borderRadius: "5px",
                 fontWeight: "bold",
@@ -572,8 +615,13 @@ export default function AdminPanel() {
                 padding: "10px 30px",
                 cursor: "pointer",
                 backgroundColor:
-                  selectedProfessional === "prof2" ? colors.accent.main : colors.background.light,
-                color: selectedProfessional === "prof2" ? "white" : colors.text.primary,
+                  selectedProfessional === "prof2"
+                    ? colors.accent.main
+                    : colors.background.light,
+                color:
+                  selectedProfessional === "prof2"
+                    ? "white"
+                    : colors.text.primary,
                 border: "none",
                 borderRadius: "5px",
                 fontWeight: "bold",
@@ -632,7 +680,7 @@ export default function AdminPanel() {
             {[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
               const workingDay = isWorkingDay(dayOfWeek);
               const dayHours = professionalHours[selectedProfessional].find(
-                (h) => h.day_of_week === dayOfWeek
+                (h) => h.day_of_week === dayOfWeek,
               );
 
               return (
@@ -645,14 +693,20 @@ export default function AdminPanel() {
                   mb={2}
                   p={2}
                   sx={{
-                    backgroundColor: workingDay ? colors.background.light : colors.background.medium,
+                    backgroundColor: workingDay
+                      ? colors.background.light
+                      : colors.background.medium,
                     borderRadius: 1,
                     border: "1px solid",
-                    borderColor: workingDay ? colors.accent.main : colors.background.light,
+                    borderColor: workingDay
+                      ? colors.accent.main
+                      : colors.background.light,
                   }}
                 >
                   <Box flex={1}>
-                    <strong style={{ color: colors.text.primary }}>{getDayName(dayOfWeek)}</strong>
+                    <strong style={{ color: colors.text.primary }}>
+                      {getDayName(dayOfWeek)}
+                    </strong>
                   </Box>
 
                   {workingDay && dayHours ? (
@@ -666,7 +720,7 @@ export default function AdminPanel() {
                             handleUpdateTime(
                               dayOfWeek,
                               "start_time",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           style={{ padding: "5px" }}
@@ -681,7 +735,7 @@ export default function AdminPanel() {
                             handleUpdateTime(
                               dayOfWeek,
                               "end_time",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           style={{ padding: "5px" }}
@@ -746,7 +800,9 @@ export default function AdminPanel() {
             p={2}
             sx={{ backgroundColor: colors.background.light, borderRadius: 1 }}
           >
-            <strong style={{ color: colors.text.primary }}>Current Status:</strong>
+            <strong style={{ color: colors.text.primary }}>
+              Current Status:
+            </strong>
             <p style={{ margin: "5px 0", color: colors.text.secondary }}>
               {selectedProfessional === "prof1" ? "Person 1" : "Person 2"} has{" "}
               {professionalHours[selectedProfessional].length} working day(s)

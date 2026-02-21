@@ -42,7 +42,8 @@ export const BigCalendar = ({
       const todayStr = moment().format("YYYY-MM-DD");
       setSelectedDates([todayStr]);
     }
-  }, [selectedDates, setSelectedDates]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   // Check if a date is allowed
   const isDateAllowed = (date: Date) => {

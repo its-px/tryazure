@@ -131,7 +131,7 @@ export default function OwnerPanel() {
 
   const handleProfessionalChange = (
     _event: React.MouseEvent<HTMLElement>,
-    newProfessional: string | null
+    newProfessional: string | null,
   ) => {
     if (newProfessional !== null) {
       setSelectedProfessional(newProfessional);
@@ -225,7 +225,7 @@ export default function OwnerPanel() {
         Owner Panel
       </h2>
       <Link to="/owner">Owner Panel</Link>
-      
+
       {/* Theme Toggle Button */}
       <IconButton
         onClick={() => dispatch(toggleTheme())}
@@ -240,11 +240,13 @@ export default function OwnerPanel() {
           height: 40,
           zIndex: 1000,
         }}
-        aria-label={mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        aria-label={
+          mode === "dark" ? "Switch to light theme" : "Switch to dark theme"
+        }
       >
         {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
       </IconButton>
-      
+
       <button
         onClick={handleLogout}
         style={{
@@ -458,8 +460,8 @@ export default function OwnerPanel() {
                       selectedBooking.status === "confirmed"
                         ? colors.status.confirmed
                         : selectedBooking.status === "pending"
-                        ? colors.accent.main
-                        : colors.error.main,
+                          ? colors.accent.main
+                          : colors.error.main,
                     color: "white",
                     fontSize: "0.875rem",
                     fontWeight: "bold",

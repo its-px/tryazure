@@ -36,63 +36,63 @@ function App() {
     return () => {
       window.removeEventListener(
         "show-complete-profile",
-        handleShowCompleteProfile
+        handleShowCompleteProfile,
       );
     };
   }, []);
 
   // Listen for auth state changes (login/logout from LoginModal)
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        console.log("[App] Auth state changed:", event, newSession?.user?.email);
-        
-        if (event === "SIGNED_IN" && newSession) {
-          setSession(newSession);
-          setLoading(true);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log("[App] Auth state changed:", event, newSession?.user?.email);
 
-          // Fetch user role
-          try {
-            const { data: profile, error: profileError } = await supabase
-              .from("profiles")
-              .select("role, full_name, phone")
-              .eq("id", newSession.user.id)
-              .single();
+      if (event === "SIGNED_IN" && newSession) {
+        setSession(newSession);
+        setLoading(true);
 
-            if (!profileError && profile) {
-              const userRole = profile.role as Role;
-              setRole(userRole);
-              console.log("[App] User role from auth change:", userRole);
+        // Fetch user role
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("role, full_name, phone")
+            .eq("id", newSession.user.id)
+            .single();
 
-              // Check if profile needs to be completed
-              if (!profile.full_name || !profile.phone) {
-                setShowCompleteProfile(true);
-              }
+          if (!profileError && profile) {
+            const userRole = profile.role as Role;
+            setRole(userRole);
+            console.log("[App] User role from auth change:", userRole);
 
-              // Redirect based on role
-              if (userRole === "admin" && location.pathname !== "/admin") {
-                console.log("[App] Redirecting admin to /admin");
-                navigate("/admin");
-              } else if (userRole === "owner" && location.pathname !== "/owner") {
-                console.log("[App] Redirecting owner to /owner");
-                navigate("/owner");
-              }
-            } else {
-              console.log("[App] No profile found, showing complete profile");
+            // Check if profile needs to be completed
+            if (!profile.full_name || !profile.phone) {
               setShowCompleteProfile(true);
             }
-          } catch (err) {
-            console.error("[App] Error fetching profile on auth change:", err);
-          }
 
-          setLoading(false);
-        } else if (event === "SIGNED_OUT") {
-          setSession(null);
-          setRole(null);
-          navigate("/");
+            // Redirect based on role
+            if (userRole === "admin" && location.pathname !== "/admin") {
+              console.log("[App] Redirecting admin to /admin");
+              navigate("/admin");
+            } else if (userRole === "owner" && location.pathname !== "/owner") {
+              console.log("[App] Redirecting owner to /owner");
+              navigate("/owner");
+            }
+          } else {
+            console.log("[App] No profile found, showing complete profile");
+            setShowCompleteProfile(true);
+          }
+        } catch (err) {
+          console.error("[App] Error fetching profile on auth change:", err);
         }
+
+        setLoading(false);
+      } else if (event === "SIGNED_OUT") {
+        setSession(null);
+        setRole(null);
+        navigate("/");
       }
-    );
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -119,7 +119,7 @@ function App() {
       // If we have OAuth tokens in URL, handle them directly without Supabase client
       if (accessToken && refreshToken) {
         console.log(
-          "[App] OAuth callback detected, handling tokens directly..."
+          "[App] OAuth callback detected, handling tokens directly...",
         );
 
         try {
@@ -180,7 +180,7 @@ function App() {
                   Authorization: `Bearer ${accessToken}`,
                   "Content-Type": "application/json",
                 },
-              }
+              },
             );
 
             if (profileResponse.ok) {
@@ -215,14 +215,14 @@ function App() {
               } else {
                 // Profile doesn't exist - show complete profile modal
                 console.log(
-                  "[App] No profile found, showing complete profile modal"
+                  "[App] No profile found, showing complete profile modal",
                 );
                 setShowCompleteProfile(true);
               }
             } else {
               console.error(
                 "[App] Error fetching profile:",
-                profileResponse.statusText
+                profileResponse.statusText,
               );
             }
           } catch (profileErr) {
@@ -264,7 +264,7 @@ function App() {
                     Authorization: `Bearer ${sessionData.access_token}`,
                     "Content-Type": "application/json",
                   },
-                }
+                },
               );
 
               if (profileResponse.ok) {
@@ -276,7 +276,7 @@ function App() {
                   // Check if profile needs to be completed on every session load
                   if (!profile.full_name || !profile.phone) {
                     console.log(
-                      "[App] Profile incomplete on session restore, showing modal"
+                      "[App] Profile incomplete on session restore, showing modal",
                     );
                     setShowCompleteProfile(true);
                   }
@@ -306,7 +306,7 @@ function App() {
                 } else {
                   // No profile exists - show complete profile modal
                   console.log(
-                    "[App] No profile found on session restore, showing modal"
+                    "[App] No profile found on session restore, showing modal",
                   );
                   setShowCompleteProfile(true);
                 }

@@ -81,13 +81,13 @@ export default function CompleteProfileModal({
         },
         {
           onConflict: "id",
-        }
+        },
       );
 
       if (upsertError) {
         console.error(
           "[CompleteProfileModal] Profile upsert failed:",
-          upsertError
+          upsertError,
         );
         throw new Error(`Failed to update profile: ${upsertError.message}`);
       }
@@ -103,7 +103,7 @@ export default function CompleteProfileModal({
       } catch (syncError) {
         console.error(
           "[CompleteProfileModal] Error syncing phone to auth:",
-          syncError
+          syncError,
         );
         // Don't throw - profile was updated successfully
       }
