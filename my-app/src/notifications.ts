@@ -9,7 +9,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Fetch the names of services given their UUIDs using direct REST API
 export async function fetchServiceNames(
-  serviceIds: string[]
+  serviceIds: string[],
 ): Promise<string[]> {
   if (!serviceIds || serviceIds.length === 0) return [];
 
@@ -32,7 +32,7 @@ export async function fetchServiceNames(
       console.error(
         "Error fetching service names:",
         response.status,
-        response.statusText
+        response.statusText,
       );
       return serviceIds;
     }
@@ -63,7 +63,7 @@ export async function getActiveServiceWorker() {
   // Add 3 second timeout to prevent hanging
   const swPromise = navigator.serviceWorker.ready;
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Service Worker ready timeout")), 3000)
+    setTimeout(() => reject(new Error("Service Worker ready timeout")), 3000),
   );
 
   try {
@@ -125,9 +125,9 @@ export async function showBookingNotification(booking: any) {
 
   console.log("🔔 Fetched service names:", servicesText);
 
-  const title = "Booking Confirmed!";
+  const title = "Booking Pending Confirmation!";
   const notificationOptions = {
-    body: `Your booking for ${servicesText} on ${booking.date} is confirmed 🎉`,
+    body: `Your booking for ${servicesText} on ${booking.date} is pending confirmation 🎉`,
     icon: "/logo.png",
     badge: "/logo.png",
     tag: `booking-${booking.id}`,
@@ -146,7 +146,7 @@ export async function showBookingNotification(booking: any) {
   } catch (swError) {
     console.warn(
       "⚠️ Service Worker notification failed, trying direct Notification API:",
-      swError
+      swError,
     );
 
     // Fallback to direct Notification API (works when page is focused)
