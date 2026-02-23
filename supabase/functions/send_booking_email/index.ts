@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 // Helper to determine if DST is active in Athens
@@ -35,41 +36,60 @@ function isDSTActive(year: number, month: number, day: number): boolean {
 
 // Helper to convert Athens local time to UTC (returns ICS-formatted string)
 function convertAthensToUTC(
-  year: number, month: number, day: number,
-  hour: number, minute: number
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
 ): string {
   const offset = isDSTActive(year, month, day) ? 3 : 2;
-  const utcDate = new Date(Date.UTC(year, month - 1, day, hour - offset, minute, 0));
+  const utcDate = new Date(
+    Date.UTC(year, month - 1, day, hour - offset, minute, 0),
+  );
 
-  const utcYear  = utcDate.getUTCFullYear();
+  const utcYear = utcDate.getUTCFullYear();
   const utcMonth = String(utcDate.getUTCMonth() + 1).padStart(2, "0");
-  const utcDay   = String(utcDate.getUTCDate()).padStart(2, "0");
+  const utcDay = String(utcDate.getUTCDate()).padStart(2, "0");
   const utcHours = String(utcDate.getUTCHours()).padStart(2, "0");
-  const utcMins  = String(utcDate.getUTCMinutes()).padStart(2, "0");
+  const utcMins = String(utcDate.getUTCMinutes()).padStart(2, "0");
 
   return `${utcYear}${utcMonth}${utcDay}T${utcHours}${utcMins}00Z`;
 }
 
 // Helper to generate VEVENT content
 function generateICS({
-  date, startTime, endTime, services, professional, location, name
+  date,
+  startTime,
+  endTime,
+  services,
+  professional,
+  location,
+  name,
 }: {
-  date: string; startTime: string | null; endTime: string | null;
-  services: string; professional: string; location: string; name: string;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  services: string;
+  professional: string;
+  location: string;
+  name: string;
 }): string {
   const uid = crypto.randomUUID();
   const [year, month, day] = date.split("-").map(Number);
-  const [startHour, startMinute] = (startTime || "09:00").split(":").map(Number);
-  const [endHour,   endMinute]   = (endTime   || "10:00").split(":").map(Number);
+  const [startHour, startMinute] = (startTime || "09:00")
+    .split(":")
+    .map(Number);
+  const [endHour, endMinute] = (endTime || "10:00").split(":").map(Number);
 
-  const dtStart  = convertAthensToUTC(year, month, day, startHour, startMinute);
-  const dtEnd    = convertAthensToUTC(year, month, day, endHour,   endMinute);
+  const dtStart = convertAthensToUTC(year, month, day, startHour, startMinute);
+  const dtEnd = convertAthensToUTC(year, month, day, endHour, endMinute);
 
   const now = new Date();
   const dtstamp = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}T${String(now.getUTCHours()).padStart(2, "0")}${String(now.getUTCMinutes()).padStart(2, "0")}${String(now.getUTCSeconds()).padStart(2, "0")}Z`;
 
-  const timeString = startTime && endTime ? `Time: ${startTime} - ${endTime}\\n` : "";
-  const greeting   = name ? `Hello ${name}\\n\\n` : "";
+  const timeString =
+    startTime && endTime ? `Time: ${startTime} - ${endTime}\\n` : "";
+  const greeting = name ? `Hello ${name}\\n\\n` : "";
   const description = `${greeting}Appointment Details:\\n${timeString}Location: ${location}\\nServices: ${services}\\nProfessional: ${professional}`;
 
   return [
@@ -88,7 +108,7 @@ function generateICS({
     "ACTION:DISPLAY",
     "DESCRIPTION:Reminder: Appointment tomorrow",
     "END:VALARM",
-    "END:VEVENT"
+    "END:VEVENT",
   ].join("\r\n");
 }
 
@@ -98,26 +118,26 @@ function generateICS({
  */
 function calculateConfirmationDeadline(
   date: string,
-  startTime: string | null
+  startTime: string | null,
 ): { display: string; isoDate: string; timeStr: string } {
   const [year, month, day] = date.split("-").map(Number);
-  const [hour, minute]     = (startTime || "09:00").split(":").map(Number);
+  const [hour, minute] = (startTime || "09:00").split(":").map(Number);
 
-  let deadlineHour  = hour - 8;
-  let deadlineDay   = day;
+  let deadlineHour = hour - 8;
+  let deadlineDay = day;
   let deadlineMonth = month;
-  let deadlineYear  = year;
+  let deadlineYear = year;
 
   // Roll back to previous day if needed
   if (deadlineHour < 0) {
     deadlineHour += 24;
-    deadlineDay  -= 1;
+    deadlineDay -= 1;
 
     if (deadlineDay < 1) {
       deadlineMonth -= 1;
       if (deadlineMonth < 1) {
         deadlineMonth = 12;
-        deadlineYear  -= 1;
+        deadlineYear -= 1;
       }
       // Days in the rolled-back month (month is 1-indexed; Date(y, m, 0) gives last day of m-1)
       deadlineDay = new Date(deadlineYear, deadlineMonth, 0).getDate();
@@ -130,7 +150,7 @@ function calculateConfirmationDeadline(
   return {
     isoDate,
     timeStr,
-    display: `${isoDate} at ${timeStr} (Athens time)`
+    display: `${isoDate} at ${timeStr} (Athens time)`,
   };
 }
 
@@ -141,19 +161,37 @@ serve(async (req) => {
 
   try {
     const {
-      email, name, bookingDate, startTime, endTime,
-      location, services, professional
+      email,
+      name,
+      bookingDate,
+      startTime,
+      endTime,
+      location,
+      services,
+      professional,
     } = await req.json();
 
     console.log("Received params:", {
-      email, name, bookingDate, startTime, endTime,
-      location, services, professional
+      email,
+      name,
+      bookingDate,
+      startTime,
+      endTime,
+      location,
+      services,
+      professional,
     });
 
     if (!email || !bookingDate || !location || !professional) {
       return new Response(
-        JSON.stringify({ error: "Missing required parameters: email, bookingDate, location, professional" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error:
+            "Missing required parameters: email, bookingDate, location, professional",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -163,7 +201,10 @@ serve(async (req) => {
     if (!supabaseUrl || !supabaseKey) {
       return new Response(
         JSON.stringify({ error: "Supabase not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -171,7 +212,11 @@ serve(async (req) => {
     // Parse services
     let serviceIds: string[] = [];
     if (typeof services === "string") {
-      try { serviceIds = JSON.parse(services); } catch { serviceIds = [services]; }
+      try {
+        serviceIds = JSON.parse(services);
+      } catch {
+        serviceIds = [services];
+      }
     } else if (Array.isArray(services)) {
       serviceIds = services;
     }
@@ -179,7 +224,9 @@ serve(async (req) => {
     let serviceNames: string[] = [];
     if (serviceIds && serviceIds.length > 0) {
       const { data: servicesData, error: servicesError } = await supabase
-        .from("services").select("id, name").in("id", serviceIds);
+        .from("services")
+        .select("id, name")
+        .in("id", serviceIds);
       if (servicesError) {
         console.error("Error fetching services:", servicesError);
         serviceNames = serviceIds;
@@ -194,19 +241,27 @@ serve(async (req) => {
     if (!resendApiKey) {
       return new Response(
         JSON.stringify({ error: "RESEND_API_KEY not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    const locationText  = location === "our_place" ? "Our Place" : "Your Place";
-    const servicesText  = Array.isArray(serviceNames) ? serviceNames.join(", ") : serviceNames;
-    const displayName   = name || "Customer";
+    const locationText = location === "our_place" ? "Our Place" : "Your Place";
+    const servicesText = Array.isArray(serviceNames)
+      ? serviceNames.join(", ")
+      : serviceNames;
+    const displayName = name || "Customer";
 
     // App URL for the confirmation link (set APP_URL in your Supabase secrets)
     const appUrl = Deno.env.get("APP_URL") || "https://pxbs.site";
 
     // Confirmation deadline: 8 hours before the appointment
-    const deadline = calculateConfirmationDeadline(bookingDate, startTime || null);
+    const deadline = calculateConfirmationDeadline(
+      bookingDate,
+      startTime || null,
+    );
 
     // Generate ICS
     const icsContent = [
@@ -217,29 +272,32 @@ serve(async (req) => {
       "METHOD:REQUEST",
       generateICS({
         date: bookingDate,
-        startTime:    startTime  || null,
-        endTime:      endTime    || null,
-        services:     servicesText,
+        startTime: startTime || null,
+        endTime: endTime || null,
+        services: servicesText,
         professional,
-        location:     locationText,
-        name:         displayName
+        location: locationText,
+        name: displayName,
       }),
-      "END:VCALENDAR"
+      "END:VCALENDAR",
     ].join("\r\n");
 
     const encoder = new TextEncoder();
-    const base64  = btoa(String.fromCharCode(...encoder.encode(icsContent)));
+    const base64 = btoa(String.fromCharCode(...encoder.encode(icsContent)));
 
-    const timeRow = startTime && endTime ? `
+    const timeRow =
+      startTime && endTime
+        ? `
       <div class="detail-row">
         <span class="detail-label">🕐 Time:</span> ${startTime} - ${endTime}
-      </div>` : "";
+      </div>`
+        : "";
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${resendApiKey}`
+        Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
         from: "team@pxbs.site",
@@ -373,31 +431,30 @@ serve(async (req) => {
           {
             filename: "booking.ics",
             content: base64,
-            content_type: "text/calendar; charset=utf-8; method=REQUEST"
-          }
-        ]
-      })
+            content_type: "text/calendar; charset=utf-8; method=REQUEST",
+          },
+        ],
+      }),
     });
 
     const responseData = await res.json();
     if (!res.ok) {
       console.error("Resend API Error:", responseData);
-      return new Response(
-        JSON.stringify({ error: responseData }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: responseData }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    return new Response(
-      JSON.stringify({ success: true, data: responseData }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
+    return new Response(JSON.stringify({ success: true, data: responseData }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error("Function Error:", err);
-    return new Response(
-      JSON.stringify({ error: (err as Error).message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

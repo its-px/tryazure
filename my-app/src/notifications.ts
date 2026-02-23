@@ -127,7 +127,7 @@ export async function showBookingNotification(booking: any) {
 
   const title = "Booking Pending Confirmation!";
   const notificationOptions = {
-    body: `Your booking for ${servicesText} on ${booking.date} is pending confirmation 🎉`,
+    body: `Your booking for ${servicesText} on ${booking.date} is pending confirmation `,
     icon: "/logo.png",
     badge: "/logo.png",
     tag: `booking-${booking.id}`,
