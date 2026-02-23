@@ -21,7 +21,8 @@ import {
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import dayjs from "dayjs";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { supabase } from "../components/supabaseClient";
 
 interface Booking {
   id: string;
@@ -41,7 +42,6 @@ interface UserProfile {
 }
 
 export default function OwnerPanel() {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
   const colors = getColors(mode);
@@ -220,41 +220,9 @@ export default function OwnerPanel() {
   };
 
   const handleLogout = async () => {
-    try {
-      // Get token from localStorage
-      const storedSession = localStorage.getItem("sb-auth-token");
-      if (storedSession) {
-        const parsed = JSON.parse(storedSession);
-        const token = parsed?.access_token;
-
-        if (token) {
-          // Call Supabase auth API directly to sign out
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-          try {
-            await fetch(`${supabaseUrl}/auth/v1/logout`, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            });
-          } catch (err) {
-            console.error("[OwnerPanel] Sign out API error:", err);
-          }
-        }
-      }
-    } catch (err) {
-      console.error("[OwnerPanel] Error during logout:", err);
-    }
-
-    // Clear localStorage regardless of API response
-    localStorage.removeItem("sb-auth-token");
-    localStorage.removeItem("bookingState");
-
-    // Trigger storage event for App.tsx to detect
-    window.dispatchEvent(new Event("storage"));
-
-    navigate("/");
+    await supabase.auth.signOut();
+    // onAuthStateChange in App.tsx sets session/role to null and
+    // ProtectedRoute redirects to "/" automatically.
   };
 
   return (

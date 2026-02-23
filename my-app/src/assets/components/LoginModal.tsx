@@ -16,7 +16,6 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../../configureStore";
 import { getColors, getCommonStyles } from "../../theme";
 import validator from "validator";
-import { useNavigate } from "react-router-dom";
 
 // const debugBreak = () => {
 //   if (import.meta.env.MODE === "development") debugger;
@@ -41,8 +40,6 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
   // const [error, setError] = useState("");
-
-  const navigate = useNavigate();
 
   // ----- GOOGLE LOGIN -----
   const handleGoogleLogin = async () => {
@@ -146,7 +143,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           }
         } else {
           console.error(
-            "Sign-up succeeded but no user data returned from Supabase."
+            "Sign-up succeeded but no user data returned from Supabase.",
           );
         }
 
@@ -209,7 +206,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           "[LoginModal] User role:",
           role,
           "Profile incomplete:",
-          isProfileIncomplete
+          isProfileIncomplete,
         );
 
         resetForm();
@@ -218,41 +215,19 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         // If profile is incomplete, show the complete profile modal
         if (isProfileIncomplete) {
           console.log(
-            "[LoginModal] Profile incomplete, triggering CompleteProfileModal"
+            "[LoginModal] Profile incomplete, triggering CompleteProfileModal",
           );
           window.dispatchEvent(new CustomEvent("show-complete-profile"));
-          // Still redirect based on role after modal is shown
         }
 
-        // Redirect based on role after successful login
-        // Use setTimeout to ensure modal closes first and state updates
-        setTimeout(() => {
-          console.log("[LoginModal] Redirecting user with role:", role);
-          if (role === "admin") {
-            console.log("[LoginModal] Navigating to /admin");
-            navigate("/admin");
-          } else if (role === "owner") {
-            console.log("[LoginModal] Navigating to /owner");
-            navigate("/owner");
-          } else if (role === "user") {
-            // If user is on admin/owner page, redirect to user panel
-            // Otherwise stay on current page (important for booking flow)
-            if (
-              window.location.pathname === "/admin" ||
-              window.location.pathname === "/owner"
-            ) {
-              console.log(
-                "[LoginModal] User on protected route, navigating to /"
-              );
-              navigate("/");
-            } else {
-              console.log(
-                "[LoginModal] User staying on current page:",
-                window.location.pathname
-              );
-            }
-          }
-        }, 100);
+        // Navigation is handled entirely by App.tsx's onAuthStateChange once
+        // the session and role state are committed to React. Navigating here
+        // races against that update and causes ProtectedRoute to see
+        // session=null → redirect back to "/".
+        console.log(
+          "[LoginModal] Login complete, letting App.tsx navigate based on role:",
+          role,
+        );
       }
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
@@ -281,7 +256,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         trimmedEmail,
         {
           redirectTo: `${window.location.origin}/`,
-        }
+        },
       );
 
       if (error) throw error;
@@ -538,8 +513,8 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                   {loading
                     ? "Loading..."
                     : isSignUp
-                    ? "Create Account"
-                    : "Sign In"}
+                      ? "Create Account"
+                      : "Sign In"}
                 </Button>
                 {!isSignUp && (
                   <Button
