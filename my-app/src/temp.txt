@@ -92,3 +92,5 @@ twra to login tou localhost paei sto site
   DIAFORETIKO PROJECT 
 
    BREAK POINTS 
+
+   canceled bookings by owner should be different color and not taken into account 

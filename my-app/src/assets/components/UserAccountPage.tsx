@@ -34,6 +34,7 @@ interface Booking {
   created_at: string;
   start_time: string;
   end_time: string;
+  confirmation_deadline: string | null;
 }
 
 interface UserProfile {
@@ -86,13 +87,13 @@ export default function UserAccountPage() {
             sessionUser = parsed?.user || null;
             console.log(
               "[UserAccountPage] Session from storage:",
-              sessionUser ? sessionUser.id : "None"
+              sessionUser ? sessionUser.id : "None",
             );
           }
         } catch (err) {
           console.error(
             "[UserAccountPage] Error reading session from storage:",
-            err
+            err,
           );
         }
 
@@ -108,19 +109,19 @@ export default function UserAccountPage() {
           loadUserProfile(sessionUser.id)
             .then(() => console.log("[UserAccountPage] Profile loaded"))
             .catch((err) =>
-              console.error("[UserAccountPage] Profile error:", err)
+              console.error("[UserAccountPage] Profile error:", err),
             );
 
           loadUserBookings(sessionUser.id)
             .then(() => console.log("[UserAccountPage] Bookings loaded"))
             .catch((err) =>
-              console.error("[UserAccountPage] Bookings error:", err)
+              console.error("[UserAccountPage] Bookings error:", err),
             );
 
           loadServiceMap()
             .then(() => console.log("[UserAccountPage] Services loaded"))
             .catch((err) =>
-              console.error("[UserAccountPage] Services error:", err)
+              console.error("[UserAccountPage] Services error:", err),
             );
         } else {
           console.log("[UserAccountPage] No active session");
@@ -162,13 +163,13 @@ export default function UserAccountPage() {
             apikey: supabaseKey,
             Authorization: `Bearer ${session.access_token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
         console.error(
           "[UserAccountPage] Error loading services:",
-          response.statusText
+          response.statusText,
         );
         return;
       }
@@ -182,7 +183,7 @@ export default function UserAccountPage() {
       console.log(
         "[UserAccountPage] Service map loaded:",
         Object.keys(map).length,
-        "services"
+        "services",
       );
     } catch (err) {
       console.error("[UserAccountPage] Exception loading services:", err);
@@ -208,13 +209,13 @@ export default function UserAccountPage() {
             Authorization: `Bearer ${session.access_token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (!response.ok) {
         console.error(
           "[UserAccountPage] Error loading profile:",
-          response.statusText
+          response.statusText,
         );
         return;
       }
@@ -251,13 +252,13 @@ export default function UserAccountPage() {
             apikey: supabaseKey,
             Authorization: `Bearer ${session.access_token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
         console.error(
           "[UserAccountPage] Error loading bookings:",
-          response.statusText
+          response.statusText,
         );
         return;
       }
@@ -274,7 +275,7 @@ export default function UserAccountPage() {
         upcoming.length,
         "upcoming,",
         past.length,
-        "past"
+        "past",
       );
     } catch (err) {
       console.error("[UserAccountPage] Exception loading bookings:", err);
@@ -316,7 +317,7 @@ export default function UserAccountPage() {
             // 401 is expected if token already expired - that's fine
             console.log(
               "[UserAccountPage] Sign out API returned:",
-              response.status
+              response.status,
             );
           }
         } catch (err) {
@@ -387,7 +388,7 @@ export default function UserAccountPage() {
             full_name: editedProfile.full_name,
             phone: editedProfile.phone,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -403,6 +404,52 @@ export default function UserAccountPage() {
       console.error("[UserAccountPage] Error updating profile:", msg);
       alert("Error updating profile: " + msg);
     }
+  };
+
+  const handleConfirmBooking = async (bookingId: string) => {
+    try {
+      const storedSession = localStorage.getItem("sb-auth-token");
+      if (!storedSession) return;
+      const session = JSON.parse(storedSession);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/bookings?id=eq.${bookingId}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            status: "confirmed",
+            confirmed_at: new Date().toISOString(),
+          }),
+        },
+      );
+      if (!res.ok) {
+        alert("Error confirming booking: " + (await res.text()));
+        return;
+      }
+      alert("✅ Booking confirmed! See you there.");
+      if (user) loadUserBookings(user.id);
+    } catch (err) {
+      alert("Error confirming booking: " + String(err));
+    }
+  };
+
+  const getDeadlineCountdown = (deadline: string | null): string | null => {
+    if (!deadline) return null;
+    const diff = new Date(deadline).getTime() - Date.now();
+    if (diff <= 0) return "Deadline passed";
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    if (hours > 24)
+      return `${Math.floor(hours / 24)}d ${hours % 24}h left to confirm`;
+    if (hours > 0) return `${hours}h ${minutes}m left to confirm`;
+    return `${minutes}m left to confirm`;
   };
 
   const handleCancelBooking = async () => {
@@ -427,7 +474,7 @@ export default function UserAccountPage() {
             apikey: supabaseKey,
             Authorization: `Bearer ${session.access_token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -436,7 +483,7 @@ export default function UserAccountPage() {
       }
 
       alert(
-        "Booking cancelled successfully! The time slot is now available for booking again."
+        "Booking cancelled successfully! The time slot is now available for booking again.",
       );
       if (user) loadUserBookings(user.id);
       setShowCancelDialog(false);
@@ -588,21 +635,57 @@ export default function UserAccountPage() {
 
             {/* Action Button */}
             {isUpcoming && (
-              <IconButton
-                color="error"
-                onClick={() => {
-                  setBookingToCancel(booking.id);
-                  setShowCancelDialog(true);
-                }}
-                sx={{
-                  alignSelf: { xs: "flex-end", sm: "flex-start" },
-                  mt: { xs: 1, sm: 0 },
-                }}
+              <Box
+                display="flex"
+                flexDirection="column"
+                alignItems={{ xs: "flex-start", sm: "flex-end" }}
+                gap={1}
+                sx={{ mt: { xs: 1, sm: 0 } }}
               >
-                <DeleteIcon
-                  sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
-                />
-              </IconButton>
+                {/* Confirm button for pending bookings */}
+                {booking.status === "pending" && (
+                  <Box>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      size="small"
+                      onClick={() => handleConfirmBooking(booking.id)}
+                      sx={{ fontWeight: "bold", mb: 0.5 }}
+                    >
+                      ✓ Confirm Booking
+                    </Button>
+                    {booking.confirmation_deadline && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: "block",
+                          textAlign: { xs: "left", sm: "right" },
+                          color:
+                            new Date(booking.confirmation_deadline).getTime() -
+                              Date.now() <
+                            3600000
+                              ? "error.main"
+                              : "text.secondary",
+                          fontSize: "0.7rem",
+                        }}
+                      >
+                        ⏳ {getDeadlineCountdown(booking.confirmation_deadline)}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+                <IconButton
+                  color="error"
+                  onClick={() => {
+                    setBookingToCancel(booking.id);
+                    setShowCancelDialog(true);
+                  }}
+                >
+                  <DeleteIcon
+                    sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
+                  />
+                </IconButton>
+              </Box>
             )}
           </Box>
         </CardContent>
@@ -675,8 +758,8 @@ export default function UserAccountPage() {
                 {profile.full_name
                   ? profile.full_name[0].toUpperCase()
                   : user?.email
-                  ? user.email[0].toUpperCase()
-                  : "U"}
+                    ? user.email[0].toUpperCase()
+                    : "U"}
               </Box>
               <Box flex={1}>
                 <Typography

@@ -36,7 +36,7 @@ const getSupabaseClient = () => {
                 "[Supabase] Fetch completed:",
                 url,
                 "status:",
-                response.status
+                response.status,
               );
               return response;
             })
@@ -52,30 +52,14 @@ const getSupabaseClient = () => {
     //debugBreak();
 
     // Handle auth state changes to track sessions
-    supabaseInstance.auth.onAuthStateChange(async (event, session) => {
-      //debugBreak();
+    // Note: Removed problematic callbacks that cause "no longer runnable" errors
+    supabaseInstance.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
         console.log("User signed in:", session.user.id);
-
-        // Track session to prevent duplicates
-        try {
-          const { error } = await supabaseInstance!
-            .from("profiles")
-            .update({
-              last_session_id: session.access_token.substring(0, 50),
-              last_login_at: new Date().toISOString(),
-            })
-            .eq("id", session.user.id);
-
-          if (error) {
-            console.error("Error tracking session:", error);
-          }
-        } catch (err) {
-          console.error("Session tracking error:", err);
-        }
       } else if (event === "SIGNED_OUT") {
         console.log("User signed out");
       }
+      // Don't perform async operations in this callback to avoid "no longer runnable" errors
     });
   }
   return supabaseInstance;

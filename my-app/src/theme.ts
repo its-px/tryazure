@@ -24,8 +24,10 @@ const darkColors = {
   },
   status: {
     confirmed: "#2e7d32",
-    pending: "#2e7d32",
+    pending: "#ed6c02",
     cancelled: "#f44336",
+    completed: "#6366f1",
+    expired: "#78716c",
     default: "#9e9e9e",
   },
   error: {
@@ -78,8 +80,10 @@ const lightColors = {
   },
   status: {
     confirmed: "#388e3c",
-    pending: "#388e3c",
+    pending: "#e65100",
     cancelled: "#e53935",
+    completed: "#6366f1",
+    expired: "#78716c",
     default: "#bdbdbd",
   },
   error: {
@@ -271,6 +275,10 @@ export const getStatusColor = (status: string, colors: typeof darkColors) => {
       return colors.status.pending;
     case "cancelled":
       return colors.status.cancelled;
+    case "completed":
+      return colors.status.completed;
+    case "expired":
+      return colors.status.expired;
     default:
       return colors.status.default;
   }
@@ -278,7 +286,7 @@ export const getStatusColor = (status: string, colors: typeof darkColors) => {
 
 export const getActiveStyle = (
   isActive: boolean,
-  colors: typeof darkColors
+  colors: typeof darkColors,
 ) => ({
   backgroundColor: isActive ? colors.accent.main : colors.background.card,
   fontWeight: isActive ? "bold" : "normal",

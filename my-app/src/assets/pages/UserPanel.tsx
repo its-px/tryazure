@@ -44,7 +44,7 @@ export default function UserPanel() {
   const currentStep =
     useSelector((state: RootState) => state.app.currentStep) ?? 1;
   const userSelections = useSelector(
-    (state: RootState) => state.app.userSelections
+    (state: RootState) => state.app.userSelections,
   );
   const {
     selectedLocation = null,
@@ -187,7 +187,7 @@ export default function UserPanel() {
       try {
         console.log(
           "[loadAvailableDates] Starting, professional:",
-          selectedProfessional
+          selectedProfessional,
         );
 
         // Get token from localStorage
@@ -217,13 +217,13 @@ export default function UserPanel() {
 
         if (!selectedProfessional) {
           console.log(
-            "[loadAvailableDates] No professional selected, loading all dates"
+            "[loadAvailableDates] No professional selected, loading all dates",
           );
           const response = await fetch(
             `${supabaseUrl}/rest/v1/availability?select=date`,
             {
               headers,
-            }
+            },
           );
 
           if (!isMounted) return;
@@ -231,7 +231,7 @@ export default function UserPanel() {
           if (!response.ok) {
             console.error(
               "[loadAvailableDates] Error fetching dates:",
-              response.statusText
+              response.statusText,
             );
             setAvailableDates([]);
           } else {
@@ -247,7 +247,7 @@ export default function UserPanel() {
           `${supabaseUrl}/rest/v1/availability?select=date`,
           {
             headers,
-          }
+          },
         );
 
         const shopDates = shopResponse.ok ? await shopResponse.json() : null;
@@ -262,7 +262,7 @@ export default function UserPanel() {
 
         console.log(
           "[loadAvailableDates] Shop dates loaded:",
-          shopDates.length
+          shopDates.length,
         );
 
         // Check each date to see if it has any available slots
@@ -290,7 +290,7 @@ export default function UserPanel() {
                   p_date: date,
                   p_service_duration_minutes: checkDuration,
                 }),
-              }
+              },
             );
 
             if (slotsResponse.ok) {
@@ -303,21 +303,21 @@ export default function UserPanel() {
                 "[loadAvailableDates] Error checking slots for",
                 date,
                 ":",
-                slotsResponse.statusText
+                slotsResponse.statusText,
               );
             }
           } catch (err) {
             console.error(
               "[loadAvailableDates] Exception checking slots for date:",
               date,
-              err
+              err,
             );
           }
         }
 
         console.log(
           "[loadAvailableDates] Dates with slots:",
-          datesWithSlots.length
+          datesWithSlots.length,
         );
 
         if (isMounted) {
@@ -352,7 +352,7 @@ export default function UserPanel() {
         const service = services.find((s) => s.id === id);
         return sum + (service?.duration_minutes || 0);
       },
-      0
+      0,
     );
     dispatch(
       setUserSelections({
@@ -362,7 +362,7 @@ export default function UserPanel() {
         selectedDate: userSelections?.selectedDate ?? "",
         selectedSlot: userSelections?.selectedSlot ?? null,
         serviceDuration: totalDuration,
-      })
+      }),
     );
   };
 
@@ -394,7 +394,7 @@ export default function UserPanel() {
           if (session.expires_at && session.expires_at > now && session.user) {
             console.log(
               "[UserPanel] Found valid session for user:",
-              session.user.id
+              session.user.id,
             );
             if (isMounted) {
               setIsLoggedIn(true);
@@ -448,7 +448,7 @@ export default function UserPanel() {
         selectedDate: "",
         selectedSlot: null,
         serviceDuration: userSelections?.serviceDuration ?? 0,
-      })
+      }),
     );
   };
 
@@ -461,7 +461,7 @@ export default function UserPanel() {
         selectedDate: userSelections?.selectedDate ?? "",
         selectedSlot: userSelections?.selectedSlot ?? null,
         serviceDuration: userSelections?.serviceDuration ?? 0,
-      })
+      }),
     );
     dispatch(setCurrentStep(2));
   };
@@ -541,7 +541,7 @@ export default function UserPanel() {
             apikey: supabaseKey,
             Authorization: `Bearer ${session.access_token}`,
           },
-        }
+        },
       );
 
       if (!checkResponse.ok) {
@@ -566,7 +566,7 @@ export default function UserPanel() {
 
         if (hasOverlap) {
           alert(
-            "❌ This time slot is already booked. Please select a different time slot."
+            "❌ This time slot is already booked. Please select a different time slot.",
           );
           return;
         }
@@ -583,7 +583,6 @@ export default function UserPanel() {
       location: selectedLocation,
       services: JSON.stringify(selectedServices),
       professional_id: selectedProfessional,
-      status: "confirmed",
       start_time: selectedSlot.start_time,
       end_time: selectedSlot.end_time,
     };
@@ -662,7 +661,7 @@ export default function UserPanel() {
           selectedDate: "",
           selectedSlot: null,
           serviceDuration: 0,
-        })
+        }),
       );
       localStorage.removeItem("bookingState");
 
@@ -689,7 +688,7 @@ export default function UserPanel() {
             .single();
 
           const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Phone lookup timeout")), 5000)
+            setTimeout(() => reject(new Error("Phone lookup timeout")), 5000),
           );
 
           const { data: profile, error: profileError } = (await Promise.race([
@@ -700,17 +699,17 @@ export default function UserPanel() {
           if (profileError) {
             console.warn(
               "Could not read phone from profiles table:",
-              profileError.message
+              profileError.message,
             );
           } else if (profile?.phone) {
             userPhone = profile.phone;
             const masked = `${profile.phone.substring(
               0,
-              3
+              3,
             )}***${profile.phone.substring(profile.phone.length - 4)}`;
             console.log(
               "Found phone in profiles table for user (masked):",
-              masked
+              masked,
             );
           }
         } catch (err) {
@@ -727,7 +726,7 @@ export default function UserPanel() {
         userHasPhone: !!userPhone,
         phoneNumber: userPhone
           ? `${userPhone.substring(0, 3)}***${userPhone.substring(
-              userPhone.length - 4
+              userPhone.length - 4,
             )}`
           : "N/A",
         isValidPhone: userPhone
@@ -753,18 +752,18 @@ export default function UserPanel() {
           try {
             console.log("📱 Initiating SMS booking confirmation...", {
               recipient: `${userPhone.substring(0, 3)}***${userPhone.substring(
-                userPhone.length - 4
+                userPhone.length - 4,
               )}`,
               ...smsDetails,
             });
 
             const smsPromise = BookingSMSService.sendBookingConfirmation(
               userPhone,
-              smsDetails
+              smsDetails,
             );
 
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("SMS timeout")), 10000)
+              setTimeout(() => reject(new Error("SMS timeout")), 10000),
             );
 
             const smsResult = (await Promise.race([
@@ -853,25 +852,25 @@ export default function UserPanel() {
                   "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFydnhtcWtzZWt4YnRpcGRuZnJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTI5MjMsImV4cCI6MjA3MTk4ODkyM30._BiC3KYWKR5HTz7osjHxxwA-mdHIy867IelMbHvsEPc",
               },
               body: JSON.stringify(emailPayload),
-            }
+            },
           );
 
           const result = await response.json();
           if (result.success) {
             console.log(
               "✅ Booking confirmation email sent successfully!",
-              result.data?.id
+              result.data?.id,
             );
           } else {
             console.error("❌ Email API returned error:", result.error);
             alert(
-              "⚠️ Booking confirmed but email notification failed. Please check your email settings."
+              "⚠️ Booking confirmed but email notification failed. Please check your email settings.",
             );
           }
         } catch (err) {
           console.error("❌ Exception calling email Edge Function:", err);
           alert(
-            "⚠️ Booking confirmed but email notification failed. Please check your email settings."
+            "⚠️ Booking confirmed but email notification failed. Please check your email settings.",
           );
         }
       }
@@ -1040,7 +1039,7 @@ export default function UserPanel() {
                             selectedSlot: userSelections?.selectedSlot ?? null,
                             serviceDuration:
                               userSelections?.serviceDuration ?? 0,
-                          })
+                          }),
                         )
                       }
                       allowedDates={availableDates}
@@ -1063,7 +1062,7 @@ export default function UserPanel() {
                             selectedSlot: slot,
                             serviceDuration:
                               userSelections?.serviceDuration ?? 0,
-                          })
+                          }),
                         )
                       }
                     />
@@ -1108,8 +1107,8 @@ export default function UserPanel() {
                   {selectedProfessional === "prof1"
                     ? "Person 1"
                     : selectedProfessional === "prof2"
-                    ? "Person 2"
-                    : selectedProfessional}
+                      ? "Person 2"
+                      : selectedProfessional}
                 </p>
                 <p>Date: {selectedDate}</p>
                 {selectedSlot && (

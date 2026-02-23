@@ -100,6 +100,8 @@ function App() {
   }, [navigate, location.pathname]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadSession = async () => {
       // Handle OAuth callback - check for hash fragments
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -112,7 +114,7 @@ function App() {
       if (error) {
         console.error("OAuth error:", error);
         window.history.replaceState(null, "", window.location.pathname);
-        setLoading(false);
+        if (isMounted) setLoading(false);
         return;
       }
 
@@ -165,7 +167,7 @@ function App() {
           console.log("[App] Session stored in localStorage");
 
           // Set session state
-          setSession(sessionData as unknown as Session);
+          if (isMounted) setSession(sessionData as unknown as Session);
 
           // Fetch user role using direct REST API
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -183,16 +185,18 @@ function App() {
               },
             );
 
+            if (!isMounted) return;
+
             if (profileResponse.ok) {
               const profiles = await profileResponse.json();
               if (profiles && profiles.length > 0) {
                 const profile = profiles[0];
-                setRole(profile.role || null);
+                if (isMounted) setRole(profile.role || null);
                 console.log("[App] Profile loaded, role:", profile.role);
 
                 // Check if profile needs to be completed
                 if (!profile.full_name || !profile.phone) {
-                  setShowCompleteProfile(true);
+                  if (isMounted) setShowCompleteProfile(true);
                 }
 
                 // Redirect based on role
@@ -217,7 +221,7 @@ function App() {
                 console.log(
                   "[App] No profile found, showing complete profile modal",
                 );
-                setShowCompleteProfile(true);
+                if (isMounted) setShowCompleteProfile(true);
               }
             } else {
               console.error(
@@ -234,7 +238,7 @@ function App() {
 
         // Remove hash after processing
         window.history.replaceState(null, "", window.location.pathname);
-        setLoading(false);
+        if (isMounted) setLoading(false);
         return;
       }
 
@@ -249,7 +253,7 @@ function App() {
           const now = Math.floor(Date.now() / 1000);
           if (sessionData.expires_at && sessionData.expires_at > now) {
             console.log("[App] Found valid session in localStorage");
-            setSession(sessionData as unknown as Session);
+            if (isMounted) setSession(sessionData as unknown as Session);
 
             // Fetch role and profile info using REST API
             if (sessionData.user?.id) {
@@ -267,18 +271,20 @@ function App() {
                 },
               );
 
+              if (!isMounted) return;
+
               if (profileResponse.ok) {
                 const profiles = await profileResponse.json();
                 if (profiles && profiles.length > 0) {
                   const profile = profiles[0];
-                  setRole(profile.role || null);
+                  if (isMounted) setRole(profile.role || null);
 
                   // Check if profile needs to be completed on every session load
                   if (!profile.full_name || !profile.phone) {
                     console.log(
                       "[App] Profile incomplete on session restore, showing modal",
                     );
-                    setShowCompleteProfile(true);
+                    if (isMounted) setShowCompleteProfile(true);
                   }
 
                   // Redirect based on role on session restore
@@ -308,7 +314,7 @@ function App() {
                   console.log(
                     "[App] No profile found on session restore, showing modal",
                   );
-                  setShowCompleteProfile(true);
+                  if (isMounted) setShowCompleteProfile(true);
                 }
               }
             }
@@ -323,7 +329,7 @@ function App() {
         console.error("[App] Error reading session from localStorage:", err);
       }
 
-      setLoading(false);
+      if (isMounted) setLoading(false);
     };
 
     loadSession();
@@ -361,6 +367,7 @@ function App() {
     window.addEventListener("storage", handleCustomStorage);
 
     return () => {
+      isMounted = false;
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("storage", handleCustomStorage);
     };
