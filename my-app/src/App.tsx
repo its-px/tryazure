@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTenantContext } from "./context/useTenantContext";
 import AdminPanel from "./assets/pages/AdminPanel";
 import UserPanel from "./assets/pages/UserPanel";
 import OwnerPanel from "./assets/pages/OwnerPanel";
@@ -18,6 +19,8 @@ import { supabase } from "./assets/components/supabaseClient";
 export type Role = "admin" | "user" | "owner";
 
 function App() {
+  const { tenant, loading: tenantLoading } = useTenantContext();
+
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,10 +144,35 @@ function App() {
     </Box>
   );
 
+  // Block render until we know which tenant this domain belongs to
+  if (tenantLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <I18nextProvider i18n={i18n}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         {renderAdminControls()}
+        {/* Tenant banner — visible only in dev, remove in production */}
+        {import.meta.env.DEV && tenant && (
+          <div
+            style={{
+              position: "fixed",
+              bottom: 8,
+              right: 12,
+              zIndex: 9999,
+              background: "#333",
+              color: "#fff",
+              padding: "4px 10px",
+              borderRadius: 6,
+              fontSize: 11,
+              opacity: 0.85,
+            }}
+          >
+            Tenant: <strong>{tenant.name}</strong>{" "}
+            <span style={{ opacity: 0.6 }}>({tenant.slug})</span>
+          </div>
+        )}
 
         <Routes>
           {/* Public route — redirects to the right panel once role is known */}

@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
+import { TenantProvider } from "./context/TenantContext";
 import { BrowserRouter } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
 // import  React from 'react';
@@ -42,10 +43,12 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Provider store={store}>
       <BrowserRouter>
-        <ThemeProviderWrapper>
-          <App />
-        </ThemeProviderWrapper>
+        <TenantProvider>
+          <ThemeProviderWrapper>
+            <App />
+          </ThemeProviderWrapper>
+        </TenantProvider>
       </BrowserRouter>
     </Provider>
-  </StrictMode>
+  </StrictMode>,
 );

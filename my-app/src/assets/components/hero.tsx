@@ -20,6 +20,7 @@ import LanguageIcon from "@mui/icons-material/Language";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import { getColors, getActiveStyle } from "../../theme";
+import { useTenantContext } from "../../context/useTenantContext";
 
 interface HeroProps {
   onBookingClick: () => void;
@@ -43,13 +44,14 @@ export default function Hero({
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const { t, i18n } = useTranslation();
   const [selectedLanguage, setSelectedLanguage] = useState(
-    i18n.language?.toUpperCase() || "EN"
+    i18n.language?.toUpperCase() || "EN",
   );
   const dispatch = useDispatch();
   const themeMode = useSelector(
-    (state: RootState) => state.theme?.mode ?? "dark"
+    (state: RootState) => state.theme?.mode ?? "dark",
   );
   const colors = getColors(themeMode);
+  const { logoUrl, tenant } = useTenantContext();
 
   const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -244,7 +246,7 @@ export default function Hero({
             </Typography>
           </Box>
 
-          {/* Logo in the middle */}
+          {/* Logo in the middle — served from Supabase Storage per tenant */}
           <Box textAlign="center">
             <IconButton
               onClick={onBookingClick}
@@ -255,8 +257,12 @@ export default function Hero({
             >
               <Box
                 component="img"
-                src="/logo.png"
-                alt="Logo"
+                src={logoUrl}
+                alt={tenant?.name ?? "Logo"}
+                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                  // File not yet uploaded for this tenant — fall back to default
+                  e.currentTarget.src = "/logo.png";
+                }}
                 sx={{
                   width: 200,
                   height: 200,
