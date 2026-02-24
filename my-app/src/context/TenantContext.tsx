@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { useTenant } from "../hooks/useTenant";
 import { supabase } from "../assets/components/supabaseClient";
-import { TenantContext } from "./tenantContextDef";
+import { TenantContext, DEFAULT_BRAND_COLORS } from "./tenantContextDef";
 import type { TenantContextValue } from "./tenantContextDef";
 
 // ─── Derive the logo URL ────────────────────────────────────────────────────
@@ -25,6 +25,22 @@ function resolveLogoUrl(tenant: TenantContextValue["tenant"]): string {
   return data.publicUrl;
 }
 
+// ─── Derive brand colors from tenant config ──────────────────────────────────
+function resolveBrandColors(
+  tenant: TenantContextValue["tenant"],
+): import("./tenantContextDef").TenantBrandColors {
+  if (!tenant?.config?.primaryColor) return DEFAULT_BRAND_COLORS;
+  const c = tenant.config;
+  return {
+    primaryColor: c.primaryColor as string,
+    primaryLight: (c.primaryLight as string) ?? (c.primaryColor as string),
+    primaryDark: (c.primaryDark as string) ?? (c.primaryColor as string),
+    primaryHover: (c.primaryHover as string) ?? (c.primaryColor as string),
+    primaryOverlay:
+      (c.primaryOverlay as string) ?? `${c.primaryColor as string}1a`,
+  };
+}
+
 // ─── Provider ───────────────────────────────────────────────────────────────
 export function TenantProvider({ children }: { children: ReactNode }) {
   const { tenant, loading } = useTenant();
@@ -33,7 +49,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     tenant,
     loading,
     logoUrl: resolveLogoUrl(tenant),
-    primaryColor: (tenant?.config?.primaryColor as string) ?? null,
+    brandColors: resolveBrandColors(tenant),
     senderName: (tenant?.config?.senderName as string) ?? null,
   };
 

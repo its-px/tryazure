@@ -113,9 +113,37 @@ const lightColors = {
   },
 };
 
-// Helper to get palette by mode
-export const getColors = (mode: "light" | "dark") =>
-  mode === "light" ? lightColors : darkColors;
+// Brand accent override (matches TenantBrandColors in context)
+type BrandAccent = {
+  primaryColor: string;
+  primaryLight: string;
+  primaryDark: string;
+  primaryHover: string;
+  primaryOverlay: string;
+};
+
+// Helper to get palette by mode, with optional per-tenant brand color override
+export const getColors = (mode: "light" | "dark", brand?: BrandAccent) => {
+  const base = mode === "light" ? lightColors : darkColors;
+  if (!brand) return base;
+  return {
+    ...base,
+    accent: {
+      main: brand.primaryColor,
+      light: brand.primaryLight,
+      dark: brand.primaryDark,
+      hover: brand.primaryHover,
+    },
+    primary: {
+      main: brand.primaryColor,
+      light: brand.primaryLight,
+      dark: brand.primaryDark,
+      hover: brand.primaryHover,
+    },
+    border: { ...base.border, accent: brand.primaryColor },
+    background: { ...base.background, overlay: brand.primaryOverlay },
+  };
+};
 
 // Common styling patterns (function, accepts palette)
 export const getCommonStyles = (colors: typeof darkColors) => ({
@@ -206,8 +234,8 @@ export const getComponentColors = (colors: typeof darkColors) => ({
 });
 
 // MUI theme override - returns a theme for the given mode
-export const getMuiTheme = (mode: "light" | "dark") => {
-  const colors = getColors(mode);
+export const getMuiTheme = (mode: "light" | "dark", brand?: BrandAccent) => {
+  const colors = getColors(mode, brand);
   return createTheme({
     palette: {
       mode,

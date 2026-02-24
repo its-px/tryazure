@@ -1,7 +1,6 @@
 import { Box, Button } from "@mui/material";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors, getComponentColors } from "../../theme";
+import { getComponentColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 interface NavigationComponentProps {
   currentStep: number;
@@ -18,8 +17,7 @@ export default function NavigationComponent({
   onNextStep,
   canProceedNext,
 }: NavigationComponentProps) {
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   const componentColors = getComponentColors(colors);
 
   return (

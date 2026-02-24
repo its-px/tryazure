@@ -19,7 +19,8 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import LanguageIcon from "@mui/icons-material/Language";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
-import { getColors, getActiveStyle } from "../../theme";
+import { getActiveStyle } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { useTenantContext } from "../../context/useTenantContext";
 
 interface HeroProps {
@@ -50,7 +51,7 @@ export default function Hero({
   const themeMode = useSelector(
     (state: RootState) => state.theme?.mode ?? "dark",
   );
-  const colors = getColors(themeMode);
+  const colors = useResolvedColors();
   const { logoUrl, tenant } = useTenantContext();
 
   const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {

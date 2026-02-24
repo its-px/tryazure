@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../configureStore";
-import { getColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { toggleTheme } from "../../slices/themeSlice";
 import { BigCalendar } from "../components/BigCalendar";
 import BookingStatistics from "../components/BookingStatistics";
@@ -44,7 +44,7 @@ interface UserProfile {
 export default function OwnerPanel() {
   const dispatch = useDispatch();
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [selectedProfessional, setSelectedProfessional] =
     useState<string>("all");

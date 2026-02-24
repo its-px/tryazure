@@ -12,9 +12,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import GoogleIcon from "@mui/icons-material/Google";
 import EmailIcon from "@mui/icons-material/Email";
 import { supabase } from "./supabaseClient";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors, getCommonStyles } from "../../theme";
+import { getCommonStyles } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 import validator from "validator";
 
 // const debugBreak = () => {
@@ -27,8 +26,7 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ open, onClose }: LoginModalProps) {
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   const common = getCommonStyles(colors);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState("");

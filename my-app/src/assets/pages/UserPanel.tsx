@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setCurrentStep, setUserSelections } from "../../slices/appSlice";
 import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
-import { getColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { BigCalendar } from "../components/BigCalendar";
 import NavigationComponent from "../components/NavigationComponent";
 import LocationStep from "../components/LocationStep";
@@ -27,8 +27,7 @@ import { fetchServices, type Service } from "../components/servicesService";
 import BookingSMSService from "../components/BookingSMSService";
 
 export default function UserPanel() {
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   // Page navigation
   const [currentPage, setCurrentPage] = React.useState<
     "booking" | "info" | "qr" | "account"

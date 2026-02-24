@@ -12,6 +12,7 @@ import { store } from "./configureStore";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { getMuiTheme } from "./theme";
 import type { RootState } from "./configureStore";
+import { useTenantContext } from "./context/useTenantContext";
 
 export function ThemeProviderWrapper({
   children,
@@ -19,7 +20,8 @@ export function ThemeProviderWrapper({
   children: React.ReactNode;
 }) {
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const theme = getMuiTheme(mode);
+  const { brandColors } = useTenantContext();
+  const theme = getMuiTheme(mode, brandColors);
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

@@ -19,9 +19,8 @@ import type { User } from "@supabase/supabase-js";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PersonIcon from "@mui/icons-material/Person";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors, getCommonStyles, getStatusColor } from "../../theme";
+import { getCommonStyles, getStatusColor } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 // import {  requestNotificationPermission ,showBookingNotification } from "../../notifications";
 
 interface Booking {
@@ -45,8 +44,7 @@ interface UserProfile {
 // (removed AppUser) using Supabase `User` type instead
 
 export default function UserAccountPage() {
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   const commonStyles = getCommonStyles(colors);
   const [user, setUser] = useState<User | null>(null);
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);

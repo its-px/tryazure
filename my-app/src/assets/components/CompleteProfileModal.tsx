@@ -6,9 +6,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors, getCommonStyles } from "../../theme";
+import { getCommonStyles } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { supabase } from "./supabaseClient";
 
 interface CompleteProfileModalProps {
@@ -19,7 +18,6 @@ interface CompleteProfileModalProps {
 
 export default function CompleteProfileModal({
   open,
-  onClose,
   userEmail,
 }: CompleteProfileModalProps) {
   const [fullName, setFullName] = useState("");
@@ -120,8 +118,7 @@ export default function CompleteProfileModal({
     }
   };
 
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   const commonStyles = getCommonStyles(colors);
 
   const textFieldStyle = {

@@ -7,7 +7,7 @@ import { supabase } from "../components/supabaseClient";
 import { generateWeekdaysInRange, excludeDates } from "../components/dateUtils";
 import { Link } from "react-router-dom";
 import SMSAdminDashboard from "../components/SMSAdminDashboard";
-import { getColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { toggleTheme } from "../../slices/themeSlice";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
@@ -22,7 +22,7 @@ interface ProfessionalHours {
 export default function AdminPanel() {
   const dispatch = useDispatch();
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("2025-01-01");
   const [endDate, setEndDate] = useState("2025-12-31");

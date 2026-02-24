@@ -5,7 +5,7 @@ import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useSelector } from "react-redux";
 import type { RootState } from "../../configureStore";
-import { getColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 const localizer = momentLocalizer(moment);
 
@@ -26,7 +26,7 @@ export const BigCalendar = ({
 }: BigCalendarProps) => {
   // Get theme mode from Redux
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
 
   // Separate state for calendar view (navigation) and selected date
   const [viewDate, setViewDate] = React.useState<Date>(() => {
@@ -83,25 +83,25 @@ export const BigCalendar = ({
       className: isSelected
         ? "selected-date"
         : isToday
-        ? "today-date"
-        : isDisabled
-        ? "disabled-date"
-        : "",
+          ? "today-date"
+          : isDisabled
+            ? "disabled-date"
+            : "",
       style: {
         backgroundColor: isSelected
           ? colors.accent.main
           : isDisabled
-          ? mode === "dark"
-            ? "#1a1a1a"
-            : "#e0e0e0"
-          : "transparent",
+            ? mode === "dark"
+              ? "#1a1a1a"
+              : "#e0e0e0"
+            : "transparent",
         color: isSelected
           ? colors.text.primary
           : isDisabled
-          ? mode === "dark"
-            ? "#555555"
-            : "#999999"
-          : colors.text.primary,
+            ? mode === "dark"
+              ? "#555555"
+              : "#999999"
+            : colors.text.primary,
         cursor: isDisabled ? "not-allowed" : "pointer",
         pointerEvents: (isDisabled
           ? "none"

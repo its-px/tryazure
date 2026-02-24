@@ -94,3 +94,22 @@ twra to login tou localhost paei sto site
    BREAK POINTS 
 
    canceled bookings by owner should be different color and not taken into account 
+
+
+   If you can see your nails logo in that browser tab — it's live.
+
+Hard refresh your dev server (Ctrl+Shift+R) and:
+
+On http://localhost:5173 → you'll see the nails logo (maps to test-client)
+On http://localhost:5173/?tenant=default → you'll see the default logo
+Why it didn't auto-work before
+You uploaded both files at the root of the bucket without subfolders. The code was looking for test-client/logo.png. Now both tenants have an explicit logoUrl set in their config column which takes priority.
+
+Going forward: keep it tidy with subfolders
+For new clients, upload logos into a subfolder matching the tenant slug and no config change is needed:
+
+You can also move the existing files in Supabase Dashboard → Storage:
+
+Then remove logoUrl from the configs and the slug-based path will work automatically.
+
+

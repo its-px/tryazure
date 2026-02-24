@@ -1,9 +1,8 @@
 import { Box, Chip, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
 import { fetchServices, type Service } from "./servicesService";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors, getComponentColors } from "../../theme";
+import { getComponentColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 interface ServicesStepProps {
   selectedServices: string[];
@@ -14,8 +13,7 @@ export default function ServicesStep({
   selectedServices,
   onServiceToggle,
 }: ServicesStepProps) {
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   const componentColors = getComponentColors(colors);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +27,7 @@ export default function ServicesStep({
 
       // Load services with timeout
       const timeout = new Promise<Service[]>((_, reject) =>
-        setTimeout(() => reject(new Error("Services load timeout")), 8000)
+        setTimeout(() => reject(new Error("Services load timeout")), 8000),
       );
 
       Promise.race([fetchServices(), timeout])

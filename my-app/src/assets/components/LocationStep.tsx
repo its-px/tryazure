@@ -1,7 +1,6 @@
 import { Box } from "@mui/material";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors, getComponentColors } from "../../theme";
+import { getComponentColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 interface LocationStepProps {
   selectedLocation: "your_place" | "our_place" | null;
@@ -12,8 +11,7 @@ export default function LocationStep({
   selectedLocation,
   onLocationSelect,
 }: LocationStepProps) {
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   const componentColors = getComponentColors(colors);
   return (
     <Box

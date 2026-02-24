@@ -1,7 +1,6 @@
 import { Box, Chip } from "@mui/material";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors, getComponentColors } from "../../theme";
+import { getComponentColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 interface Professional {
   id: string;
@@ -18,7 +17,7 @@ const PROFESSIONALS: Professional[] = [
   {
     id: "prof1",
     name: "Christos",
-    specialties: ["Service 1", "Service 2",],
+    specialties: ["Service 1", "Service 2"],
   },
   {
     id: "prof2",
@@ -31,8 +30,7 @@ export default function ProfessionalStep({
   selectedProfessional,
   onProfessionalSelect,
 }: ProfessionalStepProps) {
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   const componentColors = getComponentColors(colors);
 
   return (

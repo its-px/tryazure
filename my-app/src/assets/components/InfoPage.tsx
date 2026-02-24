@@ -1,12 +1,9 @@
 import { Box, Button, Typography, Paper } from "@mui/material";
 import { Phone, Room } from "@mui/icons-material";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 export default function InfoPage() {
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
   return (
     <Box
       sx={{

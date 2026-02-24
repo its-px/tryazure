@@ -1,8 +1,6 @@
 import { Box, Button, Typography, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors } from "../../theme";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { getAvailableSlots } from "./slotService";
 
 interface TimeSlot {
@@ -62,7 +60,7 @@ export default function TimeSlotsStep({
           if (selectedDate === today) {
             // Only show slots that start after current time for today
             filteredSlots = availableSlots.filter(
-              (slot: TimeSlot) => slot.start_time > currentTime
+              (slot: TimeSlot) => slot.start_time > currentTime,
             );
           }
 
@@ -87,8 +85,7 @@ export default function TimeSlotsStep({
     };
   }, [professionalId, selectedDate, serviceDuration]);
 
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
 
   if (loading) {
     return (

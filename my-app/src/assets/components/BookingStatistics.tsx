@@ -15,10 +15,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../configureStore";
-import { getColors } from "../../theme";
 import dayjs from "dayjs";
+import { useResolvedColors } from "../../hooks/useResolvedColors";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -86,8 +84,7 @@ interface ServiceCancellationData {
 export default function BookingStatistics({
   allBookings,
 }: BookingStatisticsProps) {
-  const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = getColors(mode);
+  const colors = useResolvedColors();
 
   const [dailyBookings, setDailyBookings] = useState<DailyBooking[]>([]);
   const [statusData, setStatusData] = useState<StatusData[]>([]);
