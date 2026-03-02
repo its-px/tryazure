@@ -11,18 +11,21 @@ import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { toggleTheme } from "../../slices/themeSlice";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import { useTenantContext } from "../../context/useTenantContext";
 
 interface ProfessionalHours {
   professional_id: string;
   day_of_week: number;
   start_time: string;
   end_time: string;
+  tenant_id?: string;
 }
 
 export default function AdminPanel() {
   const dispatch = useDispatch();
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
   const colors = useResolvedColors();
+  const { tenant } = useTenantContext();
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("2025-01-01");
   const [endDate, setEndDate] = useState("2025-12-31");
@@ -43,6 +46,10 @@ export default function AdminPanel() {
 
   const handleSaveAvailability = async () => {
     if (!selectedDates.length) return alert("Select at least one date");
+    if (!tenant?.id) {
+      alert("❌ Tenant not loaded yet. Please wait and try again.");
+      return;
+    }
 
     console.log(
       "[handleSaveAvailability] Saving",
@@ -52,9 +59,11 @@ export default function AdminPanel() {
 
     try {
       // Format the dates for upsert
-      const formattedDates: { date: string }[] = selectedDates.map((date) => ({
-        date,
-      }));
+      const formattedDates: { date: string; tenant_id: string }[] =
+        selectedDates.map((date) => ({
+          date,
+          tenant_id: tenant.id,
+        }));
 
       console.log(
         "[handleSaveAvailability] Formatted dates:",
@@ -178,8 +187,14 @@ export default function AdminPanel() {
         day_of_week,
         start_time,
         end_time,
+        tenant_id: tenant?.id,
       }),
     );
+
+    if (!tenant?.id) {
+      alert("❌ Tenant not loaded yet. Please wait and try again.");
+      return;
+    }
 
     console.log("Prepared Hours Data for Insert:", hoursData);
 

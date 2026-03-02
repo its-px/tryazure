@@ -113,3 +113,5 @@ You can also move the existing files in Supabase Dashboard → Storage:
 Then remove logoUrl from the configs and the slug-based path will work automatically.
 
 
+some scaling in mobile view onwer
+calendar in onwer panel not showing the time/duration of the service and showing green the whole day  
