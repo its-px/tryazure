@@ -10,10 +10,13 @@ Deno.serve(async (req) => {
 
   const dbUrl = Deno.env.get("SUPABASE_DB_URL");
   if (!dbUrl) {
-    return new Response(JSON.stringify({ error: "SUPABASE_DB_URL not available" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "SUPABASE_DB_URL not available" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   const sql = postgres(dbUrl, { ssl: "require" });
