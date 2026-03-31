@@ -71,12 +71,12 @@ export default function AdminPanel() {
         "...",
       );
 
-      // First, delete all existing dates to avoid conflicts
+      // First, delete all existing dates for this tenant to avoid conflicts
       console.log("[handleSaveAvailability] Clearing existing availability...");
       const { error: deleteError } = await supabase
         .from("availability")
         .delete()
-        .neq("date", "1900-01-01"); // Delete all records
+        .eq("tenant_id", tenant.id);
 
       if (deleteError) {
         console.error(
@@ -135,15 +135,22 @@ export default function AdminPanel() {
     setSelectedDates(availableDates);
   };
 
-  // Load professional hours on mount
+  // Load professional hours whenever tenant is ready
   useEffect(() => {
-    loadProfessionalHours();
-  }, []);
+    if (tenant?.id) {
+      loadProfessionalHours();
+    }
+    // loadProfessionalHours is defined in this component and only depends on tenant.id
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.id]); // loadProfessionalHours is stable within this component
 
   const loadProfessionalHours = async () => {
+    if (!tenant?.id) return;
+
     const { data, error } = await supabase
       .from("professional_hours")
       .select("*")
+      .eq("tenant_id", tenant.id)
       .order("day_of_week");
 
     if (error) {
@@ -199,7 +206,7 @@ export default function AdminPanel() {
     console.log("Prepared Hours Data for Insert:", hoursData);
 
     try {
-      // First, delete existing hours for this professional
+      // First, delete existing hours for this professional (scoped to tenant)
       console.log(
         "Deleting existing hours for professional:",
         selectedProfessional,
@@ -207,7 +214,8 @@ export default function AdminPanel() {
       const { error: deleteError } = await supabase
         .from("professional_hours")
         .delete()
-        .eq("professional_id", selectedProfessional);
+        .eq("professional_id", selectedProfessional)
+        .eq("tenant_id", tenant.id);
 
       if (deleteError) {
         console.error("Error deleting old hours:", deleteError);
