@@ -1,7 +1,7 @@
 import postgres from "https://deno.land/x/postgresjs@v3.4.4/mod.js";
 
 // Edge functions have internal access to the DB via SUPABASE_DB_URL
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   // Security: require a secret header
   const authHeader = req.headers.get("x-migration-secret");
   if (authHeader !== "run-multitenancy-migration-2026") {
@@ -39,6 +39,18 @@ Deno.serve(async (req) => {
     {
       name: "Set NOT NULL on availability.tenant_id",
       query: `ALTER TABLE availability ALTER COLUMN tenant_id SET NOT NULL`,
+    },
+    {
+      name: "Deduplicate availability by tenant/date",
+      query: `DELETE FROM availability a USING availability b WHERE a.ctid < b.ctid AND a.tenant_id = b.tenant_id AND a.date = b.date`,
+    },
+    {
+      name: "Drop legacy global date uniqueness on availability",
+      query: `ALTER TABLE availability DROP CONSTRAINT IF EXISTS unique_date; ALTER TABLE availability DROP CONSTRAINT IF EXISTS availability_date_key; DROP INDEX IF EXISTS unique_date; DROP INDEX IF EXISTS availability_date_key`,
+    },
+    {
+      name: "Create tenant-scoped uniqueness on availability",
+      query: `ALTER TABLE availability ADD CONSTRAINT unique_date_per_tenant UNIQUE (tenant_id, date)`,
     },
     {
       name: "Enable RLS on professional_hours",

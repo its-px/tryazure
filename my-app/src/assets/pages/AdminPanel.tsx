@@ -51,16 +51,19 @@ export default function AdminPanel() {
       return;
     }
 
+    // Guard against duplicate dates from mixed manual/range selection.
+    const uniqueDates = Array.from(new Set(selectedDates)).sort();
+
     console.log(
       "[handleSaveAvailability] Saving",
-      selectedDates.length,
-      "dates",
+      uniqueDates.length,
+      "unique dates",
     );
 
     try {
       // Format the dates for upsert
       const formattedDates: { date: string; tenant_id: string }[] =
-        selectedDates.map((date) => ({
+        uniqueDates.map((date) => ({
           date,
           tenant_id: tenant.id,
         }));
