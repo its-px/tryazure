@@ -42,15 +42,18 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
   // ----- GOOGLE LOGIN -----
   const handleGoogleLogin = async () => {
     try {
-      // Store current path to redirect back to it after OAuth
-      const currentPath = window.location.pathname;
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Store current URL to redirect back to it after OAuth
+      const redirectTo = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}${currentPath}`,
+          redirectTo,
+          skipBrowserRedirect: true,
         },
       });
       if (error) throw error;
+      if (!data?.url) throw new Error("No OAuth URL returned");
+      window.location.assign(data.url);
       // Note: OAuth redirects the browser, so code after this won't execute
       // The OAuth callback will be handled in App.tsx
     } catch (err: unknown) {
@@ -250,10 +253,11 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
 
     setLoading(true);
     try {
+      const redirectTo = `${window.location.origin}${window.location.pathname}${window.location.search}`;
       const { error } = await supabase.auth.resetPasswordForEmail(
         trimmedEmail,
         {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo,
         },
       );
 

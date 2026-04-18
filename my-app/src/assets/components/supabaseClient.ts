@@ -18,9 +18,9 @@ const getSupabaseClient = () => {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,
         storageKey: "sb-auth-token",
-        flowType: "implicit",
+        flowType: "pkce",
       },
       global: {
         fetch: (url, options) => {

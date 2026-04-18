@@ -5,6 +5,7 @@ import { setCurrentStep, setUserSelections } from "../../slices/appSlice";
 import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
+import { useTenantContext } from "../../context/useTenantContext";
 import { BigCalendar } from "../components/BigCalendar";
 import NavigationComponent from "../components/NavigationComponent";
 import LocationStep from "../components/LocationStep";
@@ -28,6 +29,7 @@ import BookingSMSService from "../components/BookingSMSService";
 
 export default function UserPanel() {
   const colors = useResolvedColors();
+  const { tenant } = useTenantContext();
   // Page navigation
   const [currentPage, setCurrentPage] = React.useState<
     "booking" | "info" | "qr" | "account"
@@ -429,12 +431,12 @@ export default function UserPanel() {
     window.addEventListener("storage", handleStorageChange);
 
     // Also poll periodically in case storage event doesn't fire
-    const pollInterval = setInterval(checkAuth, 2000);
+    //const pollInterval = setInterval(checkAuth, 2000);
 
     return () => {
       isMounted = false;
       window.removeEventListener("storage", handleStorageChange);
-      clearInterval(pollInterval);
+      //clearInterval(pollInterval);
     };
   }, []); // Only run once on mount
 
@@ -521,6 +523,11 @@ export default function UserPanel() {
       return;
     }
 
+    if (!tenant?.id) {
+      alert("Tenant not loaded yet. Please refresh and try again.");
+      return;
+    }
+
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -534,7 +541,7 @@ export default function UserPanel() {
     // Check for overlapping time slots using direct REST API
     try {
       const checkResponse = await fetch(
-        `${supabaseUrl}/rest/v1/bookings?professional_id=eq.${selectedProfessional}&date=eq.${selectedDate}&select=id,start_time,end_time`,
+        `${supabaseUrl}/rest/v1/bookings?professional_id=eq.${selectedProfessional}&date=eq.${selectedDate}&tenant_id=eq.${tenant.id}&select=id,start_time,end_time`,
         {
           headers: {
             apikey: supabaseKey,
@@ -578,6 +585,7 @@ export default function UserPanel() {
 
     const bookingData = {
       user_id: user.id,
+      tenant_id: tenant.id,
       date: selectedDate,
       location: selectedLocation,
       services: JSON.stringify(selectedServices),
