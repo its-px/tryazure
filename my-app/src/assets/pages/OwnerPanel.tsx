@@ -23,6 +23,12 @@ import Brightness7Icon from "@mui/icons-material/Brightness7";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
 import { supabase } from "../components/supabaseClient";
+import { useTenantContext } from "../../context/useTenantContext";
+import {
+  fetchProfessionals,
+  getProfessionalNameByCode,
+  type ProfessionalOption,
+} from "../components/professionalsService";
 
 interface Booking {
   id: string;
@@ -45,9 +51,11 @@ export default function OwnerPanel() {
   const dispatch = useDispatch();
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
   const colors = useResolvedColors();
+  const { tenant } = useTenantContext();
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [selectedProfessional, setSelectedProfessional] =
     useState<string>("all");
+  const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
@@ -57,6 +65,14 @@ export default function OwnerPanel() {
     dayjs().format("YYYY-MM-DD"),
   ]);
   const [serviceMap, setServiceMap] = useState<Record<string, string>>({});
+
+  const professionalNameMap = professionals.reduce<Record<string, string>>(
+    (acc, professional) => {
+      acc[professional.code] = professional.name;
+      return acc;
+    },
+    {},
+  );
 
   const today = dayjs().format("YYYY-MM-DD");
 
@@ -79,6 +95,7 @@ export default function OwnerPanel() {
     let isMounted = true;
     const loadData = async () => {
       if (!isMounted) return;
+      await loadProfessionals();
       await loadBookings();
       await loadServiceMap();
     };
@@ -87,7 +104,18 @@ export default function OwnerPanel() {
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [tenant?.id]);
+
+  const loadProfessionals = async () => {
+    if (!tenant?.id) return;
+
+    try {
+      const data = await fetchProfessionals(tenant.id);
+      setProfessionals(data);
+    } catch (err) {
+      console.error("[OwnerPanel] Exception loading professionals:", err);
+    }
+  };
 
   const loadBookings = async () => {
     try {
@@ -97,8 +125,9 @@ export default function OwnerPanel() {
         return;
       }
       console.log("[OwnerPanel] Loading bookings via REST API...");
+      const tenantFilter = tenant?.id ? `&tenant_id=eq.${tenant.id}` : "";
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/bookings?select=*&order=date.desc`,
+        `${supabaseUrl}/rest/v1/bookings?select=*&order=date.desc${tenantFilter}`,
         { headers },
       );
       if (!response.ok) {
@@ -204,9 +233,7 @@ export default function OwnerPanel() {
   const upcomingBookings = filteredBookings.filter((b) => b.date >= today);
 
   const getProfessionalName = (profId: string) => {
-    if (profId === "prof1") return "Person 1";
-    if (profId === "prof2") return "Person 2";
-    return profId;
+    return getProfessionalNameByCode(professionals, profId);
   };
 
   const getServiceNames = (servicesJson: string) => {
@@ -291,7 +318,10 @@ export default function OwnerPanel() {
       </button>
 
       {/* Booking Statistics */}
-      <BookingStatistics allBookings={allBookings} />
+      <BookingStatistics
+        allBookings={allBookings}
+        professionalNameMap={professionalNameMap}
+      />
 
       {/* Professional Filter */}
       <Box sx={{ marginBottom: 3 }}>
@@ -314,12 +344,15 @@ export default function OwnerPanel() {
           <ToggleButton value="all" sx={{ px: 3 }}>
             All
           </ToggleButton>
-          <ToggleButton value="prof1" sx={{ px: 3 }}>
-            Person 1
-          </ToggleButton>
-          <ToggleButton value="prof2" sx={{ px: 3 }}>
-            Person 2
-          </ToggleButton>
+          {professionals.map((professional) => (
+            <ToggleButton
+              key={professional.id}
+              value={professional.code}
+              sx={{ px: 3 }}
+            >
+              {professional.name}
+            </ToggleButton>
+          ))}
         </ToggleButtonGroup>
       </Box>
 

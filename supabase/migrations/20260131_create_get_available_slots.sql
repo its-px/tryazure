@@ -67,8 +67,8 @@ BEGIN
         AND b.status IN ('confirmed', 'pending')
         -- Check for time overlap: booking overlaps if its start is before slot end
         -- AND its end is after slot start
-        AND b.start_time < v_slot_end_time::TEXT
-        AND b.end_time > v_current_time::TEXT
+        AND b.start_time < v_slot_end_time
+        AND b.end_time > v_current_time
     ) THEN
       start_time := v_current_time;
       end_time := v_slot_end_time;

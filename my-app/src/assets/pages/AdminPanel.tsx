@@ -12,6 +12,11 @@ import { toggleTheme } from "../../slices/themeSlice";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import { useTenantContext } from "../../context/useTenantContext";
+import {
+  fetchProfessionals,
+  getProfessionalNameByCode,
+  type ProfessionalOption,
+} from "../components/professionalsService";
 
 interface ProfessionalHours {
   professional_id: string;
@@ -27,22 +32,23 @@ export default function AdminPanel() {
   const colors = useResolvedColors();
   const { tenant } = useTenantContext();
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState("2025-01-01");
-  const [endDate, setEndDate] = useState("2025-12-31");
+  const [startDate, setStartDate] = useState("2026-01-01");
+  const [endDate, setEndDate] = useState("2026-12-31");
   const [weekdays, setWeekdays] = useState([1, 2, 3, 4, 5]); // Mon-Fri
-  const [holidays, setHolidays] = useState(["2025-01-01", "2025-12-25"]);
+  const [holidays, setHolidays] = useState(["2026-01-01", "2026-12-25"]);
   const [currentTab, setCurrentTab] = useState(0);
 
   // Professional hours state
   const [selectedProfessional, setSelectedProfessional] = useState<
-    "prof1" | "prof2"
-  >("prof1");
+    string | null
+  >(null);
+  const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
   const [professionalHours, setProfessionalHours] = useState<{
     [key: string]: ProfessionalHours[];
-  }>({
-    prof1: [],
-    prof2: [],
-  });
+  }>({});
+
+  const getProfessionalName = (code: string | null | undefined) =>
+    getProfessionalNameByCode(professionals, code);
 
   const handleSaveAvailability = async () => {
     if (!selectedDates.length) return alert("Select at least one date");
@@ -138,14 +144,27 @@ export default function AdminPanel() {
     setSelectedDates(availableDates);
   };
 
-  // Load professional hours whenever tenant is ready
+  // Load professionals and professional hours whenever tenant is ready
   useEffect(() => {
     if (tenant?.id) {
+      loadProfessionals();
       loadProfessionalHours();
     }
-    // loadProfessionalHours is defined in this component and only depends on tenant.id
+    // loadProfessionals/loadProfessionalHours are stable and only depend on tenant.id
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.id]); // loadProfessionalHours is stable within this component
+
+  const loadProfessionals = async () => {
+    if (!tenant?.id) return;
+
+    const rows = await fetchProfessionals(tenant.id);
+    setProfessionals(rows);
+
+    setSelectedProfessional((prev) => {
+      if (prev && rows.some((p) => p.code === prev)) return prev;
+      return rows[0]?.code ?? null;
+    });
+  };
 
   const loadProfessionalHours = async () => {
     if (!tenant?.id) return;
@@ -162,15 +181,13 @@ export default function AdminPanel() {
     }
 
     // Group by professional_id
-    const groupedHours: { [key: string]: ProfessionalHours[] } = {
-      prof1: [],
-      prof2: [],
-    };
+    const groupedHours: { [key: string]: ProfessionalHours[] } = {};
 
     data?.forEach((hour: ProfessionalHours) => {
-      if (groupedHours[hour.professional_id]) {
-        groupedHours[hour.professional_id].push(hour);
+      if (!groupedHours[hour.professional_id]) {
+        groupedHours[hour.professional_id] = [];
       }
+      groupedHours[hour.professional_id].push(hour);
     });
 
     setProfessionalHours(groupedHours);
@@ -181,7 +198,12 @@ export default function AdminPanel() {
     console.log("Selected Professional:", selectedProfessional);
     console.log("Professional Hours State:", professionalHours);
 
-    const hoursToSave = professionalHours[selectedProfessional];
+    if (!selectedProfessional) {
+      alert("Please select a professional first.");
+      return;
+    }
+
+    const hoursToSave = professionalHours[selectedProfessional] ?? [];
     console.log("Hours to Save:", hoursToSave);
 
     if (!hoursToSave || hoursToSave.length === 0) {
@@ -254,6 +276,8 @@ export default function AdminPanel() {
   };
 
   const handleAddWorkingDay = (dayOfWeek: number) => {
+    if (!selectedProfessional) return;
+
     const newHour: ProfessionalHours = {
       professional_id: selectedProfessional,
       day_of_week: dayOfWeek,
@@ -263,14 +287,16 @@ export default function AdminPanel() {
 
     setProfessionalHours((prev) => ({
       ...prev,
-      [selectedProfessional]: [...prev[selectedProfessional], newHour],
+      [selectedProfessional]: [...(prev[selectedProfessional] ?? []), newHour],
     }));
   };
 
   const handleRemoveWorkingDay = (dayOfWeek: number) => {
+    if (!selectedProfessional) return;
+
     setProfessionalHours((prev) => ({
       ...prev,
-      [selectedProfessional]: prev[selectedProfessional].filter(
+      [selectedProfessional]: (prev[selectedProfessional] ?? []).filter(
         (h) => h.day_of_week !== dayOfWeek,
       ),
     }));
@@ -281,15 +307,19 @@ export default function AdminPanel() {
     field: "start_time" | "end_time",
     value: string,
   ) => {
+    if (!selectedProfessional) return;
+
     setProfessionalHours((prev) => ({
       ...prev,
-      [selectedProfessional]: prev[selectedProfessional].map((h) =>
+      [selectedProfessional]: (prev[selectedProfessional] ?? []).map((h) =>
         h.day_of_week === dayOfWeek ? { ...h, [field]: value } : h,
       ),
     }));
   };
 
   const handleCopyFromDefault = () => {
+    if (!selectedProfessional) return;
+
     const defaultHours: ProfessionalHours[] = [
       {
         professional_id: selectedProfessional,
@@ -330,8 +360,19 @@ export default function AdminPanel() {
   };
 
   const handleCopyFromOtherProfessional = () => {
-    const otherProf = selectedProfessional === "prof1" ? "prof2" : "prof1";
-    const otherHours = professionalHours[otherProf];
+    if (!selectedProfessional) return;
+
+    const otherProfessional = professionals.find(
+      (p) => p.code !== selectedProfessional,
+    );
+
+    if (!otherProfessional) {
+      alert("Add another professional first to copy hours from them.");
+      return;
+    }
+
+    const otherProf = otherProfessional.code;
+    const otherHours = professionalHours[otherProf] ?? [];
 
     if (otherHours.length === 0) {
       alert("The other professional has no hours set");
@@ -363,7 +404,9 @@ export default function AdminPanel() {
   };
 
   const isWorkingDay = (dayOfWeek: number) => {
-    return professionalHours[selectedProfessional].some(
+    if (!selectedProfessional) return false;
+
+    return (professionalHours[selectedProfessional] ?? []).some(
       (h) => h.day_of_week === dayOfWeek,
     );
   };
@@ -582,47 +625,37 @@ export default function AdminPanel() {
 
           {/* Professional Selection */}
           <Box display="flex" justifyContent="center" gap={2} mb={3}>
-            <button
-              onClick={() => setSelectedProfessional("prof1")}
-              style={{
-                padding: "10px 30px",
-                cursor: "pointer",
-                backgroundColor:
-                  selectedProfessional === "prof1"
-                    ? colors.accent.main
-                    : colors.background.light,
-                color:
-                  selectedProfessional === "prof1"
-                    ? "white"
-                    : colors.text.primary,
-                border: "none",
-                borderRadius: "5px",
-                fontWeight: "bold",
-              }}
-            >
-              Person 1
-            </button>
-            <button
-              onClick={() => setSelectedProfessional("prof2")}
-              style={{
-                padding: "10px 30px",
-                cursor: "pointer",
-                backgroundColor:
-                  selectedProfessional === "prof2"
-                    ? colors.accent.main
-                    : colors.background.light,
-                color:
-                  selectedProfessional === "prof2"
-                    ? "white"
-                    : colors.text.primary,
-                border: "none",
-                borderRadius: "5px",
-                fontWeight: "bold",
-              }}
-            >
-              Person 2
-            </button>
+            {professionals.map((professional) => (
+              <button
+                key={professional.id}
+                onClick={() => setSelectedProfessional(professional.code)}
+                style={{
+                  padding: "10px 30px",
+                  cursor: "pointer",
+                  backgroundColor:
+                    selectedProfessional === professional.code
+                      ? colors.accent.main
+                      : colors.background.light,
+                  color:
+                    selectedProfessional === professional.code
+                      ? "white"
+                      : colors.text.primary,
+                  border: "none",
+                  borderRadius: "5px",
+                  fontWeight: "bold",
+                }}
+              >
+                {professional.name}
+              </button>
+            ))}
           </Box>
+
+          {professionals.length === 0 && (
+            <p style={{ color: colors.text.secondary, textAlign: "center" }}>
+              No professionals found for this tenant. Add rows to the
+              professionals table first.
+            </p>
+          )}
 
           {/* Quick Actions */}
           <Box
@@ -657,7 +690,10 @@ export default function AdminPanel() {
               }}
             >
               Copy from{" "}
-              {selectedProfessional === "prof1" ? "Person 2" : "Person 1"}
+              {getProfessionalName(
+                professionals.find((p) => p.code !== selectedProfessional)
+                  ?.code,
+              )}
             </button>
           </Box>
 
@@ -665,16 +701,15 @@ export default function AdminPanel() {
           <Box>
             <h4 style={{ color: colors.text.primary }}>Working Days</h4>
             <p style={{ color: colors.text.secondary, marginBottom: "15px" }}>
-              Select which days{" "}
-              {selectedProfessional === "prof1" ? "Person 1" : "Person 2"} works
-              and set their hours:
+              Select which days {getProfessionalName(selectedProfessional)}{" "}
+              works and set their hours:
             </p>
 
             {[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
               const workingDay = isWorkingDay(dayOfWeek);
-              const dayHours = professionalHours[selectedProfessional].find(
-                (h) => h.day_of_week === dayOfWeek,
-              );
+              const dayHours = (
+                professionalHours[selectedProfessional ?? ""] ?? []
+              ).find((h) => h.day_of_week === dayOfWeek);
 
               return (
                 <Box
@@ -797,9 +832,9 @@ export default function AdminPanel() {
               Current Status:
             </strong>
             <p style={{ margin: "5px 0", color: colors.text.secondary }}>
-              {selectedProfessional === "prof1" ? "Person 1" : "Person 2"} has{" "}
-              {professionalHours[selectedProfessional].length} working day(s)
-              configured
+              {getProfessionalName(selectedProfessional)} has{" "}
+              {(professionalHours[selectedProfessional ?? ""] ?? []).length}{" "}
+              working day(s) configured
             </p>
           </Box>
         </Box>

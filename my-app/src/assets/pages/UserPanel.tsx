@@ -25,6 +25,11 @@ import {
 } from "../../notifications";
 import TimeSlotsStep from "../components/TimeSlotsStep";
 import { fetchServices, type Service } from "../components/servicesService";
+import {
+  fetchProfessionals,
+  getProfessionalNameByCode,
+  type ProfessionalOption,
+} from "../components/professionalsService";
 import BookingSMSService from "../components/BookingSMSService";
 
 export default function UserPanel() {
@@ -40,6 +45,9 @@ export default function UserPanel() {
   const [showLoginModal, setShowLoginModal] = React.useState(false);
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
   const [services, setServices] = React.useState<Service[]>([]);
+  const [professionals, setProfessionals] = React.useState<
+    ProfessionalOption[]
+  >([]);
 
   const dispatch = useDispatch();
   const currentStep =
@@ -148,14 +156,43 @@ export default function UserPanel() {
     // }
   }, [dispatch]);
 
-  // Load services from database once on mount
+  // Load services from database once tenant is ready
   useEffect(() => {
     let isMounted = true;
 
     const loadServices = async () => {
+      // Only load if tenant is actually available (not just loading)
+      if (!tenant?.id) {
+        console.log("[UserPanel] Tenant not ready yet, skipping service load");
+        return;
+      }
+
       try {
-        const data = await fetchServices();
+        console.log("[UserPanel] Loading services for tenant:", tenant.id);
+        // Verify tenant context is set on the server by checking current_setting
+        // This ensures set_current_tenant RPC has completed
+        const testQuery = await supabase.rpc("get_current_tenant_id").single();
+
+        if (testQuery.error) {
+          console.warn(
+            "[UserPanel] Could not verify tenant context:",
+            testQuery.error,
+          );
+        } else {
+          console.log(
+            "[UserPanel] Server tenant context verified:",
+            testQuery.data,
+          );
+        }
+
+        // Now fetch services - REST API will use the tenant_id filter
+        const data = await fetchServices(tenant.id);
         if (isMounted) {
+          console.log(
+            "[UserPanel] Services loaded for tenant:",
+            data.length,
+            "services",
+          );
           setServices(data);
         }
       } catch (err) {
@@ -168,7 +205,51 @@ export default function UserPanel() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [tenant?.id]);
+
+  // Load professionals scoped to current tenant
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfessionals = async () => {
+      if (!tenant?.id) return;
+
+      try {
+        const data = await fetchProfessionals(tenant.id);
+        if (isMounted) {
+          setProfessionals(data);
+
+          // Reset selected professional if it no longer exists in this tenant.
+          if (
+            selectedProfessional &&
+            !data.some((p) => p.code === selectedProfessional)
+          ) {
+            dispatch(
+              setUserSelections({
+                selectedLocation: null,
+                selectedServices: [],
+                selectedProfessional: null,
+                selectedDate: "",
+                selectedSlot: null,
+                serviceDuration: 0,
+              }),
+            );
+          }
+        }
+      } catch (err) {
+        console.error("[UserPanel] Error loading professionals:", err);
+      }
+    };
+
+    loadProfessionals();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tenant?.id, dispatch, selectedProfessional]);
+
+  const getProfessionalName = (code: string | null | undefined) =>
+    getProfessionalNameByCode(professionals, code);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -216,12 +297,18 @@ export default function UserPanel() {
           headers["Authorization"] = `Bearer ${token}`;
         }
 
+        if (!tenant?.id) {
+          console.log("[loadAvailableDates] Tenant not ready yet");
+          setAvailableDates([]);
+          return;
+        }
+
         if (!selectedProfessional) {
           console.log(
             "[loadAvailableDates] No professional selected, loading all dates",
           );
           const response = await fetch(
-            `${supabaseUrl}/rest/v1/availability?select=date`,
+            `${supabaseUrl}/rest/v1/availability?tenant_id=eq.${tenant.id}&select=date`,
             {
               headers,
             },
@@ -245,7 +332,7 @@ export default function UserPanel() {
 
         console.log("[loadAvailableDates] Loading shop dates...");
         const shopResponse = await fetch(
-          `${supabaseUrl}/rest/v1/availability?select=date`,
+          `${supabaseUrl}/rest/v1/availability?tenant_id=eq.${tenant.id}&select=date`,
           {
             headers,
           },
@@ -290,6 +377,7 @@ export default function UserPanel() {
                   p_professional_id: selectedProfessional,
                   p_date: date,
                   p_service_duration_minutes: checkDuration,
+                  p_tenant_id: tenant.id,
                 }),
               },
             );
@@ -337,7 +425,7 @@ export default function UserPanel() {
     return () => {
       isMounted = false;
     };
-  }, [selectedProfessional, serviceDuration]);
+  }, [selectedProfessional, serviceDuration, tenant?.id]);
 
   // Reset booking state and clear localStorage
 
@@ -748,8 +836,7 @@ export default function UserPanel() {
           date: capturedDate,
           time: `${capturedSlot.start_time} - ${capturedSlot.end_time}`,
           service: serviceNames.join(", "),
-          professional:
-            capturedProfessional === "prof1" ? "Person 1" : "Person 2",
+          professional: getProfessionalName(capturedProfessional),
           location: capturedLocation,
           bookingId: insertedBooking?.id?.toString() || "Unknown",
         };
@@ -997,14 +1084,14 @@ export default function UserPanel() {
               <ProfessionalStep
                 selectedProfessional={selectedProfessional}
                 onProfessionalSelect={handleProfessionalSelect}
+                professionals={professionals}
               />
             )}
 
             {currentStep === 4 && (
               <div>
                 <h3>
-                  Select a Date for{" "}
-                  {selectedProfessional === "prof1" ? "Person 1" : "Person 2"}
+                  Select a Date for {getProfessionalName(selectedProfessional)}
                 </h3>
 
                 {availableDates.length === 0 ? (
@@ -1053,6 +1140,7 @@ export default function UserPanel() {
                     />
                     <TimeSlotsStep
                       professionalId={selectedProfessional}
+                      tenantId={tenant?.id ?? null}
                       selectedDate={selectedDate}
                       serviceDuration={serviceDuration}
                       selectedSlot={selectedSlot}
@@ -1109,14 +1197,7 @@ export default function UserPanel() {
                     : "At Our Place"}
                 </p>
                 <p>Services: {selectedServices.length} selected</p>
-                <p>
-                  Professional:{" "}
-                  {selectedProfessional === "prof1"
-                    ? "Person 1"
-                    : selectedProfessional === "prof2"
-                      ? "Person 2"
-                      : selectedProfessional}
-                </p>
+                <p>Professional: {getProfessionalName(selectedProfessional)}</p>
                 <p>Date: {selectedDate}</p>
                 {selectedSlot && (
                   <p>

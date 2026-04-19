@@ -10,6 +10,7 @@ interface TimeSlot {
 
 interface TimeSlotsStepProps {
   professionalId: string | null;
+  tenantId: string | null;
   selectedDate: string;
   serviceDuration: number;
   selectedSlot: TimeSlot | null;
@@ -18,6 +19,7 @@ interface TimeSlotsStepProps {
 
 export default function TimeSlotsStep({
   professionalId,
+  tenantId,
   selectedDate,
   serviceDuration,
   selectedSlot,
@@ -27,7 +29,7 @@ export default function TimeSlotsStep({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!professionalId || !selectedDate || !serviceDuration) {
+    if (!professionalId || !tenantId || !selectedDate || !serviceDuration) {
       setSlots([]);
       setLoading(false);
       return;
@@ -39,7 +41,7 @@ export default function TimeSlotsStep({
       setLoading(true);
       console.log("[TimeSlotsStep] Loading slots...");
 
-      getAvailableSlots(professionalId, selectedDate, serviceDuration)
+      getAvailableSlots(professionalId, selectedDate, serviceDuration, tenantId)
         .then((availableSlots) => {
           if (!isMounted) return;
 
@@ -83,7 +85,7 @@ export default function TimeSlotsStep({
     return () => {
       isMounted = false;
     };
-  }, [professionalId, selectedDate, serviceDuration]);
+  }, [professionalId, tenantId, selectedDate, serviceDuration]);
 
   const colors = useResolvedColors();
 

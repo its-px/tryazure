@@ -1,34 +1,18 @@
 import { Box, Chip } from "@mui/material";
 import { getComponentColors } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
-
-interface Professional {
-  id: string;
-  name: string;
-  specialties: string[];
-}
+import type { ProfessionalOption } from "./professionalsService";
 
 interface ProfessionalStepProps {
   selectedProfessional: string | null;
   onProfessionalSelect: (professionalId: string) => void;
+  professionals: ProfessionalOption[];
 }
-
-const PROFESSIONALS: Professional[] = [
-  {
-    id: "prof1",
-    name: "Christos",
-    specialties: ["Service 1", "Service 2"],
-  },
-  {
-    id: "prof2",
-    name: "Aggelos",
-    specialties: ["Service 3", "Service 4"],
-  },
-];
 
 export default function ProfessionalStep({
   selectedProfessional,
   onProfessionalSelect,
+  professionals,
 }: ProfessionalStepProps) {
   const colors = useResolvedColors();
   const componentColors = getComponentColors(colors);
@@ -52,6 +36,12 @@ export default function ProfessionalStep({
         Choose Your Professional
       </h3>
 
+      {professionals.length === 0 && (
+        <Box sx={{ color: colors.text.secondary, mt: 2 }}>
+          No professionals configured for this tenant.
+        </Box>
+      )}
+
       <Box
         display="flex"
         gap={{ xs: 2, sm: 3, md: 4 }}
@@ -63,13 +53,13 @@ export default function ProfessionalStep({
           margin: "0 auto",
         }}
       >
-        {PROFESSIONALS.map((professional) => {
-          const isSelected = selectedProfessional === professional.id;
+        {professionals.map((professional) => {
+          const isSelected = selectedProfessional === professional.code;
 
           return (
             <Box
               key={professional.id}
-              onClick={() => onProfessionalSelect(professional.id)}
+              onClick={() => onProfessionalSelect(professional.code)}
               sx={{
                 border: isSelected
                   ? `3px solid ${componentColors.serviceCard.selectedBorder}`
@@ -112,7 +102,7 @@ export default function ProfessionalStep({
                   fontSize: window.innerWidth < 600 ? "0.875rem" : "1rem",
                 }}
               >
-                Specialties:
+                Professional Code:
               </p>
               <Box
                 display="flex"
@@ -120,23 +110,20 @@ export default function ProfessionalStep({
                 flexWrap="wrap"
                 justifyContent="center"
               >
-                {professional.specialties.map((specialty, index) => (
-                  <Chip
-                    key={index}
-                    label={specialty}
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      color: colors.text.secondary,
-                      borderColor: colors.accent.main,
-                      fontSize: { xs: "0.7rem", sm: "0.8125rem" },
-                      height: { xs: "24px", sm: "28px" },
-                      "& .MuiChip-label": {
-                        px: { xs: 1, sm: 1.5 },
-                      },
-                    }}
-                  />
-                ))}
+                <Chip
+                  label={professional.code}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    color: colors.text.secondary,
+                    borderColor: colors.accent.main,
+                    fontSize: { xs: "0.7rem", sm: "0.8125rem" },
+                    height: { xs: "24px", sm: "28px" },
+                    "& .MuiChip-label": {
+                      px: { xs: 1, sm: 1.5 },
+                    },
+                  }}
+                />
               </Box>
 
               {isSelected && (

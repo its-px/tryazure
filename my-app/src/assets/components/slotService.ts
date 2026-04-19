@@ -6,10 +6,18 @@ interface TimeSlot {
 export const getAvailableSlots = async (
   professionalId: string,
   date: string,
-  serviceDuration: number
+  serviceDuration: number,
+  tenantId?: string,
 ): Promise<TimeSlot[]> => {
   try {
     console.log("[getAvailableSlots] Starting RPC call via REST API...");
+
+    if (!tenantId) {
+      console.warn(
+        "[getAvailableSlots] Missing tenantId, returning empty list",
+      );
+      return [];
+    }
 
     // Get token from localStorage
     const storageKey = "sb-auth-token";
@@ -46,8 +54,9 @@ export const getAvailableSlots = async (
           p_professional_id: professionalId,
           p_date: date,
           p_service_duration_minutes: serviceDuration,
+          p_tenant_id: tenantId,
         }),
-      }
+      },
     );
 
     console.log("[getAvailableSlots] Response status:", response.status);
@@ -55,7 +64,7 @@ export const getAvailableSlots = async (
     if (!response.ok) {
       console.error(
         "[getAvailableSlots] Response not OK:",
-        response.statusText
+        response.statusText,
       );
       return [];
     }

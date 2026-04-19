@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { fetchServices, type Service } from "./servicesService";
 import { getComponentColors } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
+import { useTenantContext } from "../../context/useTenantContext";
 
 interface ServicesStepProps {
   selectedServices: string[];
@@ -14,6 +15,7 @@ export default function ServicesStep({
   onServiceToggle,
 }: ServicesStepProps) {
   const colors = useResolvedColors();
+  const { tenant } = useTenantContext();
   const componentColors = getComponentColors(colors);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,15 +24,22 @@ export default function ServicesStep({
     let isMounted = true;
 
     const loadServices = () => {
+      if (!tenant?.id) {
+        console.log("[ServicesStep] Tenant not ready, skipping services load");
+        setServices([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      console.log("[ServicesStep] Loading services...");
+      console.log("[ServicesStep] Loading services for tenant:", tenant.id);
 
       // Load services with timeout
       const timeout = new Promise<Service[]>((_, reject) =>
         setTimeout(() => reject(new Error("Services load timeout")), 8000),
       );
 
-      Promise.race([fetchServices(), timeout])
+      Promise.race([fetchServices(tenant.id), timeout])
         .then((data) => {
           if (isMounted) {
             console.log("[ServicesStep] Services loaded:", data.length);
@@ -56,7 +65,7 @@ export default function ServicesStep({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [tenant?.id]);
 
   if (loading) {
     return (

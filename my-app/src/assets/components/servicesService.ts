@@ -4,11 +4,22 @@ export interface Service {
   description: string;
   duration_minutes: number;
   price: number;
+  tenant_id?: string | null;
 }
 
-export const fetchServices = async (): Promise<Service[]> => {
+export const fetchServices = async (tenantId?: string): Promise<Service[]> => {
   try {
-    console.log("[fetchServices] Fetching services via REST API...");
+    console.log(
+      "[fetchServices] Fetching services via REST API for tenant:",
+      tenantId,
+    );
+
+    if (!tenantId) {
+      console.warn(
+        "[fetchServices] Missing tenantId, returning empty list to avoid unscoped query",
+      );
+      return [];
+    }
 
     // Get token from localStorage directly to avoid auth hang
     const storageKey = "sb-auth-token";
@@ -37,17 +48,28 @@ export const fetchServices = async (): Promise<Service[]> => {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/services?select=*&order=name`,
-      {
-        headers,
-      }
+    // Filter: services belonging to this tenant OR shared services (tenant_id IS NULL)
+    const url = `${supabaseUrl}/rest/v1/services?select=*&or=(tenant_id.is.null,tenant_id.eq.${tenantId})&order=name`;
+
+    console.log("[fetchServices] Final URL:", url);
+    console.log(
+      "[fetchServices] Fetching from URL with tenantId filter:",
+      tenantId ? `✅ YES (${tenantId})` : "❌ NO",
     );
+
+    const response = await fetch(url, {
+      headers,
+    });
 
     console.log("[fetchServices] Response status:", response.status);
 
     if (!response.ok) {
-      console.error("[fetchServices] Response not OK:", response.statusText);
+      const errorText = await response.text();
+      console.error(
+        "[fetchServices] Response not OK:",
+        response.status,
+        errorText,
+      );
       return [];
     }
 

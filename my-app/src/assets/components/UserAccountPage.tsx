@@ -21,6 +21,12 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import PersonIcon from "@mui/icons-material/Person";
 import { getCommonStyles, getStatusColor } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
+import { useTenantContext } from "../../context/useTenantContext";
+import {
+  fetchProfessionals,
+  getProfessionalNameByCode,
+  type ProfessionalOption,
+} from "./professionalsService";
 // import {  requestNotificationPermission ,showBookingNotification } from "../../notifications";
 
 interface Booking {
@@ -45,6 +51,7 @@ interface UserProfile {
 
 export default function UserAccountPage() {
   const colors = useResolvedColors();
+  const { tenant } = useTenantContext();
   const commonStyles = getCommonStyles(colors);
   const [user, setUser] = useState<User | null>(null);
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
@@ -65,6 +72,7 @@ export default function UserAccountPage() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
   const [serviceMap, setServiceMap] = useState<Record<string, string>>({});
+  const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -141,7 +149,35 @@ export default function UserAccountPage() {
     return () => {
       isMounted = false;
     };
+    // initialize once per mount; data reloads are handled by dedicated effects
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadTenantProfessionals = async () => {
+      if (!tenant?.id) return;
+
+      try {
+        const data = await fetchProfessionals(tenant.id);
+        if (isMounted) {
+          setProfessionals(data);
+        }
+      } catch (err) {
+        console.error(
+          "[UserAccountPage] Exception loading professionals:",
+          err,
+        );
+      }
+    };
+
+    loadTenantProfessionals();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tenant?.id]);
 
   const loadServiceMap = async () => {
     try {
@@ -153,9 +189,10 @@ export default function UserAccountPage() {
       const session = JSON.parse(storedSession);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const tenantFilter = tenant?.id ? `&tenant_id=eq.${tenant.id}` : "";
 
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/services?select=id,name`,
+        `${supabaseUrl}/rest/v1/services?select=id,name${tenantFilter}`,
         {
           headers: {
             apikey: supabaseKey,
@@ -242,9 +279,10 @@ export default function UserAccountPage() {
       const session = JSON.parse(storedSession);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const tenantFilter = tenant?.id ? `&tenant_id=eq.${tenant.id}` : "";
 
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/bookings?user_id=eq.${userId}&order=date.asc`,
+        `${supabaseUrl}/rest/v1/bookings?user_id=eq.${userId}${tenantFilter}&order=date.asc`,
         {
           headers: {
             apikey: supabaseKey,
@@ -493,9 +531,7 @@ export default function UserAccountPage() {
   };
 
   const getProfessionalName = (profId: string) => {
-    if (profId === "prof1") return "Person 1";
-    if (profId === "prof2") return "Person 2";
-    return profId;
+    return getProfessionalNameByCode(professionals, profId);
   };
 
   const getServiceNames = (servicesJson: string) => {

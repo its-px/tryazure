@@ -37,6 +37,18 @@ Deno.serve(async (req: Request) => {
       query: `ALTER TABLE professional_hours ALTER COLUMN tenant_id SET NOT NULL`,
     },
     {
+      name: "Deduplicate professional_hours by tenant/professional/day",
+      query: `DELETE FROM professional_hours a USING professional_hours b WHERE a.ctid < b.ctid AND a.tenant_id = b.tenant_id AND a.professional_id = b.professional_id AND a.day_of_week = b.day_of_week`,
+    },
+    {
+      name: "Drop legacy global uniqueness on professional_hours",
+      query: `ALTER TABLE professional_hours DROP CONSTRAINT IF EXISTS professional_hours_professional_id_day_of_week_key; DROP INDEX IF EXISTS professional_hours_professional_id_day_of_week_key`,
+    },
+    {
+      name: "Create tenant-scoped uniqueness on professional_hours",
+      query: `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'professional_hours' AND constraint_name = 'professional_hours_unique_per_tenant') THEN ALTER TABLE professional_hours ADD CONSTRAINT professional_hours_unique_per_tenant UNIQUE (tenant_id, professional_id, day_of_week); END IF; END $$`,
+    },
+    {
       name: "Set NOT NULL on availability.tenant_id",
       query: `ALTER TABLE availability ALTER COLUMN tenant_id SET NOT NULL`,
     },
@@ -51,6 +63,30 @@ Deno.serve(async (req: Request) => {
     {
       name: "Create tenant-scoped uniqueness on availability",
       query: `ALTER TABLE availability ADD CONSTRAINT unique_date_per_tenant UNIQUE (tenant_id, date)`,
+    },
+    {
+      name: "Add professionals.code column",
+      query: `ALTER TABLE professionals ADD COLUMN IF NOT EXISTS code text`,
+    },
+    {
+      name: "Backfill professionals.code",
+      query: `UPDATE professionals SET code = id::text WHERE code IS NULL`,
+    },
+    {
+      name: "Set NOT NULL on professionals.code",
+      query: `ALTER TABLE professionals ALTER COLUMN code SET NOT NULL`,
+    },
+    {
+      name: "Create unique professionals indexes",
+      query: `CREATE UNIQUE INDEX IF NOT EXISTS idx_professionals_tenant_code_unique ON professionals (tenant_id, code); CREATE UNIQUE INDEX IF NOT EXISTS idx_professionals_tenant_name_unique ON professionals (tenant_id, name)`,
+    },
+    {
+      name: "Seed default professionals per tenant",
+      query: `INSERT INTO professionals (id, name, tenant_id, code) SELECT gen_random_uuid(), 'Person 1', t.id, 'prof1' FROM tenants t WHERE NOT EXISTS (SELECT 1 FROM professionals p WHERE p.tenant_id = t.id AND p.code = 'prof1'); INSERT INTO professionals (id, name, tenant_id, code) SELECT gen_random_uuid(), 'Person 2', t.id, 'prof2' FROM tenants t WHERE NOT EXISTS (SELECT 1 FROM professionals p WHERE p.tenant_id = t.id AND p.code = 'prof2')`,
+    },
+    {
+      name: "Recreate tenant-aware get_available_slots",
+      query: `DROP FUNCTION IF EXISTS get_available_slots(TEXT, DATE, INTEGER, UUID); CREATE OR REPLACE FUNCTION get_available_slots(p_professional_id TEXT, p_date DATE, p_service_duration_minutes INTEGER, p_tenant_id UUID) RETURNS TABLE (start_time TIME, end_time TIME) AS $$ DECLARE v_day_of_week INTEGER; v_work_start TIME; v_work_end TIME; v_current_time TIME; v_slot_duration INTERVAL; v_slot_end_time TIME; BEGIN v_day_of_week := EXTRACT(DOW FROM p_date); SELECT ph.start_time, ph.end_time INTO v_work_start, v_work_end FROM professional_hours ph WHERE ph.professional_id = p_professional_id AND ph.day_of_week = v_day_of_week AND (p_tenant_id IS NULL OR ph.tenant_id = p_tenant_id); IF v_work_start IS NULL THEN RETURN; END IF; v_slot_duration := (p_service_duration_minutes || ' minutes')::INTERVAL; v_current_time := v_work_start; WHILE v_current_time + v_slot_duration <= v_work_end LOOP v_slot_end_time := v_current_time + v_slot_duration; IF NOT EXISTS (SELECT 1 FROM bookings b WHERE b.professional_id = p_professional_id AND b.date = p_date AND b.status IN ('confirmed', 'pending') AND (p_tenant_id IS NULL OR b.tenant_id = p_tenant_id) AND b.start_time < v_slot_end_time AND b.end_time > v_current_time) THEN start_time := v_current_time; end_time := v_slot_end_time; RETURN NEXT; END IF; v_current_time := v_current_time + INTERVAL '30 minutes'; END LOOP; RETURN; END; $$ LANGUAGE plpgsql STABLE; GRANT EXECUTE ON FUNCTION get_available_slots(TEXT, DATE, INTEGER, UUID) TO authenticated; GRANT EXECUTE ON FUNCTION get_available_slots(TEXT, DATE, INTEGER, UUID) TO anon; DROP FUNCTION IF EXISTS get_available_slots(TEXT, DATE, INTEGER); CREATE OR REPLACE FUNCTION get_available_slots(p_professional_id TEXT, p_date DATE, p_service_duration_minutes INTEGER) RETURNS TABLE (start_time TIME, end_time TIME) AS $$ SELECT * FROM get_available_slots(p_professional_id, p_date, p_service_duration_minutes, NULL::UUID); $$ LANGUAGE sql STABLE; GRANT EXECUTE ON FUNCTION get_available_slots(TEXT, DATE, INTEGER) TO authenticated; GRANT EXECUTE ON FUNCTION get_available_slots(TEXT, DATE, INTEGER) TO anon`,
     },
     {
       name: "Enable RLS on professional_hours",

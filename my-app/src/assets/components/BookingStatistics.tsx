@@ -37,6 +37,7 @@ interface Booking {
 
 interface BookingStatisticsProps {
   allBookings: Booking[];
+  professionalNameMap?: Record<string, string>;
 }
 
 interface DailyBooking {
@@ -83,6 +84,7 @@ interface ServiceCancellationData {
 
 export default function BookingStatistics({
   allBookings,
+  professionalNameMap = {},
 }: BookingStatisticsProps) {
   const colors = useResolvedColors();
 
@@ -122,6 +124,17 @@ export default function BookingStatistics({
   const [serviceCancellations, setServiceCancellations] = useState<
     ServiceCancellationData[]
   >([]);
+
+  const resolveProfessionalName = useCallback(
+    (profId: string) =>
+      professionalNameMap[profId] ??
+      (profId === "prof1"
+        ? "Person 1"
+        : profId === "prof2"
+          ? "Person 2"
+          : profId),
+    [professionalNameMap],
+  );
   const [professionalPerformance, setProfessionalPerformance] = useState<
     ProfessionalData[]
   >([]);
@@ -263,12 +276,7 @@ export default function BookingStatistics({
     const profData: ProfessionalData[] = Object.entries(professionalCount).map(
       ([profId, stats]) => ({
         professionalId: profId,
-        name:
-          profId === "prof1"
-            ? "Person 1"
-            : profId === "prof2"
-              ? "Person 2"
-              : profId,
+        name: resolveProfessionalName(profId),
         bookings: stats.bookings,
         revenue: Math.round(stats.revenue * 100) / 100,
       }),
@@ -506,12 +514,7 @@ export default function BookingStatistics({
       professionalStats,
     ).map(([profId, stats]) => ({
       professionalId: profId,
-      name:
-        profId === "prof1"
-          ? "Person 1"
-          : profId === "prof2"
-            ? "Person 2"
-            : profId,
+      name: resolveProfessionalName(profId),
       bookings: stats.bookings,
       revenue: Math.round(stats.revenue * 100) / 100,
     }));
@@ -538,6 +541,7 @@ export default function BookingStatistics({
     colors.accent.main,
     colors.error.main,
     colors.status.confirmed,
+    resolveProfessionalName,
     serviceMap,
   ]);
 
