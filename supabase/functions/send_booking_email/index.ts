@@ -1,5 +1,13 @@
+// @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+// @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+
+declare const Deno: {
+  env: {
+    get: (key: string) => string | undefined;
+  };
+};
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -154,7 +162,7 @@ function calculateConfirmationDeadline(
   };
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -169,6 +177,8 @@ serve(async (req) => {
       location,
       services,
       professional,
+      tenantSlug,
+      appUrl,
     } = await req.json();
 
     console.log("Received params:", {
@@ -180,6 +190,8 @@ serve(async (req) => {
       location,
       services,
       professional,
+      tenantSlug,
+      appUrl,
     });
 
     if (!email || !bookingDate || !location || !professional) {
@@ -231,7 +243,8 @@ serve(async (req) => {
         console.error("Error fetching services:", servicesError);
         serviceNames = serviceIds;
       } else {
-        serviceNames = servicesData?.map((s) => s.name) || serviceIds;
+        serviceNames =
+          servicesData?.map((s: { name: string }) => s.name) || serviceIds;
       }
     } else {
       serviceNames = ["Service"];
@@ -254,8 +267,22 @@ serve(async (req) => {
       : serviceNames;
     const displayName = name || "Customer";
 
-    // App URL for the confirmation link (set APP_URL in your Supabase secrets)
-    const appUrl = Deno.env.get("APP_URL") || "https://pxbs.site";
+    // Resolve app URL for confirmation links.
+    // Prefer caller-provided origin (supports tenant domains/subdomains),
+    // then APP_URL secret, then fallback.
+    const rawAppUrl =
+      typeof appUrl === "string" && appUrl.trim().length > 0
+        ? appUrl.trim()
+        : Deno.env.get("APP_URL") || "https://pxbs.site";
+    const normalizedAppUrl = rawAppUrl.replace(/\/$/, "");
+
+    // Use root path to avoid 404 on hosts without SPA rewrite for /bookings,
+    // and include tenant query fallback for single-domain tenant selection.
+    const tenantQuery =
+      typeof tenantSlug === "string" && tenantSlug.trim().length > 0
+        ? `?tenant=${encodeURIComponent(tenantSlug.trim())}`
+        : "";
+    const confirmBookingsUrl = `${normalizedAppUrl}/${tenantQuery}`;
 
     // Confirmation deadline: 8 hours before the appointment
     const deadline = calculateConfirmationDeadline(
@@ -385,7 +412,7 @@ serve(async (req) => {
                     <p>Please visit the app and confirm your booking by:</p>
                     <div class="deadline-highlight">📅 ${deadline.display}</div>
                     <br/>
-                    <a href="${appUrl}/bookings" class="confirm-btn">Confirm My Booking →</a>
+                    <a href="${confirmBookingsUrl}" class="confirm-btn">Confirm My Booking →</a>
                     <p class="cancel-warning">
                       ❌ Bookings not confirmed by the deadline above will be automatically cancelled by the system.
                     </p>

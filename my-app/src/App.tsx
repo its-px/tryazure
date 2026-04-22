@@ -191,6 +191,22 @@ function App() {
             }
           />
 
+          {/* Legacy booking confirmation link target */}
+          <Route
+            path="/bookings"
+            element={
+              loading ? (
+                <div>Loading...</div>
+              ) : session && role === "owner" ? (
+                <Navigate to="/owner" replace />
+              ) : session && role === "admin" ? (
+                <Navigate to="/admin" replace />
+              ) : (
+                <UserPanel />
+              )
+            }
+          />
+
           {/* Protected admin route */}
           <Route
             path="/admin"

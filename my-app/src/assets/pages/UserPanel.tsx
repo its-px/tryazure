@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { setCurrentStep, setUserSelections } from "../../slices/appSlice";
 import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
@@ -64,6 +65,36 @@ export default function UserPanel() {
     serviceDuration = 0,
   } = userSelections || {};
   const totalSteps = 5;
+  const prefersReducedMotion = useReducedMotion();
+  const previousStepRef = React.useRef(currentStep);
+  const [stepDirection, setStepDirection] = React.useState<1 | -1>(1);
+
+  useEffect(() => {
+    if (currentStep !== previousStepRef.current) {
+      setStepDirection(currentStep > previousStepRef.current ? 1 : -1);
+      previousStepRef.current = currentStep;
+    }
+  }, [currentStep]);
+
+  const stepVariants = {
+    initial: (direction: 1 | -1) => ({
+      opacity: 0,
+      y: prefersReducedMotion ? 0 : direction > 0 ? 12 : -12,
+    }),
+    animate: {
+      opacity: 1,
+      y: 0,
+    },
+    exit: (direction: 1 | -1) => ({
+      opacity: 0,
+      y: prefersReducedMotion ? 0 : direction > 0 ? -8 : 8,
+    }),
+  };
+
+  const stepTransition = {
+    duration: prefersReducedMotion ? 0.08 : 0.26,
+    ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+  };
 
   // Save booking state to localStorage whenever Redux state changes (do NOT dispatch here)
   useEffect(() => {
@@ -931,6 +962,8 @@ export default function UserPanel() {
           location: capturedLocation,
           services: serviceNames,
           professional: capturedProfessional,
+          tenantSlug: tenant?.slug ?? null,
+          appUrl: window.location.origin,
         };
 
         console.log("📧 Email payload:", emailPayload);
@@ -1066,159 +1099,216 @@ export default function UserPanel() {
               />
             )}
 
-            {currentStep === 1 && (
-              <LocationStep
-                selectedLocation={selectedLocation}
-                onLocationSelect={handleLocationSelect}
-              />
-            )}
+            <AnimatePresence mode="wait" initial={false}>
+              {currentStep === 1 && (
+                <motion.div
+                  key="step-1"
+                  custom={stepDirection}
+                  variants={stepVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={stepTransition}
+                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
+                >
+                  <LocationStep
+                    selectedLocation={selectedLocation}
+                    onLocationSelect={handleLocationSelect}
+                  />
+                </motion.div>
+              )}
 
-            {currentStep === 2 && (
-              <ServicesStep
-                selectedServices={selectedServices}
-                onServiceToggle={handleServiceToggle}
-              />
-            )}
+              {currentStep === 2 && (
+                <motion.div
+                  key="step-2"
+                  custom={stepDirection}
+                  variants={stepVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={stepTransition}
+                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
+                >
+                  <ServicesStep
+                    selectedServices={selectedServices}
+                    onServiceToggle={handleServiceToggle}
+                  />
+                </motion.div>
+              )}
 
-            {currentStep === 3 && (
-              <ProfessionalStep
-                selectedProfessional={selectedProfessional}
-                onProfessionalSelect={handleProfessionalSelect}
-                professionals={professionals}
-              />
-            )}
+              {currentStep === 3 && (
+                <motion.div
+                  key="step-3"
+                  custom={stepDirection}
+                  variants={stepVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={stepTransition}
+                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
+                >
+                  <ProfessionalStep
+                    selectedProfessional={selectedProfessional}
+                    onProfessionalSelect={handleProfessionalSelect}
+                    professionals={professionals}
+                  />
+                </motion.div>
+              )}
 
-            {currentStep === 4 && (
-              <div>
-                <h3>
-                  Select a Date for {getProfessionalName(selectedProfessional)}
-                </h3>
+              {currentStep === 4 && (
+                <motion.div
+                  key="step-4"
+                  custom={stepDirection}
+                  variants={stepVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={stepTransition}
+                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
+                >
+                  <div>
+                    <h3>
+                      Select a Date for {getProfessionalName(selectedProfessional)}
+                    </h3>
 
-                {availableDates.length === 0 ? (
-                  <Box
-                    sx={{
-                      padding: 4,
-                      backgroundColor: colors.background.card,
-                      border: `2px solid ${colors.border.main}`,
-                      borderRadius: 2,
-                      margin: 2,
-                    }}
-                  >
-                    <h4 style={{ color: colors.text.primary }}>
-                      No Available Dates
-                    </h4>
-                    <p style={{ color: colors.text.secondary }}>
-                      This professional has no available dates. Either all dates
-                      are booked or the admin hasn't set any availability yet.
-                    </p>
-                    <p style={{ color: colors.text.secondary }}>
-                      Please go back and select a different professional.
-                    </p>
-                  </Box>
-                ) : (
-                  <>
-                    <p>Choose an available date for your appointment:</p>
-                    <BigCalendar
-                      selectedDates={[selectedDate]}
-                      setSelectedDates={(dates: string[]) =>
-                        dispatch(
-                          setUserSelections({
-                            selectedLocation:
-                              userSelections?.selectedLocation ?? null,
-                            selectedServices:
-                              userSelections?.selectedServices ?? [],
-                            selectedProfessional:
-                              userSelections?.selectedProfessional ?? null,
-                            selectedDate: dates[0] || "",
-                            selectedSlot: userSelections?.selectedSlot ?? null,
-                            serviceDuration:
-                              userSelections?.serviceDuration ?? 0,
-                          }),
-                        )
-                      }
-                      allowedDates={availableDates}
-                    />
-                    <TimeSlotsStep
-                      professionalId={selectedProfessional}
-                      tenantId={tenant?.id ?? null}
-                      selectedDate={selectedDate}
-                      serviceDuration={serviceDuration}
-                      selectedSlot={selectedSlot}
-                      onSlotSelect={(slot) =>
-                        dispatch(
-                          setUserSelections({
-                            selectedLocation:
-                              userSelections?.selectedLocation ?? null,
-                            selectedServices:
-                              userSelections?.selectedServices ?? [],
-                            selectedProfessional:
-                              userSelections?.selectedProfessional ?? null,
-                            selectedDate: userSelections?.selectedDate ?? "",
-                            selectedSlot: slot,
-                            serviceDuration:
-                              userSelections?.serviceDuration ?? 0,
-                          }),
-                        )
-                      }
-                    />
-                    {selectedDate && (
+                    {availableDates.length === 0 ? (
                       <Box
                         sx={{
-                          mt: 1,
-                          mb: 5,
-                          p: 3,
-                          backgroundColor: colors.accent.main,
-                          borderRadius: 1,
+                          padding: 4,
+                          backgroundColor: colors.background.card,
+                          border: `2px solid ${colors.border.main}`,
+                          borderRadius: 2,
+                          margin: 2,
                         }}
                       >
-                        <p
-                          style={{
-                            margin: 0,
-                            fontWeight: "bold",
-                            color: colors.text.primary,
-                          }}
-                        >
-                          Selected Date: {selectedDate}
+                        <h4 style={{ color: colors.text.primary }}>
+                          No Available Dates
+                        </h4>
+                        <p style={{ color: colors.text.secondary }}>
+                          This professional has no available dates. Either all dates
+                          are booked or the admin hasn't set any availability yet.
+                        </p>
+                        <p style={{ color: colors.text.secondary }}>
+                          Please go back and select a different professional.
                         </p>
                       </Box>
+                    ) : (
+                      <>
+                        <p>Choose an available date for your appointment:</p>
+                        <BigCalendar
+                          selectedDates={[selectedDate]}
+                          setSelectedDates={(dates: string[]) =>
+                            dispatch(
+                              setUserSelections({
+                                selectedLocation:
+                                  userSelections?.selectedLocation ?? null,
+                                selectedServices:
+                                  userSelections?.selectedServices ?? [],
+                                selectedProfessional:
+                                  userSelections?.selectedProfessional ?? null,
+                                selectedDate: dates[0] || "",
+                                selectedSlot: userSelections?.selectedSlot ?? null,
+                                serviceDuration:
+                                  userSelections?.serviceDuration ?? 0,
+                              }),
+                            )
+                          }
+                          allowedDates={availableDates}
+                        />
+                        <TimeSlotsStep
+                          professionalId={selectedProfessional}
+                          tenantId={tenant?.id ?? null}
+                          selectedDate={selectedDate}
+                          serviceDuration={serviceDuration}
+                          selectedSlot={selectedSlot}
+                          onSlotSelect={(slot) =>
+                            dispatch(
+                              setUserSelections({
+                                selectedLocation:
+                                  userSelections?.selectedLocation ?? null,
+                                selectedServices:
+                                  userSelections?.selectedServices ?? [],
+                                selectedProfessional:
+                                  userSelections?.selectedProfessional ?? null,
+                                selectedDate: userSelections?.selectedDate ?? "",
+                                selectedSlot: slot,
+                                serviceDuration:
+                                  userSelections?.serviceDuration ?? 0,
+                              }),
+                            )
+                          }
+                        />
+                        {selectedDate && (
+                          <Box
+                            sx={{
+                              mt: 1,
+                              mb: 5,
+                              p: 3,
+                              backgroundColor: colors.accent.main,
+                              borderRadius: 1,
+                            }}
+                          >
+                            <p
+                              style={{
+                                margin: 0,
+                                fontWeight: "bold",
+                                color: colors.text.primary,
+                              }}
+                            >
+                              Selected Date: {selectedDate}
+                            </p>
+                          </Box>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-              </div>
-            )}
+                  </div>
+                </motion.div>
+              )}
 
-            {currentStep === 5 && (
-              <div style={{ padding: "40px" }}>
-                <h3>Booking Summary</h3>
-                <p>
-                  Location:{" "}
-                  {selectedLocation === "your_place"
-                    ? "At Your Place"
-                    : "At Our Place"}
-                </p>
-                <p>Services: {selectedServices.length} selected</p>
-                <p>Professional: {getProfessionalName(selectedProfessional)}</p>
-                <p>Date: {selectedDate}</p>
-                {selectedSlot && (
-                  <p>
-                    Time: {selectedSlot.start_time.substring(0, 5)} -{" "}
-                    {selectedSlot.end_time.substring(0, 5)}
-                  </p>
-                )}
-                <Button
-                  onClick={handleCompleteBooking}
-                  variant="contained"
-                  sx={{
-                    mt: 2,
-                    px: 3,
-                    backgroundColor: colors.accent.main,
-                    "&:hover": { backgroundColor: colors.accent.hover },
-                  }}
+              {currentStep === 5 && (
+                <motion.div
+                  key="step-5"
+                  custom={stepDirection}
+                  variants={stepVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={stepTransition}
+                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
                 >
-                  Confirm Booking
-                </Button>
-              </div>
-            )}
+                  <div style={{ padding: "40px" }}>
+                    <h3>Booking Summary</h3>
+                    <p>
+                      Location:{" "}
+                      {selectedLocation === "your_place"
+                        ? "At Your Place"
+                        : "At Our Place"}
+                    </p>
+                    <p>Services: {selectedServices.length} selected</p>
+                    <p>Professional: {getProfessionalName(selectedProfessional)}</p>
+                    <p>Date: {selectedDate}</p>
+                    {selectedSlot && (
+                      <p>
+                        Time: {selectedSlot.start_time.substring(0, 5)} -{" "}
+                        {selectedSlot.end_time.substring(0, 5)}
+                      </p>
+                    )}
+                    <Button
+                      onClick={handleCompleteBooking}
+                      variant="contained"
+                      sx={{
+                        mt: 2,
+                        px: 3,
+                        backgroundColor: colors.accent.main,
+                        "&:hover": { backgroundColor: colors.accent.hover },
+                      }}
+                    >
+                      Confirm Booking
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
     }
