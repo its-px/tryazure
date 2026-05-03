@@ -30,11 +30,16 @@ export function ThemeProviderWrapper({
   );
 }
 
-registerSW({
+const updateSW = registerSW({
+  immediate: true,
+  onRegisteredSW(_swUrl, registration) {
+    if (!registration) return;
+    setInterval(() => {
+      registration.update();
+    }, 60 * 1000);
+  },
   onNeedRefresh() {
-    if (confirm("New version available. Update now?")) {
-      window.location.reload();
-    }
+    updateSW(true);
   },
   onOfflineReady() {
     console.log("App ready to work offline");

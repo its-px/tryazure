@@ -3,6 +3,7 @@ import { useTenantContext } from "./context/useTenantContext";
 import AdminPanel from "./assets/pages/AdminPanel";
 import UserPanel from "./assets/pages/UserPanel";
 import OwnerPanel from "./assets/pages/OwnerPanel";
+import ProfessionalPanel from "./assets/pages/ProfessionalPanel.tsx";
 import { Box } from "@mui/material";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
@@ -16,7 +17,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./assets/components/supabaseClient";
 
-export type Role = "admin" | "user" | "owner";
+export type Role = "admin" | "user" | "owner" | "professional";
 
 function App() {
   const { tenant, loading: tenantLoading } = useTenantContext();
@@ -183,6 +184,8 @@ function App() {
                 <div>Loading...</div>
               ) : session && role === "owner" ? (
                 <Navigate to="/owner" replace />
+              ) : session && role === "professional" ? (
+                <Navigate to="/professional" replace />
               ) : session && role === "admin" ? (
                 <Navigate to="/admin" replace />
               ) : (
@@ -190,7 +193,6 @@ function App() {
               )
             }
           />
-
           {/* Legacy booking confirmation link target */}
           <Route
             path="/bookings"
@@ -199,6 +201,8 @@ function App() {
                 <div>Loading...</div>
               ) : session && role === "owner" ? (
                 <Navigate to="/owner" replace />
+              ) : session && role === "professional" ? (
+                <Navigate to="/professional" replace />
               ) : session && role === "admin" ? (
                 <Navigate to="/admin" replace />
               ) : (
@@ -206,7 +210,6 @@ function App() {
               )
             }
           />
-
           {/* Protected admin route */}
           <Route
             path="/admin"
@@ -221,7 +224,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
           {/* Protected owner route */}
           <Route
             path="/owner"
@@ -236,7 +238,22 @@ function App() {
               </ProtectedRoute>
             }
           />
-
+          {/* Protected professional route
+          <Route
+            path="/professional"
+            element={
+              <ProtectedRoute
+                session={session}
+                role={role}
+                allowedRoles={["professional"]}
+                loading={loading}
+              >
+                <ProfessionalPanel />
+              </ProtectedRoute>
+            }
+          /> */}
+          {/* Professional route is now public */}
+          <Route path="/professional" element={<ProfessionalPanel />} />{" "}
           {/* Optional: fallback route */}
           {/* <Route path="*" element={<NotFoundPage />} /> */}
         </Routes>

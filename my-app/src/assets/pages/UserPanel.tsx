@@ -96,6 +96,26 @@ export default function UserPanel() {
     ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
   };
 
+  const pageVariants = {
+    initial: {
+      opacity: 0,
+      y: prefersReducedMotion ? 0 : 12,
+    },
+    animate: {
+      opacity: 1,
+      y: 0,
+    },
+    exit: {
+      opacity: 0,
+      y: prefersReducedMotion ? 0 : -8,
+    },
+  };
+
+  const pageTransition = {
+    duration: prefersReducedMotion ? 0.08 : 0.28,
+    ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+  };
+
   // Save booking state to localStorage whenever Redux state changes (do NOT dispatch here)
   useEffect(() => {
     // Only save if user has made selections (not just default values)
@@ -1109,7 +1129,11 @@ export default function UserPanel() {
                   animate="animate"
                   exit="exit"
                   transition={stepTransition}
-                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
+                  style={{
+                    willChange: prefersReducedMotion
+                      ? "auto"
+                      : "transform, opacity",
+                  }}
                 >
                   <LocationStep
                     selectedLocation={selectedLocation}
@@ -1127,7 +1151,11 @@ export default function UserPanel() {
                   animate="animate"
                   exit="exit"
                   transition={stepTransition}
-                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
+                  style={{
+                    willChange: prefersReducedMotion
+                      ? "auto"
+                      : "transform, opacity",
+                  }}
                 >
                   <ServicesStep
                     selectedServices={selectedServices}
@@ -1145,7 +1173,11 @@ export default function UserPanel() {
                   animate="animate"
                   exit="exit"
                   transition={stepTransition}
-                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
+                  style={{
+                    willChange: prefersReducedMotion
+                      ? "auto"
+                      : "transform, opacity",
+                  }}
                 >
                   <ProfessionalStep
                     selectedProfessional={selectedProfessional}
@@ -1164,11 +1196,16 @@ export default function UserPanel() {
                   animate="animate"
                   exit="exit"
                   transition={stepTransition}
-                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
+                  style={{
+                    willChange: prefersReducedMotion
+                      ? "auto"
+                      : "transform, opacity",
+                  }}
                 >
                   <div>
                     <h3>
-                      Select a Date for {getProfessionalName(selectedProfessional)}
+                      Select a Date for{" "}
+                      {getProfessionalName(selectedProfessional)}
                     </h3>
 
                     {availableDates.length === 0 ? (
@@ -1185,8 +1222,9 @@ export default function UserPanel() {
                           No Available Dates
                         </h4>
                         <p style={{ color: colors.text.secondary }}>
-                          This professional has no available dates. Either all dates
-                          are booked or the admin hasn't set any availability yet.
+                          This professional has no available dates. Either all
+                          dates are booked or the admin hasn't set any
+                          availability yet.
                         </p>
                         <p style={{ color: colors.text.secondary }}>
                           Please go back and select a different professional.
@@ -1207,7 +1245,8 @@ export default function UserPanel() {
                                 selectedProfessional:
                                   userSelections?.selectedProfessional ?? null,
                                 selectedDate: dates[0] || "",
-                                selectedSlot: userSelections?.selectedSlot ?? null,
+                                selectedSlot:
+                                  userSelections?.selectedSlot ?? null,
                                 serviceDuration:
                                   userSelections?.serviceDuration ?? 0,
                               }),
@@ -1230,7 +1269,8 @@ export default function UserPanel() {
                                   userSelections?.selectedServices ?? [],
                                 selectedProfessional:
                                   userSelections?.selectedProfessional ?? null,
-                                selectedDate: userSelections?.selectedDate ?? "",
+                                selectedDate:
+                                  userSelections?.selectedDate ?? "",
                                 selectedSlot: slot,
                                 serviceDuration:
                                   userSelections?.serviceDuration ?? 0,
@@ -1274,7 +1314,11 @@ export default function UserPanel() {
                   animate="animate"
                   exit="exit"
                   transition={stepTransition}
-                  style={{ willChange: prefersReducedMotion ? "auto" : "transform, opacity" }}
+                  style={{
+                    willChange: prefersReducedMotion
+                      ? "auto"
+                      : "transform, opacity",
+                  }}
                 >
                   <div style={{ padding: "40px" }}>
                     <h3>Booking Summary</h3>
@@ -1285,7 +1329,9 @@ export default function UserPanel() {
                         : "At Our Place"}
                     </p>
                     <p>Services: {selectedServices.length} selected</p>
-                    <p>Professional: {getProfessionalName(selectedProfessional)}</p>
+                    <p>
+                      Professional: {getProfessionalName(selectedProfessional)}
+                    </p>
                     <p>Date: {selectedDate}</p>
                     {selectedSlot && (
                       <p>
@@ -1333,8 +1379,10 @@ export default function UserPanel() {
       {/* Hero Navigation - Always visible at top */}
       <Hero
         onBookingClick={() => {
+          if (currentPage !== "booking") {
+            dispatch(setCurrentStep(1));
+          }
           setCurrentPage("booking");
-          setCurrentStep(1);
         }}
         onInfoClick={() => setCurrentPage("info")}
         onQRClick={() => setCurrentPage("qr")}
@@ -1345,7 +1393,22 @@ export default function UserPanel() {
       />
       <div style={{ width: "100%" }}>
         {/* Render the selected page below the Hero */}
-        {renderPage()}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={currentPage}
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={pageTransition}
+            style={{
+              width: "100%",
+              willChange: prefersReducedMotion ? "auto" : "transform, opacity",
+            }}
+          >
+            {renderPage()}
+          </motion.div>
+        </AnimatePresence>
         <Link to="/"></Link>
       </div>
     </div>

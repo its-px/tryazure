@@ -2,7 +2,7 @@
 
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { offlineFallback, warmStrategyCache } from "workbox-recipes";
-import { CacheFirst, StaleWhileRevalidate } from "workbox-strategies";
+import { NetworkFirst, StaleWhileRevalidate } from "workbox-strategies";
 import { registerRoute } from "workbox-routing";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 import { ExpirationPlugin } from "workbox-expiration";
@@ -18,9 +18,21 @@ cleanupOutdatedCaches();
 // Precache and route assets injected by VitePWA at build time
 precacheAndRoute(self.__WB_MANIFEST || []);
 
-// Set up page cache
-const pageCache = new CacheFirst({
+// Let new workers activate right away when an update is available.
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// Set up navigation cache strategy
+const navigationCache = new NetworkFirst({
   cacheName: "page-cache",
+  networkTimeoutSeconds: 3,
   plugins: [
     new CacheableResponsePlugin({
       statuses: [0, 200],
@@ -33,7 +45,7 @@ const pageCache = new CacheFirst({
 
 warmStrategyCache({
   urls: ["/index.html", "/"],
-  strategy: pageCache,
+  strategy: navigationCache,
 });
 
 // Set up asset cache
@@ -63,7 +75,7 @@ registerRoute(
 );
 
 // Handle navigation requests
-registerRoute(({ request }) => request.mode === "navigate", pageCache);
+registerRoute(({ request }) => request.mode === "navigate", navigationCache);
 
 // Listen for notifications and post messages to app
 self.addEventListener("notificationclick", (event) => {
@@ -87,8 +99,9 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
-// Log when service worker is activated
-self.addEventListener("activate", () => {
+// Take control immediately after activation.
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
   console.log("Service Worker activated - notifications are ready!");
 });
 
