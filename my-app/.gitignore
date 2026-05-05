@@ -1,3 +1,12 @@
+# Environment variables - NEVER commit credentials
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
+.env.staging.local
+
 # Logs
 logs
 *.log
@@ -7,21 +16,85 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Dependencies
 node_modules/
 node_modules/**/*
+*.lock
 
-# Editor directories and files
+# Build outputs
+dist/
+dist-ssr/
+dev-dist/
+build/
+.next/
+out/
+
+# Temporary files
+*.local
+*.tmp
+.temp
+tmp/
+temp/
+
+# IDE & Editor
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
+.vscode-test/
+*.code-workspace
+.vs/
+.c9/
+.history/
+.sublime-project
+.sublime-workspace
+
+# OS files
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100
+.Trashes
+
+# Editor metadata
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.env 
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# PWA
+sw.js
+workbox-*.js
+
+# Credentials & Sensitive data
+*.pem
+*.key
+*.pfx
+*.jks
+keystore
+secrets.json
+credentials.json
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backups
+*.backup
+backup*.json
+dump*.sql
+*.sql
