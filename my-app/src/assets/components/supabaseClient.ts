@@ -50,17 +50,6 @@ const getSupabaseClient = () => {
     });
     console.log("[SupabaseClient] Client created successfully");
     //debugBreak();
-
-    // Handle auth state changes to track sessions
-    // Note: Removed problematic callbacks that cause "no longer runnable" errors
-    supabaseInstance.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        console.log("User signed in:", session.user.id);
-      } else if (event === "SIGNED_OUT") {
-        console.log("User signed out");
-      }
-      // Don't perform async operations in this callback to avoid "no longer runnable" errors
-    });
   }
   return supabaseInstance;
 };

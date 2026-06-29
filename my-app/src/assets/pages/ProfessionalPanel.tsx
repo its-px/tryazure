@@ -108,22 +108,15 @@ export default function ProfessionalPanel() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  const getAuthHeaders = () => {
-    const storedSession = localStorage.getItem("sb-auth-token");
-    if (!storedSession) return null;
-
-    try {
-      const parsed = JSON.parse(storedSession);
-      if (!parsed?.access_token) return null;
-      return {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${parsed.access_token}`,
-        "Content-Type": "application/json",
-      };
-    } catch (err) {
-      console.error("[ProfessionalPanel] Error parsing session:", err);
-      return null;
-    }
+  const getAuthHeaders = async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return null;
+    return {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
   };
 
   const loadIdentity = async () => {
@@ -161,7 +154,7 @@ export default function ProfessionalPanel() {
     if (!tenant?.id) return;
 
     try {
-      const headers = getAuthHeaders();
+      const headers = await getAuthHeaders();
       if (!headers) return;
 
       const response = await fetch(
@@ -193,7 +186,7 @@ export default function ProfessionalPanel() {
 
     try {
       setLoadingData(true);
-      const headers = getAuthHeaders();
+      const headers = await getAuthHeaders();
       if (!headers) return;
 
       const response = await fetch(
@@ -222,7 +215,7 @@ export default function ProfessionalPanel() {
     if (!tenant?.id || !professionalCode) return;
 
     try {
-      const headers = getAuthHeaders();
+      const headers = await getAuthHeaders();
       if (!headers) return;
 
       const response = await fetch(
@@ -259,7 +252,7 @@ export default function ProfessionalPanel() {
 
   const loadUserProfile = async (userId: string) => {
     try {
-      const headers = getAuthHeaders();
+      const headers = await getAuthHeaders();
       if (!headers) return;
 
       const response = await fetch(
@@ -378,7 +371,7 @@ export default function ProfessionalPanel() {
   const saveProfessionalHours = async () => {
     if (!tenant?.id || !professionalCode) return;
 
-    const headers = getAuthHeaders();
+    const headers = await getAuthHeaders();
     if (!headers) return;
 
     try {
@@ -438,7 +431,7 @@ export default function ProfessionalPanel() {
     bookingId: string,
     payload: Record<string, unknown>,
   ) => {
-    const headers = getAuthHeaders();
+    const headers = await getAuthHeaders();
     if (!headers || !tenant?.id || !professionalCode) return false;
 
     const response = await fetch(
@@ -496,7 +489,7 @@ export default function ProfessionalPanel() {
   const handleDeleteBooking = async () => {
     if (!selectedBooking || !tenant?.id || !professionalCode) return;
 
-    const headers = getAuthHeaders();
+    const headers = await getAuthHeaders();
     if (!headers) return;
 
     const response = await fetch(

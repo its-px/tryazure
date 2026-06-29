@@ -1,3 +1,5 @@
+CLAUDE.md
+
 # Environment variables - NEVER commit credentials
 .env
 .env.local

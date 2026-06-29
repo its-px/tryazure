@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../configureStore";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
@@ -79,30 +79,30 @@ export default function OwnerPanel() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  const getAuthHeaders = () => {
-    const storedSession = localStorage.getItem("sb-auth-token");
-    if (!storedSession) return null;
-    const parsed = JSON.parse(storedSession);
-    if (!parsed?.access_token) return null;
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  const getAuthHeaders = async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return null;
     return {
       apikey: supabaseKey,
-      Authorization: `Bearer ${parsed.access_token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
   };
 
   useEffect(() => {
-    let isMounted = true;
     const loadData = async () => {
-      if (!isMounted) return;
       await loadProfessionals();
       await loadBookings();
       await loadServiceMap();
     };
     loadData();
-    return () => {
-      isMounted = false;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.id]);
 
@@ -111,7 +111,7 @@ export default function OwnerPanel() {
 
     try {
       const data = await fetchProfessionals(tenant.id);
-      setProfessionals(data);
+      if (isMountedRef.current) setProfessionals(data);
     } catch (err) {
       console.error("[OwnerPanel] Exception loading professionals:", err);
     }
@@ -119,12 +119,11 @@ export default function OwnerPanel() {
 
   const loadBookings = async () => {
     try {
-      const headers = getAuthHeaders();
+      const headers = await getAuthHeaders();
       if (!headers) {
-        console.error("[OwnerPanel] No auth token found in localStorage");
+        console.error("[OwnerPanel] No auth token available");
         return;
       }
-      console.log("[OwnerPanel] Loading bookings via REST API...");
       const tenantFilter = tenant?.id ? `&tenant_id=eq.${tenant.id}` : "";
       const response = await fetch(
         `${supabaseUrl}/rest/v1/bookings?select=*&order=date.desc${tenantFilter}`,
@@ -132,25 +131,21 @@ export default function OwnerPanel() {
       );
       if (!response.ok) {
         const text = await response.text();
-        console.error(
-          "[OwnerPanel] Bookings fetch error:",
-          response.status,
-          text,
-        );
+        console.error("[OwnerPanel] Bookings fetch error:", response.status, text);
         return;
       }
       const data = await response.json();
-      console.log(`[OwnerPanel] Loaded ${data.length} bookings`);
-      setAllBookings(data);
+      if (isMountedRef.current) setAllBookings(data);
     } catch (err) {
       console.error("[OwnerPanel] Exception loading bookings:", err);
     }
   };
 
   const loadServiceMap = async () => {
+    if (!tenant?.id) return;
     try {
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/services?select=id,name`,
+        `${supabaseUrl}/rest/v1/services?select=id,name&tenant_id=eq.${tenant.id}`,
         {
           headers: {
             apikey: supabaseKey,
@@ -164,7 +159,7 @@ export default function OwnerPanel() {
       data.forEach((s: { id: string; name: string }) => {
         map[s.id] = s.name;
       });
-      setServiceMap(map);
+      if (isMountedRef.current) setServiceMap(map);
     } catch (err) {
       console.error("[OwnerPanel] Exception loading services:", err);
     }
@@ -172,7 +167,7 @@ export default function OwnerPanel() {
 
   const loadUserProfile = async (userId: string) => {
     try {
-      const headers = getAuthHeaders();
+      const headers = await getAuthHeaders();
       if (!headers) return;
       const response = await fetch(
         `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=full_name,phone,email&limit=1`,
@@ -224,11 +219,6 @@ export default function OwnerPanel() {
       : allBookings.filter((b) => b.professional_id === selectedProfessional);
 
   const bookedDates = filteredBookings.map((b) => b.date);
-
-  console.log("All bookings:", allBookings);
-  console.log("Filtered bookings:", filteredBookings);
-  console.log("Booked dates:", bookedDates);
-  console.log("Selected professional:", selectedProfessional);
 
   const upcomingBookings = filteredBookings.filter((b) => b.date >= today);
 
@@ -632,7 +622,7 @@ export default function OwnerPanel() {
           {selectedBooking && selectedBooking.status === "pending" && (
             <Button
               onClick={async () => {
-                const headers = getAuthHeaders();
+                const headers = await getAuthHeaders();
                 if (!headers) return;
                 const res = await fetch(
                   `${supabaseUrl}/rest/v1/bookings?id=eq.${selectedBooking.id}`,
@@ -664,7 +654,7 @@ export default function OwnerPanel() {
           {selectedBooking && selectedBooking.status === "expired" && (
             <Button
               onClick={async () => {
-                const headers = getAuthHeaders();
+                const headers = await getAuthHeaders();
                 if (!headers) return;
                 const res = await fetch(
                   `${supabaseUrl}/rest/v1/bookings?id=eq.${selectedBooking.id}`,
@@ -692,7 +682,7 @@ export default function OwnerPanel() {
           {selectedBooking && selectedBooking.status === "confirmed" && (
             <Button
               onClick={async () => {
-                const headers = getAuthHeaders();
+                const headers = await getAuthHeaders();
                 if (!headers) return;
                 const res = await fetch(
                   `${supabaseUrl}/rest/v1/bookings?id=eq.${selectedBooking.id}`,
@@ -720,7 +710,7 @@ export default function OwnerPanel() {
           {selectedBooking && selectedBooking.status === "confirmed" && (
             <Button
               onClick={async () => {
-                const headers = getAuthHeaders();
+                const headers = await getAuthHeaders();
                 if (!headers) return;
                 const res = await fetch(
                   `${supabaseUrl}/rest/v1/bookings?id=eq.${selectedBooking.id}`,
@@ -820,7 +810,7 @@ export default function OwnerPanel() {
           <Button
             onClick={async () => {
               if (selectedBooking) {
-                const headers = getAuthHeaders();
+                const headers = await getAuthHeaders();
                 if (!headers) return;
                 const res = await fetch(
                   `${supabaseUrl}/rest/v1/bookings?id=eq.${selectedBooking.id}`,
@@ -902,7 +892,7 @@ export default function OwnerPanel() {
           <Button
             onClick={async () => {
               if (selectedBooking) {
-                const headers = getAuthHeaders();
+                const headers = await getAuthHeaders();
                 if (!headers) return;
                 const res = await fetch(
                   `${supabaseUrl}/rest/v1/bookings?id=eq.${selectedBooking.id}`,

@@ -112,6 +112,106 @@ Deno.serve(async (req: Request) => {
       name: "Create RLS policy on availability",
       query: `CREATE POLICY "tenant_isolation_availability" ON availability FOR ALL USING (tenant_id::text = current_setting('app.current_tenant_id', true)) WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true))`,
     },
+    {
+      name: "Seed tennis tenant",
+      query: `DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM tenants
+    WHERE slug = 'tennis'
+       OR domain = 'tennis.pxbs.site'
+  ) THEN
+    INSERT INTO tenants (id, slug, domain, name, config, created_at)
+    VALUES (
+      '00000000-0000-0000-0000-000000000003',
+      'tennis',
+      'tennis.pxbs.site',
+      'Tennis',
+      jsonb_build_object(
+        'logoUrl', 'https://qrvxmqksekxbtipdnfru.supabase.co/storage/v1/object/public/tenant-assets/tennislogo.png',
+        'senderName', 'Tennis',
+        'primaryColor', '#CCFF00',
+        'primaryLight', '#FFFF99',
+        'primaryDark', '#99CC00',
+        'primaryHover', '#E6FF33',
+        'primaryOverlay', 'rgba(204, 255, 0, 0.12)'
+      ),
+      now()
+    );
+  END IF;
+END $$;
+
+INSERT INTO professionals (id, name, tenant_id, code)
+SELECT gen_random_uuid(), v.name, v.tenant_id, v.code
+FROM (
+  VALUES
+    ('Person 1', '00000000-0000-0000-0000-000000000003'::uuid, 'prof1'),
+    ('Person 2', '00000000-0000-0000-0000-000000000003'::uuid, 'prof2')
+) AS v(name, tenant_id, code)
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM professionals p
+  WHERE p.tenant_id = v.tenant_id
+    AND p.code = v.code
+);
+
+INSERT INTO professional_hours (professional_id, day_of_week, start_time, end_time, tenant_id)
+SELECT v.professional_id, v.day_of_week, v.start_time, v.end_time, v.tenant_id
+FROM (
+  VALUES
+    ('prof1', 1, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('prof1', 2, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('prof1', 3, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('prof1', 4, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('prof1', 5, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('prof2', 1, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('prof2', 2, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('prof2', 3, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('prof2', 4, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('prof2', 5, '09:00:00'::time, '17:00:00'::time, '00000000-0000-0000-0000-000000000003'::uuid)
+) AS v(professional_id, day_of_week, start_time, end_time, tenant_id)
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM professional_hours ph
+  WHERE ph.tenant_id = v.tenant_id
+    AND ph.professional_id = v.professional_id
+    AND ph.day_of_week = v.day_of_week
+);
+
+INSERT INTO availability (id, date, tenant_id, start_time, end_time, created_at, is_active)
+SELECT
+  gen_random_uuid(),
+  d::date,
+  '00000000-0000-0000-0000-000000000003'::uuid,
+  NULL,
+  NULL,
+  now(),
+  NULL
+FROM generate_series(GREATEST(CURRENT_DATE, DATE '2026-05-07'), DATE '2026-12-31', INTERVAL '1 day') AS d
+WHERE EXTRACT(DOW FROM d) BETWEEN 1 AND 5
+  AND NOT EXISTS (
+    SELECT 1
+    FROM availability a
+    WHERE a.tenant_id = '00000000-0000-0000-0000-000000000003'::uuid
+      AND a.date = d::date
+  );
+
+INSERT INTO services (id, name, duration_minutes, price, tenant_id)
+SELECT gen_random_uuid(), v.name, v.duration_minutes, v.price, v.tenant_id
+FROM (
+  VALUES
+    ('Court Booking', 60, 40, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('Private Lesson', 60, 60, '00000000-0000-0000-0000-000000000003'::uuid),
+    ('Group Lesson', 90, 30, '00000000-0000-0000-0000-000000000003'::uuid)
+) AS v(name, duration_minutes, price, tenant_id)
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM services s
+  WHERE s.tenant_id = v.tenant_id
+    AND s.name = v.name
+  )`,
+    },
   ];
 
   for (const { name, query } of statements) {

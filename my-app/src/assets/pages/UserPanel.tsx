@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -303,18 +303,21 @@ export default function UserPanel() {
     getProfessionalNameByCode(professionals, code);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.addEventListener("message", (event) => {
-        if (event.data?.type === "SHOW_ACCOUNT_PAGE") {
-          setCurrentPage("account"); // <-- switch to User Account
-        }
-      });
-    }
+    if (!("serviceWorker" in navigator)) return;
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === "SHOW_ACCOUNT_PAGE") {
+        setCurrentPage("account");
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handler);
+    return () => navigator.serviceWorker.removeEventListener("message", handler);
   }, []);
 
   // Load available dates based on selected professional
   useEffect(() => {
     let isMounted = true;
+
+    const controller = new AbortController();
 
     const loadAvailableDates = async () => {
       try {
@@ -323,18 +326,8 @@ export default function UserPanel() {
           selectedProfessional,
         );
 
-        // Get token from localStorage
-        const storageKey = "sb-auth-token";
-        let token = null;
-        try {
-          const storedSession = localStorage.getItem(storageKey);
-          if (storedSession) {
-            const parsed = JSON.parse(storedSession);
-            token = parsed?.access_token;
-          }
-        } catch (err) {
-          console.error("[loadAvailableDates] Error reading token:", err);
-        }
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token ?? null;
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -418,12 +411,12 @@ export default function UserPanel() {
           const checkDuration = serviceDuration > 0 ? serviceDuration : 30;
 
           try {
-            //console.log("[loadAvailableDates] Checking slots for date:", date);
             const slotsResponse = await fetch(
               `${supabaseUrl}/rest/v1/rpc/get_available_slots`,
               {
                 method: "POST",
                 headers,
+                signal: controller.signal,
                 body: JSON.stringify({
                   p_professional_id: selectedProfessional,
                   p_date: date,
@@ -475,6 +468,7 @@ export default function UserPanel() {
 
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, [selectedProfessional, serviceDuration, tenant?.id]);
 
@@ -510,7 +504,7 @@ export default function UserPanel() {
     // If moving to final step (summary/booking), check login
     if (currentStep === 4 && !isLoggedIn) {
       setShowLoginModal(true);
-      alert("Please login to complete your booking");
+
       return;
     }
     if (canProceedNext()) {
@@ -641,24 +635,16 @@ export default function UserPanel() {
     }
     if (!isLoggedIn) {
       setShowLoginModal(true);
-      alert("Please login to complete your booking");
+
       return;
     }
 
-    // Get session from localStorage
-    const storedSession = localStorage.getItem("sb-auth-token");
-    if (!storedSession) {
-      setShowLoginModal(true);
-      alert("Please login to complete your booking");
-      return;
-    }
-
-    const session = JSON.parse(storedSession);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData.session;
     const user = session?.user;
 
     if (!user) {
       setShowLoginModal(true);
-      alert("Please login to complete your booking");
       return;
     }
 
@@ -711,7 +697,7 @@ export default function UserPanel() {
 
         if (hasOverlap) {
           alert(
-            "❌ This time slot is already booked. Please select a different time slot.",
+            "β This time slot is already booked. Please select a different time slot.",
           );
           return;
         }
@@ -744,9 +730,9 @@ export default function UserPanel() {
         const errorText = await response.text();
         console.error("Booking error:", errorText);
         if (errorText.includes("23505") || errorText.includes("duplicate")) {
-          alert("❌ This professional is already booked on this date!");
+          alert("β This professional is already booked on this date!");
         } else {
-          alert("❌ Error creating booking: " + errorText);
+          alert("β Error creating booking: " + errorText);
         }
         return;
       }
@@ -770,7 +756,7 @@ export default function UserPanel() {
       const userEmail =
         typeof capturedUser === "string" ? capturedUser : capturedUser?.email;
 
-      console.log("📋 Captured booking data:", {
+      console.log("π“‹ Captured booking data:", {
         user: userEmail,
         userType: typeof capturedUser,
         date: capturedDate,
@@ -780,7 +766,7 @@ export default function UserPanel() {
         services: serviceNames,
       });
 
-      alert("✅ Booking confirmed successfully!");
+      alert("β… Booking confirmed successfully!");
 
       // Show notification with captured values - run in background, don't block email
       // Use setTimeout to make it non-blocking
@@ -791,9 +777,9 @@ export default function UserPanel() {
             services: capturedServices,
             id: insertedBooking?.id || Date.now(),
           });
-          console.log("✅ Browser notification sent");
+          console.log("β… Browser notification sent");
         } catch (notifError) {
-          console.error("❌ Notification error:", notifError);
+          console.error("β Notification error:", notifError);
         }
       }, 0);
 
@@ -822,7 +808,7 @@ export default function UserPanel() {
       let userPhone: string | null = null;
       const userId = typeof capturedUser === "object" ? capturedUser?.id : null;
 
-      console.log("🔍 Step 1: About to fetch phone number for user:", userId);
+      console.log("π” Step 1: About to fetch phone number for user:", userId);
 
       if (userId) {
         try {
@@ -863,12 +849,12 @@ export default function UserPanel() {
           // Continue without phone - don't block email
         }
       } else {
-        console.log("🔍 No user ID found, skipping phone lookup");
+        console.log("π” No user ID found, skipping phone lookup");
       }
 
-      console.log("🔍 Step 2: Phone lookup complete. Moving to SMS check...");
+      console.log("π” Step 2: Phone lookup complete. Moving to SMS check...");
 
-      console.log("🔍 Checking for SMS confirmation requirements:", {
+      console.log("π” Checking for SMS confirmation requirements:", {
         userHasPhone: !!userPhone,
         phoneNumber: userPhone
           ? `${userPhone.substring(0, 3)}***${userPhone.substring(
@@ -895,7 +881,7 @@ export default function UserPanel() {
         // Run SMS async with timeout - don't await, don't block email
         (async () => {
           try {
-            console.log("📱 Initiating SMS booking confirmation...", {
+            console.log("π“± Initiating SMS booking confirmation...", {
               recipient: `${userPhone.substring(0, 3)}***${userPhone.substring(
                 userPhone.length - 4,
               )}`,
@@ -921,7 +907,7 @@ export default function UserPanel() {
               currency: string;
             };
 
-            console.log("✅ SMS booking confirmation completed successfully:", {
+            console.log("β… SMS booking confirmation completed successfully:", {
               messageId: smsResult.messageId,
               success: smsResult.success,
               cost: smsResult.cost,
@@ -929,7 +915,7 @@ export default function UserPanel() {
               bookingId: smsDetails.bookingId,
             });
           } catch (smsError) {
-            console.error("❌ SMS booking confirmation failed:", {
+            console.error("β SMS booking confirmation failed:", {
               error:
                 smsError instanceof Error ? smsError.message : String(smsError),
               bookingId: insertedBooking?.id?.toString() || "Unknown",
@@ -937,7 +923,7 @@ export default function UserPanel() {
           }
         })();
       } else {
-        console.log("📱 SMS confirmation skipped:", {
+        console.log("π“± SMS confirmation skipped:", {
           reason: !userPhone
             ? "No phone number provided"
             : "Invalid phone number format",
@@ -946,11 +932,11 @@ export default function UserPanel() {
         });
       }
 
-      console.log("🔍 Step 3: SMS section complete. Starting email section...");
+      console.log("π” Step 3: SMS section complete. Starting email section...");
 
       // Send booking confirmation email
-      console.log("📧 Preparing to send booking email...");
-      console.log("📧 Email validation:", {
+      console.log("π“§ Preparing to send booking email...");
+      console.log("π“§ Email validation:", {
         hasUser: !!capturedUser,
         userEmail: userEmail,
         userType: typeof capturedUser,
@@ -960,12 +946,12 @@ export default function UserPanel() {
       });
 
       if (!userEmail) {
-        console.error("❌ Cannot send email: user email is missing", {
+        console.error("β Cannot send email: user email is missing", {
           user: capturedUser,
           userEmail,
         });
       } else if (!capturedSlot?.start_time || !capturedSlot?.end_time) {
-        console.error("❌ Cannot send email: time slot is missing", {
+        console.error("β Cannot send email: time slot is missing", {
           slot: capturedSlot,
         });
       } else {
@@ -986,17 +972,16 @@ export default function UserPanel() {
           appUrl: window.location.origin,
         };
 
-        console.log("📧 Email payload:", emailPayload);
+        console.log("π“§ Email payload:", emailPayload);
 
         try {
           const response = await fetch(
-            "https://qrvxmqksekxbtipdnfru.supabase.co/functions/v1/send_booking_email",
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send_booking_email`,
             {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization:
-                  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFydnhtcWtzZWt4YnRpcGRuZnJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTI5MjMsImV4cCI6MjA3MTk4ODkyM30._BiC3KYWKR5HTz7osjHxxwA-mdHIy867IelMbHvsEPc",
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
               },
               body: JSON.stringify(emailPayload),
             },
@@ -1005,27 +990,27 @@ export default function UserPanel() {
           const result = await response.json();
           if (result.success) {
             console.log(
-              "✅ Booking confirmation email sent successfully!",
+              "β… Booking confirmation email sent successfully!",
               result.data?.id,
             );
           } else {
-            console.error("❌ Email API returned error:", result.error);
+            console.error("β Email API returned error:", result.error);
             alert(
-              "⚠️ Booking confirmed but email notification failed. Please check your email settings.",
+              "β οΈ Booking confirmed but email notification failed. Please check your email settings.",
             );
           }
         } catch (err) {
-          console.error("❌ Exception calling email Edge Function:", err);
+          console.error("β Exception calling email Edge Function:", err);
           alert(
-            "⚠️ Booking confirmed but email notification failed. Please check your email settings.",
+            "β οΈ Booking confirmed but email notification failed. Please check your email settings.",
           );
         }
       }
 
-      console.log("🔍 Step 4: Email section complete. Booking flow finished!");
+      console.log("π” Step 4: Email section complete. Booking flow finished!");
     } catch (bookingError) {
       console.error("Overall booking error:", bookingError);
-      alert("❌ Error creating booking. Please try again.");
+      alert("β Error creating booking. Please try again.");
     }
   };
 

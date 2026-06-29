@@ -123,15 +123,18 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
 
         // Insert profile with default role "user"
         if (data?.user) {
-          await supabase.from("profiles").insert([
-            {
-              id: data.user.id,
-              full_name: fullName,
-              phone,
-              email,
-              role: "user",
-            },
-          ]);
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .insert([
+              {
+                id: data.user.id,
+                full_name: fullName,
+                phone,
+                email,
+                role: "user",
+              },
+            ]);
+          if (profileError) throw profileError;
 
           // Sync phone to auth.users.phone field using Edge Function
           try {

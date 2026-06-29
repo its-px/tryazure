@@ -11,6 +11,8 @@ import PWAInstallPrompt from "./assets/components/PWAInstallPrompt";
 import CompleteProfileModal from "./assets/components/CompleteProfileModal";
 import i18n from "./i18n";
 import { I18nextProvider } from "react-i18next";
+import { useDispatch } from "react-redux";
+import { clearProgress } from "./slices/appSlice";
 
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -20,6 +22,7 @@ import { supabase } from "./assets/components/supabaseClient";
 export type Role = "admin" | "user" | "owner" | "professional";
 
 function App() {
+  const dispatch = useDispatch();
   const { tenant, loading: tenantLoading } = useTenantContext();
 
   const [session, setSession] = useState<Session | null>(null);
@@ -52,22 +55,20 @@ function App() {
     } = supabase.auth.onAuthStateChange((event, newSession) => {
       console.log("[App] Auth state changed:", event, newSession?.user?.email);
 
-      if (
-        event === "SIGNED_IN" ||
-        event === "INITIAL_SESSION" ||
-        event === "TOKEN_REFRESHED"
-      ) {
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
         setSession(newSession ?? null);
         if (!newSession) {
-          // No session on initial load — stop showing spinner
           setRole(null);
           setLoading(false);
         }
         // If there IS a session, Effect 2 will fetch the profile and clear loading
+      } else if (event === "TOKEN_REFRESHED") {
+        // Token refreshed internally — user hasn't changed, skip profile re-fetch
       } else if (event === "SIGNED_OUT") {
         setSession(null);
         setRole(null);
         setLoading(false);
+        dispatch(clearProgress());
       }
     });
 
@@ -238,7 +239,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* Protected professional route
           <Route
             path="/professional"
             element={
@@ -251,9 +251,7 @@ function App() {
                 <ProfessionalPanel />
               </ProtectedRoute>
             }
-          /> */}
-          {/* Professional route is now public */}
-          <Route path="/professional" element={<ProfessionalPanel />} />{" "}
+          />
           {/* Optional: fallback route */}
           {/* <Route path="*" element={<NotFoundPage />} /> */}
         </Routes>

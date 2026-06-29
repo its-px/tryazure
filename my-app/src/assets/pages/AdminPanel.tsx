@@ -1,6 +1,6 @@
 import { Calendar } from "../components/calendar";
 import { Box, Tabs, Tab, IconButton } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
@@ -144,20 +144,26 @@ export default function AdminPanel() {
     setSelectedDates(availableDates);
   };
 
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
   // Load professionals and professional hours whenever tenant is ready
   useEffect(() => {
     if (tenant?.id) {
       loadProfessionals();
       loadProfessionalHours();
     }
-    // loadProfessionals/loadProfessionalHours are stable and only depend on tenant.id
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant?.id]); // loadProfessionalHours is stable within this component
+  }, [tenant?.id]);
 
   const loadProfessionals = async () => {
     if (!tenant?.id) return;
 
     const rows = await fetchProfessionals(tenant.id);
+    if (!isMountedRef.current) return;
     setProfessionals(rows);
 
     setSelectedProfessional((prev) => {
@@ -180,7 +186,6 @@ export default function AdminPanel() {
       return;
     }
 
-    // Group by professional_id
     const groupedHours: { [key: string]: ProfessionalHours[] } = {};
 
     data?.forEach((hour: ProfessionalHours) => {
@@ -190,7 +195,7 @@ export default function AdminPanel() {
       groupedHours[hour.professional_id].push(hour);
     });
 
-    setProfessionalHours(groupedHours);
+    if (isMountedRef.current) setProfessionalHours(groupedHours);
   };
 
   const handleSaveProfessionalHours = async () => {
@@ -212,21 +217,20 @@ export default function AdminPanel() {
       return;
     }
 
-    // Prepare data for insertion - remove 'id' field if it exists
+    if (!tenant?.id) {
+      alert("❌ Tenant not loaded yet. Please wait and try again.");
+      return;
+    }
+
     const hoursData = hoursToSave.map(
       ({ professional_id, day_of_week, start_time, end_time }) => ({
         professional_id,
         day_of_week,
         start_time,
         end_time,
-        tenant_id: tenant?.id,
+        tenant_id: tenant.id,
       }),
     );
-
-    if (!tenant?.id) {
-      alert("❌ Tenant not loaded yet. Please wait and try again.");
-      return;
-    }
 
     console.log("Prepared Hours Data for Insert:", hoursData);
 
