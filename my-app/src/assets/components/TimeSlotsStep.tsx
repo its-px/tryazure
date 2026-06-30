@@ -1,4 +1,4 @@
-import { Box, Button, Typography, CircularProgress } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { getAvailableSlots } from "./slotService";
@@ -25,155 +25,87 @@ export default function TimeSlotsStep({
   selectedSlot,
   onSlotSelect,
 }: TimeSlotsStepProps) {
+  const colors = useResolvedColors();
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!professionalId || !tenantId || !selectedDate || !serviceDuration) {
-      setSlots([]);
-      setLoading(false);
-      return;
+      setSlots([]); setLoading(false); return;
     }
-
     let isMounted = true;
-
-    const loadSlots = () => {
-      setLoading(true);
-      console.log("[TimeSlotsStep] Loading slots...");
-
-      getAvailableSlots(professionalId, selectedDate, serviceDuration, tenantId)
-        .then((availableSlots) => {
-          if (!isMounted) return;
-
-          console.log("[TimeSlotsStep] Slots loaded:", availableSlots.length);
-
-          // Filter out past time slots if booking for today
-          const today = new Date().toISOString().split("T")[0];
-          const now = new Date();
-          const currentTime = `${now
-            .getHours()
-            .toString()
-            .padStart(2, "0")}:${now
-            .getMinutes()
-            .toString()
-            .padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
-
-          let filteredSlots = availableSlots;
-          if (selectedDate === today) {
-            // Only show slots that start after current time for today
-            filteredSlots = availableSlots.filter(
-              (slot: TimeSlot) => slot.start_time > currentTime,
-            );
-          }
-
-          if (isMounted) {
-            setSlots(filteredSlots);
-            setLoading(false);
-          }
-        })
-        .catch((err) => {
-          console.error("[TimeSlotsStep] Error in loadSlots:", err);
-          if (isMounted) {
-            setSlots([]);
-            setLoading(false);
-          }
-        });
-    };
-
-    loadSlots();
-
-    return () => {
-      isMounted = false;
-    };
+    setLoading(true);
+    getAvailableSlots(professionalId, selectedDate, serviceDuration, tenantId)
+      .then((available) => {
+        if (!isMounted) return;
+        const today = new Date().toISOString().split("T")[0];
+        const now = new Date();
+        const cur = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
+        setSlots(selectedDate === today ? available.filter((s: TimeSlot) => s.start_time > cur) : available);
+        setLoading(false);
+      })
+      .catch(() => { if (isMounted) { setSlots([]); setLoading(false); } });
+    return () => { isMounted = false; };
   }, [professionalId, tenantId, selectedDate, serviceDuration]);
-
-  const colors = useResolvedColors();
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "200px",
-          backgroundColor: colors.background.dark,
-        }}
-      >
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 160, mt: 2 }}>
         <CircularProgress sx={{ color: colors.accent.main }} />
       </Box>
     );
   }
 
+  if (!selectedDate) return null;
+
   return (
-    <Box
-      sx={{
-        padding: { xs: 2, sm: 3, md: 4 },
-        backgroundColor: colors.background.dark,
-        minHeight: "100vh",
-      }}
-    >
-      <Typography
-        variant="h5"
-        textAlign="center"
-        sx={{
-          mb: 3,
-          color: colors.text.primary,
-          fontSize: { xs: "1.25rem", sm: "1.5rem" },
-        }}
-      >
-        Select a Time Slot
-      </Typography>
+    <Box sx={{ mt: 2 }}>
+      <Box sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: colors.text.tertiary, mb: 1.5, px: { xs: 2, md: 3 } }}>
+        Available times · {selectedDate}
+      </Box>
 
       {slots.length === 0 ? (
-        <Typography textAlign="center" sx={{ color: colors.text.secondary }}>
-          No available slots for this date and service duration
-        </Typography>
+        <Box sx={{ textAlign: "center", py: 3, color: colors.text.secondary, fontSize: 13, px: 2 }}>
+          No available slots for this date
+        </Box>
       ) : (
         <Box
-          display="grid"
-          gridTemplateColumns={{
-            xs: "repeat(2, 1fr)",
-            sm: "repeat(3, 1fr)",
-            md: "repeat(4, 1fr)",
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 1,
+            px: { xs: 2, md: 3 },
           }}
-          gap={2}
-          sx={{ maxWidth: "600px", margin: "0 auto" }}
         >
-          {slots.map((slot) => (
-            <Button
-              key={`${slot.start_time}-${slot.end_time}`}
-              onClick={() => onSlotSelect(slot)}
-              variant={
-                selectedSlot?.start_time === slot.start_time
-                  ? "contained"
-                  : "outlined"
-              }
-              sx={{
-                padding: { xs: 1, sm: 2 },
-                backgroundColor:
-                  selectedSlot?.start_time === slot.start_time
-                    ? colors.accent.main
-                    : "transparent",
-                color:
-                  selectedSlot?.start_time === slot.start_time
-                    ? colors.text.primary
-                    : colors.text.secondary,
-                borderColor: colors.accent.main,
-                borderWidth: "2px",
-                fontSize: { xs: "0.75rem", sm: "0.875rem" },
-                "&:hover": {
-                  backgroundColor:
-                    selectedSlot?.start_time === slot.start_time
-                      ? colors.accent.main
-                      : colors.background.card,
-                },
-              }}
-            >
-              {slot.start_time.substring(0, 5)} -{" "}
-              {slot.end_time.substring(0, 5)}
-            </Button>
-          ))}
+          {slots.map((slot) => {
+            const selected = selectedSlot?.start_time === slot.start_time;
+            return (
+              <Box
+                key={slot.start_time}
+                component="button"
+                onClick={() => onSlotSelect(slot)}
+                sx={{
+                  background: selected ? colors.accent.main : colors.background.medium,
+                  border: `1px solid ${selected ? colors.accent.main : colors.border.main}`,
+                  borderRadius: "10px",
+                  py: 1.25, px: 0.5,
+                  textAlign: "center",
+                  fontSize: 13, fontWeight: 500,
+                  color: selected ? "#fff" : colors.text.primary,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  boxShadow: selected ? `0 4px 16px ${colors.background.overlay}` : "none",
+                  transition: "all 0.15s",
+                  "&:hover:not(:disabled)": {
+                    borderColor: colors.accent.main,
+                    color: selected ? "#fff" : colors.accent.light,
+                  },
+                }}
+              >
+                {slot.start_time.substring(0, 5)}
+              </Box>
+            );
+          })}
         </Box>
       )}
     </Box>

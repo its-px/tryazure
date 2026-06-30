@@ -59,17 +59,6 @@ export function useTenant(): UseTenantResult {
           data = row?.[0] ?? null;
         }
 
-        if (!data) {
-          // No tenant matched — fall back to the default tenant
-          const { data: fallback, error: fbErr } = await supabase
-            .from("tenants")
-            .select("id, slug, name, config")
-            .eq("slug", "default")
-            .single();
-          if (fbErr) throw fbErr;
-          data = fallback as Tenant;
-        }
-
         if (!cancelled && data) {
           // Activate RLS isolation so all subsequent queries in this session
           // are filtered to this tenant automatically.

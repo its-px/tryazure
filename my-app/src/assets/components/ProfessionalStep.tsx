@@ -1,5 +1,4 @@
-import { Box, Chip } from "@mui/material";
-import { getComponentColors } from "../../theme";
+import { Box } from "@mui/material";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import type { ProfessionalOption } from "./professionalsService";
 
@@ -9,139 +8,106 @@ interface ProfessionalStepProps {
   professionals: ProfessionalOption[];
 }
 
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 export default function ProfessionalStep({
   selectedProfessional,
   onProfessionalSelect,
   professionals,
 }: ProfessionalStepProps) {
   const colors = useResolvedColors();
-  const componentColors = getComponentColors(colors);
 
   return (
-    <Box
-      textAlign="center"
-      padding={{ xs: 2, sm: 3, md: 4 }}
-      sx={{
-        backgroundColor: colors.background.dark,
-        minHeight: "100vh",
-      }}
-    >
-      <h3
-        style={{
-          marginBottom: "30px",
-          color: colors.text.secondary,
-          fontSize: window.innerWidth < 600 ? "1.25rem" : "1.5rem",
-        }}
-      >
-        Choose Your Professional
-      </h3>
+    <Box sx={{ px: { xs: 2, md: 3 }, pb: 3 }}>
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: colors.accent.light, mb: 0.75 }}>
+          Step 3 of 5
+        </Box>
+        <Box sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 300, color: colors.text.primary, lineHeight: 1.2 }}>
+          <strong style={{ fontWeight: 700 }}>Select Professional</strong>
+          <br />
+          <span style={{ fontSize: 14, color: colors.text.secondary }}>Who would you like to book with?</span>
+        </Box>
+      </Box>
 
       {professionals.length === 0 && (
-        <Box sx={{ color: colors.text.secondary, mt: 2 }}>
-          No professionals configured for this tenant.
+        <Box sx={{ color: colors.text.secondary, py: 4, textAlign: "center" }}>
+          No professionals available for this tenant.
         </Box>
       )}
 
-      <Box
-        display="flex"
-        gap={{ xs: 2, sm: 3, md: 4 }}
-        justifyContent="center"
-        flexDirection={{ xs: "column", sm: "row" }} // Stack on mobile, row on desktop
-        alignItems="center"
-        sx={{
-          maxWidth: "800px",
-          margin: "0 auto",
-        }}
-      >
-        {professionals.map((professional) => {
-          const isSelected = selectedProfessional === professional.code;
-
-          return (
-            <Box
-              key={professional.id}
-              onClick={() => onProfessionalSelect(professional.code)}
-              sx={{
-                border: isSelected
-                  ? `3px solid ${componentColors.serviceCard.selectedBorder}`
-                  : `2px solid ${componentColors.serviceCard.border}`,
-                borderRadius: "15px",
-                padding: { xs: 3, sm: 4 },
-                cursor: "pointer",
-                width: { xs: "100%", sm: "auto" },
-                minWidth: { xs: "100%", sm: "250px" },
-                maxWidth: { xs: "100%", sm: "350px" },
-                backgroundColor: isSelected
-                  ? componentColors.serviceCard.selected
-                  : componentColors.serviceCard.background,
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  backgroundColor: isSelected
-                    ? componentColors.serviceCard.selected
-                    : colors.background.card,
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+      {professionals.map((professional) => {
+        const selected = selectedProfessional === professional.code;
+        return (
+          <Box
+            key={professional.id}
+            onClick={() => onProfessionalSelect(professional.code)}
+            sx={{
+              position: "relative",
+              background: selected ? colors.background.card : colors.background.medium,
+              border: `1px solid ${selected ? colors.accent.main : colors.border.main}`,
+              borderRadius: "14px",
+              p: 2.25,
+              mb: 1.25,
+              cursor: "pointer",
+              overflow: "hidden",
+              transition: "border-color 0.2s, background 0.2s, transform 0.15s",
+              "&:hover": { background: colors.background.card, transform: "translateY(-1px)" },
+              "&:active": { transform: "translateY(0)" },
+              ...(selected && {
+                "&::after": {
+                  content: '""',
+                  position: "absolute", inset: 0,
+                  background: colors.background.overlay,
+                  borderRadius: "14px",
+                  pointerEvents: "none",
                 },
-                "&:active": {
-                  transform: "scale(0.98)",
-                },
-              }}
-            >
-              <h4
-                style={{
-                  margin: "0 0 15px 0",
-                  color: colors.text.primary,
-                  fontSize: window.innerWidth < 600 ? "1.1rem" : "1.25rem",
-                }}
-              >
-                {professional.name}
-              </h4>
-              <p
-                style={{
-                  margin: "0 0 10px 0",
-                  color: colors.text.secondary,
-                  fontSize: window.innerWidth < 600 ? "0.875rem" : "1rem",
-                }}
-              >
-                Professional Code:
-              </p>
+              }),
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.75 }}>
+              {/* Avatar */}
               <Box
-                display="flex"
-                gap={{ xs: 0.5, sm: 1 }}
-                flexWrap="wrap"
-                justifyContent="center"
+                sx={{
+                  width: 46, height: 46, borderRadius: "50%",
+                  background: colors.accent.main,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 15, fontWeight: 700, color: "#fff",
+                  flexShrink: 0,
+                  boxShadow: `0 4px 12px ${colors.background.overlay}`,
+                }}
               >
-                <Chip
-                  label={professional.code}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    color: colors.text.secondary,
-                    borderColor: colors.accent.main,
-                    fontSize: { xs: "0.7rem", sm: "0.8125rem" },
-                    height: { xs: "24px", sm: "28px" },
-                    "& .MuiChip-label": {
-                      px: { xs: 1, sm: 1.5 },
-                    },
-                  }}
-                />
+                {initials(professional.name)}
               </Box>
-
-              {isSelected && (
-                <Chip
-                  label="Selected"
-                  sx={{
-                    mt: 2,
-                    backgroundColor: componentColors.serviceCard.selected,
-                    color: colors.text.primary,
-                    fontWeight: "bold",
-                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
-                  }}
-                />
-              )}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary }}>{professional.name}</Box>
+                <Box sx={{ fontSize: 12, color: colors.text.secondary, mt: 0.25 }}>{professional.code}</Box>
+              </Box>
+              {/* Check */}
+              <Box
+                sx={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: colors.accent.main,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  opacity: selected ? 1 : 0,
+                  transform: selected ? "scale(1)" : "scale(0.5)",
+                  transition: "all 0.2s",
+                  flexShrink: 0,
+                }}
+              >
+                <span className="material-icons" style={{ fontSize: 14, color: "#fff" }}>check</span>
+              </Box>
             </Box>
-          );
-        })}
-      </Box>
+          </Box>
+        );
+      })}
     </Box>
   );
 }

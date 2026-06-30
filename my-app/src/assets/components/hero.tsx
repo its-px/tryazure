@@ -1,25 +1,16 @@
-import {
-  Box,
-  IconButton,
-  Typography,
-  Menu,
-  MenuItem,
-  Button,
-} from "@mui/material";
+import { Box, Menu, MenuItem } from "@mui/material";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../configureStore";
 import { toggleTheme } from "../../slices/themeSlice";
+import Brightness4Icon from "@mui/icons-material/Brightness4";
+import Brightness7Icon from "@mui/icons-material/Brightness7";
+import LanguageIcon from "@mui/icons-material/Language";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import InfoIcon from "@mui/icons-material/Info";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import ExitToAppIcon from "@mui/icons-material/ExitToApp";
-import LanguageIcon from "@mui/icons-material/Language";
-import Brightness4Icon from "@mui/icons-material/Brightness4";
-import Brightness7Icon from "@mui/icons-material/Brightness7";
-import { getActiveStyle } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { useTenantContext } from "../../context/useTenantContext";
 
@@ -38,397 +29,206 @@ export default function Hero({
   onInfoClick,
   onQRClick,
   onAccountClick,
-  onExitClick,
-  isLoggedIn = false,
   currentPage,
 }: HeroProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const [selectedLanguage, setSelectedLanguage] = useState(
     i18n.language?.toUpperCase() || "EN",
   );
   const dispatch = useDispatch();
-  const themeMode = useSelector(
-    (state: RootState) => state.theme?.mode ?? "dark",
-  );
+  const themeMode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
   const colors = useResolvedColors();
   const { logoUrl, tenant } = useTenantContext();
 
-  const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleLanguageClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleLanguageSelect = (lang: string) => {
-    setSelectedLanguage(lang);
-    i18n.changeLanguage(lang.toLowerCase());
-    handleLanguageClose();
-  };
-
   useEffect(() => {
-    try {
-      localStorage.setItem("themeMode", themeMode);
-    } catch {
-      // ignore
-    }
+    try { localStorage.setItem("themeMode", themeMode); } catch { /* ignore */ }
     if (typeof document !== "undefined") {
       document.documentElement.setAttribute("data-theme", themeMode);
     }
   }, [themeMode]);
 
-  // Sync selectedLanguage with i18n.language
   useEffect(() => {
     setSelectedLanguage(i18n.language?.toUpperCase() || "EN");
   }, [i18n.language]);
 
-  // Helper for active style
-  const activeStyle = (isActive: boolean) => getActiveStyle(isActive, colors);
+  const handleLanguageSelect = (lang: string) => {
+    setSelectedLanguage(lang);
+    i18n.changeLanguage(lang.toLowerCase());
+    setAnchorEl(null);
+  };
+
+  const navItems = [
+    { key: "booking",  icon: <CalendarTodayIcon sx={{ fontSize: 22 }} />, onClick: onBookingClick },
+    { key: "info",     icon: <InfoIcon sx={{ fontSize: 22 }} />,          onClick: onInfoClick },
+    { key: "qr",       icon: <QrCodeIcon sx={{ fontSize: 22 }} />,        onClick: onQRClick },
+    { key: "account",  icon: <AccountCircleIcon sx={{ fontSize: 22 }} />, onClick: onAccountClick },
+  ] as const;
 
   return (
     <>
-      {/* Desktop/Tablet Navigation - Hidden on mobile */}
+      {/* ── Top bar ── */}
       <Box
+        component="header"
         sx={{
-          display: { xs: "none", md: "block" },
-          position: "relative",
-          backgroundColor: colors.background.dark,
-          padding: { sm: 3, md: 4 },
-          width: "100%",
-          margin: 0,
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          backgroundColor: colors.background.medium,
+          borderBottom: `1px solid ${colors.border.main}`,
+          px: { xs: 2.5, md: 4 },
+          py: { xs: 1.5, md: 2 },
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
-        {/* Top Right Controls */}
+        {/* Language selector */}
         <Box
+          component="button"
+          onClick={(e) => setAnchorEl(e.currentTarget)}
           sx={{
-            position: "absolute",
-            top: 16,
-            right: 16,
-            display: "flex",
-            gap: 1,
-            alignItems: "center",
-            zIndex: 10,
+            display: "flex", alignItems: "center", gap: 0.5,
+            background: "none", border: "none", cursor: "pointer",
+            color: colors.text.secondary, p: 1, borderRadius: "10px",
+            fontSize: 13, fontFamily: "inherit",
+            "&:hover": { color: colors.text.primary, background: colors.background.card },
           }}
         >
-          {/* Theme toggle - left of language selector */}
-          <IconButton
-            onClick={() => dispatch(toggleTheme())}
-            sx={{
-              color: colors.text.primary,
-              backgroundColor: colors.background.overlay,
-              "&:hover": { backgroundColor: colors.background.overlay },
-              width: 40,
-              height: 40,
-            }}
-            aria-label={
-              themeMode === "dark"
-                ? "Switch to light theme"
-                : "Switch to dark theme"
-            }
-          >
-            {themeMode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
-          </IconButton>
+          <LanguageIcon sx={{ fontSize: 20 }} />
+          <span style={{ fontSize: 11, fontWeight: 600 }}>{selectedLanguage}</span>
+        </Box>
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={() => setAnchorEl(null)}
+          PaperProps={{
+            sx: { backgroundColor: colors.background.medium, color: colors.text.primary },
+          }}
+        >
+          {[["EN","English"],["GR","Ελληνικά"],["ES","Español"],["FR","Français"]].map(([code, label]) => (
+            <MenuItem key={code} onClick={() => handleLanguageSelect(code)}>{label}</MenuItem>
+          ))}
+        </Menu>
 
-          {/* Language Dropdown */}
-          <Button
-            onClick={handleLanguageClick}
-            startIcon={<LanguageIcon />}
-            sx={{
-              color: colors.text.primary,
-              backgroundColor: colors.background.overlay,
-              "&:hover": {
-                backgroundColor: colors.background.overlay,
-              },
-              borderRadius: "20px",
-              padding: { xs: "6px 12px", sm: "6px 16px" },
+        {/* Logo */}
+        <Box
+          component="button"
+          onClick={onBookingClick}
+          sx={{
+            width: 56, height: 56,
+            borderRadius: "50%",
+            overflow: "hidden",
+            border: `2px solid ${colors.accent.main}`,
+            boxShadow: `0 0 20px ${colors.background.overlay}`,
+            cursor: "pointer",
+            background: "none",
+            p: 0,
+            flexShrink: 0,
+          }}
+        >
+          <Box
+            component="img"
+            src={logoUrl}
+            alt={tenant?.name ?? "Logo"}
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+              e.currentTarget.src = "/logo.png";
             }}
-          >
-            {selectedLanguage}
-          </Button>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleLanguageClose}
-            PaperProps={{
-              sx: {
-                backgroundColor: colors.background.medium,
-                color: colors.text.primary,
-              },
-            }}
-          >
-            <MenuItem onClick={() => handleLanguageSelect("EN")}>
-              English
-            </MenuItem>
-            <MenuItem onClick={() => handleLanguageSelect("GR")}>
-              Ελληνικά
-            </MenuItem>
-            <MenuItem onClick={() => handleLanguageSelect("ES")}>
-              Español
-            </MenuItem>
-            <MenuItem onClick={() => handleLanguageSelect("FR")}>
-              Français
-            </MenuItem>
-          </Menu>
-
-          {/* Exit Button */}
-          {isLoggedIn && onExitClick && (
-            <IconButton
-              onClick={onExitClick}
-              sx={{
-                color: colors.text.primary,
-                backgroundColor: colors.error.main,
-                "&:hover": {
-                  backgroundColor: colors.error.dark,
-                },
-                width: 40,
-                height: 40,
-              }}
-            >
-              <ExitToAppIcon />
-            </IconButton>
-          )}
+            sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
         </Box>
 
-        {/* Main Navigation - Desktop */}
+        {/* Theme toggle */}
         <Box
-          display="flex"
-          justifyContent="space-around"
-          alignItems="center"
+          component="button"
+          onClick={() => dispatch(toggleTheme())}
+          aria-label="toggle theme"
           sx={{
-            flexWrap: "wrap",
-            gap: 2,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "none", border: "none", cursor: "pointer",
+            color: colors.text.secondary, p: 1, borderRadius: "10px",
+            "&:hover": { color: colors.text.primary, background: colors.background.card },
           }}
         >
-          {/* Book Appointment */}
-          <Box textAlign="center">
-            <IconButton
-              onClick={onBookingClick}
-              sx={{
-                color: colors.text.primary,
-                width: 80,
-                height: 80,
-                mb: 1,
-                ...activeStyle(currentPage === "booking"),
-                "&:hover": { backgroundColor: colors.background.card },
-              }}
-            >
-              <CalendarTodayIcon sx={{ fontSize: "2rem" }} />
-            </IconButton>
-            <Typography
-              variant="body2"
-              sx={{ color: colors.text.primary, fontSize: "0.875rem" }}
-            >
-              {t("book_appointment")}
-            </Typography>
-          </Box>
-
-          {/* Business Infos */}
-          <Box textAlign="center">
-            <IconButton
-              onClick={onInfoClick}
-              sx={{
-                color: colors.text.primary,
-                width: 80,
-                height: 80,
-                mb: 1,
-                ...activeStyle(currentPage === "info"),
-                "&:hover": { backgroundColor: colors.background.card },
-              }}
-            >
-              <InfoIcon sx={{ fontSize: "2rem" }} />
-            </IconButton>
-            <Typography
-              variant="body2"
-              sx={{ color: colors.text.primary, fontSize: "0.875rem" }}
-            >
-              {t("business_infos")}
-            </Typography>
-          </Box>
-
-          {/* Logo in the middle — served from Supabase Storage per tenant */}
-          <Box textAlign="center">
-            <IconButton
-              onClick={onBookingClick}
-              sx={{
-                borderRadius: "50%",
-                p: 0,
-              }}
-            >
-              <Box
-                component="img"
-                src={logoUrl}
-                alt={tenant?.name ?? "Logo"}
-                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                  // File not yet uploaded for this tenant — fall back to default
-                  e.currentTarget.src = "/logo.png";
-                }}
-                sx={{
-                  width: 200,
-                  height: 200,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                }}
-              />
-            </IconButton>
-          </Box>
-
-          {/* QR Code */}
-          <Box textAlign="center">
-            <IconButton
-              onClick={onQRClick}
-              sx={{
-                color: colors.text.primary,
-                width: 80,
-                height: 80,
-                mb: 1,
-                ...activeStyle(currentPage === "qr"),
-                "&:hover": { backgroundColor: colors.background.card },
-              }}
-            >
-              <QrCodeIcon sx={{ fontSize: "2rem" }} />
-            </IconButton>
-            <Typography
-              variant="body2"
-              sx={{ color: colors.text.primary, fontSize: "0.875rem" }}
-            >
-              {t("qr_code")}
-            </Typography>
-          </Box>
-
-          {/* User Account */}
-          <Box textAlign="center">
-            <IconButton
-              onClick={onAccountClick}
-              sx={{
-                color: colors.text.primary,
-                width: 80,
-                height: 80,
-                mb: 1,
-                ...activeStyle(currentPage === "account"),
-                "&:hover": { backgroundColor: colors.background.card },
-              }}
-            >
-              <AccountCircleIcon sx={{ fontSize: "2rem" }} />
-            </IconButton>
-            <Typography
-              variant="body2"
-              sx={{ color: colors.text.primary, fontSize: "0.875rem" }}
-            >
-              {t("user_account")}
-            </Typography>
-          </Box>
+          {themeMode === "dark"
+            ? <Brightness7Icon sx={{ fontSize: 20 }} />
+            : <Brightness4Icon sx={{ fontSize: 20 }} />}
         </Box>
       </Box>
 
-      {/* Mobile Top Bar - Hidden completely on mobile */}
+      {/* ── Desktop nav row (md+) — shown below top bar ── */}
       <Box
         sx={{
-          display: "none", // Completely hidden on mobile
+          display: { xs: "none", md: "flex" },
+          justifyContent: "center",
+          gap: 4,
+          py: 1.5,
+          backgroundColor: colors.background.medium,
+          borderBottom: `1px solid ${colors.border.main}`,
         }}
-      ></Box>
+      >
+        {navItems.map(({ key, icon, onClick }) => {
+          const active = currentPage === key;
+          return (
+            <Box
+              key={key}
+              component="button"
+              onClick={onClick}
+              sx={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5,
+                background: "none", border: "none", cursor: "pointer",
+                color: active ? colors.accent.light : colors.text.secondary,
+                fontFamily: "inherit", fontSize: 10, fontWeight: 500,
+                px: 2, py: 1, borderRadius: "10px",
+                borderBottom: active ? `2px solid ${colors.accent.main}` : "2px solid transparent",
+                "&:hover": { color: colors.text.primary },
+              }}
+            >
+              {icon}
+            </Box>
+          );
+        })}
+      </Box>
 
-      {/* Mobile Bottom Navigation */}
+      {/* ── Mobile bottom nav ── */}
       <Box
         sx={{
           display: { xs: "flex", md: "none" },
           position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: colors.background.dark,
+          bottom: 0, left: 0, right: 0,
+          backgroundColor: `${colors.background.dark}eb`,
+          backdropFilter: "blur(16px)",
           borderTop: `1px solid ${colors.border.main}`,
           justifyContent: "space-around",
           alignItems: "center",
-          padding: "8px 0",
+          py: 1.25,
           zIndex: 1000,
           boxShadow: "0 -2px 10px rgba(0,0,0,0.3)",
         }}
       >
-        {/* Book Appointment */}
-        <IconButton
-          onClick={onBookingClick}
-          sx={{
-            flexDirection: "column",
-            color: colors.text.primary,
-            borderRadius: "8px",
-            padding: "8px 12px",
-            ...activeStyle(currentPage === "booking"),
-            "&:hover": { backgroundColor: colors.background.card },
-          }}
-        >
-          <CalendarTodayIcon sx={{ fontSize: "1.5rem" }} />
-        </IconButton>
-
-        {/* Business Infos */}
-        <IconButton
-          onClick={onInfoClick}
-          sx={{
-            flexDirection: "column",
-            color: colors.text.primary,
-            borderRadius: "8px",
-            padding: "8px 12px",
-            ...activeStyle(currentPage === "info"),
-            "&:hover": { backgroundColor: colors.background.card },
-          }}
-        >
-          <InfoIcon sx={{ fontSize: "1.5rem" }} />
-        </IconButton>
-
-        {/* Theme Toggle - Mobile (replaces QR code) */}
-        <IconButton
-          onClick={() => dispatch(toggleTheme())}
-          sx={{
-            flexDirection: "column",
-            color: colors.text.primary,
-            borderRadius: "8px",
-            padding: "8px 12px",
-          }}
-          aria-label={
-            themeMode === "dark"
-              ? "Switch to light theme"
-              : "Switch to dark theme"
-          }
-        >
-          {themeMode === "dark" ? (
-            <Brightness7Icon sx={{ fontSize: "1.5rem" }} />
-          ) : (
-            <Brightness4Icon sx={{ fontSize: "1.5rem" }} />
-          )}
-        </IconButton>
-
-        {/* User Account */}
-        <IconButton
-          onClick={onAccountClick}
-          sx={{
-            flexDirection: "column",
-            color: colors.text.primary,
-            borderRadius: "8px",
-            padding: "8px 12px",
-            ...activeStyle(currentPage === "account"),
-            "&:hover": { backgroundColor: colors.background.card },
-          }}
-        >
-          <AccountCircleIcon sx={{ fontSize: "1.5rem" }} />
-        </IconButton>
-
-        {/* Language Selector - Mobile */}
-        <IconButton
-          onClick={handleLanguageClick}
-          sx={{
-            flexDirection: "column",
-            color: colors.text.primary,
-            borderRadius: "8px",
-            padding: "8px 12px",
-          }}
-        >
-          <LanguageIcon sx={{ fontSize: "1.5rem" }} />
-        </IconButton>
+        {navItems.map(({ key, icon, onClick }) => {
+          const active = currentPage === key;
+          return (
+            <Box
+              key={key}
+              component="button"
+              onClick={onClick}
+              sx={{
+                display: "flex", flexDirection: "column", alignItems: "center",
+                background: "none", border: "none", cursor: "pointer",
+                color: active ? colors.accent.light : colors.text.tertiary,
+                p: 1, borderRadius: "10px",
+                transition: "color 0.2s",
+              }}
+            >
+              {icon}
+            </Box>
+          );
+        })}
       </Box>
 
-      {/* Add padding to bottom of content on mobile to account for fixed nav */}
-      <Box sx={{ display: { xs: "block", md: "none" }, height: "70px" }} />
+      {/* Mobile bottom nav spacer */}
+      <Box sx={{ display: { xs: "block", md: "none" }, height: "64px" }} />
     </>
   );
 }

@@ -1,5 +1,4 @@
-import { Box, Button } from "@mui/material";
-import { getComponentColors } from "../../theme";
+import { Box } from "@mui/material";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 interface NavigationComponentProps {
@@ -18,100 +17,91 @@ export default function NavigationComponent({
   canProceedNext,
 }: NavigationComponentProps) {
   const colors = useResolvedColors();
-  const componentColors = getComponentColors(colors);
+  const progress = Math.round((currentStep / totalSteps) * 100);
 
   return (
-    <Box
-      display="flex"
-      justifyContent="space-between"
-      alignItems="center"
-      mb={3}
-      sx={{
-        backgroundColor: componentColors.navigationButton.background,
-        padding: { xs: 1.5, sm: 2 },
-        borderRadius: "10px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-        flexWrap: { xs: "wrap", sm: "nowrap" },
-        gap: { xs: 1, sm: 0 },
-      }}
-    >
-      <Button
-        variant="outlined"
-        onClick={onPreviousStep}
-        disabled={currentStep <= 1}
-        sx={{
-          minWidth: { xs: "100px", sm: "120px" },
-          fontSize: { xs: "0.75rem", sm: "0.875rem" },
-          padding: { xs: "6px 12px", sm: "8px 16px" },
-          color:
-            currentStep <= 1
-              ? componentColors.navigationButton.disabled.text
-              : componentColors.navigationButton.text,
-          borderColor:
-            currentStep <= 1
-              ? componentColors.navigationButton.disabled.background
-              : componentColors.navigationButton.border,
-          backgroundColor: "transparent",
-          "&:hover": {
-            borderColor: colors.accent.hover,
-            backgroundColor: colors.background.overlay ?? "rgba(0,0,0,0.04)",
-          },
-          "&:disabled": {
-            borderColor: componentColors.navigationButton.disabled.background,
-            color: componentColors.navigationButton.disabled.text,
-          },
-        }}
-      >
-        Previous
-      </Button>
-
+    <Box sx={{ px: { xs: 2, md: 3 }, mb: 2 }}>
+      {/* Progress bar */}
       <Box
-        textAlign="center"
         sx={{
-          order: { xs: 3, sm: 0 },
-          flexBasis: { xs: "100%", sm: "auto" },
-          mt: { xs: 1, sm: 0 },
+          height: 2,
+          background: colors.background.card,
+          borderRadius: 2,
+          mb: 2,
+          overflow: "hidden",
         }}
       >
-        <span
-          style={{
-            fontSize: "14px",
-            color: componentColors.navigationButton.text,
-            fontWeight: "bold",
+        <Box
+          sx={{
+            height: "100%",
+            width: `${progress}%`,
+            background: `linear-gradient(90deg, ${colors.accent.main}, ${colors.accent.light})`,
+            borderRadius: 2,
+            transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)",
           }}
-        >
-          Step {currentStep} of {totalSteps}
-        </span>
+        />
       </Box>
 
-      <Button
-        variant="contained"
-        onClick={onNextStep}
-        disabled={!canProceedNext}
-        sx={{
-          minWidth: { xs: "100px", sm: "120px" },
-          fontSize: { xs: "0.75rem", sm: "0.875rem" },
-          padding: { xs: "6px 12px", sm: "8px 16px" },
-          backgroundColor: canProceedNext
-            ? componentColors.navigationButton.text
-            : componentColors.navigationButton.disabled.background,
-          color: canProceedNext
-            ? colors.accent.main
-            : componentColors.navigationButton.disabled.text,
-          "&:hover": {
-            backgroundColor: canProceedNext
-              ? colors.background.light
-              : componentColors.navigationButton.disabled.background,
-          },
-          "&:disabled": {
-            backgroundColor:
-              componentColors.navigationButton.disabled.background,
-            color: componentColors.navigationButton.disabled.text,
-          },
-        }}
-      >
-        Next
-      </Button>
+      {/* Prev / count / Next */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
+        <Box
+          component="button"
+          onClick={onPreviousStep}
+          disabled={currentStep <= 1}
+          sx={{
+            display: "flex", alignItems: "center", gap: 0.75,
+            background: colors.background.card,
+            border: `1px solid ${colors.border.main}`,
+            color: currentStep <= 1 ? colors.text.tertiary : colors.text.secondary,
+            borderRadius: 9999, px: 2.5, py: 1.25,
+            fontSize: 13, fontWeight: 500, cursor: currentStep <= 1 ? "not-allowed" : "pointer",
+            fontFamily: "inherit", opacity: currentStep <= 1 ? 0.35 : 1,
+            transition: "all 0.2s",
+            "&:not(:disabled):hover": {
+              borderColor: colors.accent.main,
+              color: colors.accent.light,
+            },
+          }}
+        >
+          <span className="material-icons" style={{ fontSize: 16 }}>arrow_back</span>
+          Back
+        </Box>
+
+        <Box
+          sx={{
+            fontSize: 11, fontWeight: 600,
+            color: colors.text.tertiary,
+            letterSpacing: "0.06em",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {currentStep} / {totalSteps}
+        </Box>
+
+        <Box
+          component="button"
+          onClick={onNextStep}
+          disabled={!canProceedNext}
+          sx={{
+            display: "flex", alignItems: "center", gap: 0.75,
+            background: canProceedNext ? colors.accent.main : colors.background.card,
+            border: "none",
+            color: canProceedNext ? "#fff" : colors.text.tertiary,
+            borderRadius: 9999, px: 3, py: 1.25,
+            fontSize: 13, fontWeight: 600, cursor: canProceedNext ? "pointer" : "not-allowed",
+            fontFamily: "inherit",
+            boxShadow: canProceedNext ? `0 4px 16px ${colors.background.overlay}` : "none",
+            transition: "all 0.2s",
+            flex: 1, maxWidth: 140, justifyContent: "center",
+            "&:not(:disabled):hover": {
+              background: canProceedNext ? colors.accent.hover : undefined,
+            },
+          }}
+        >
+          {currentStep === totalSteps - 1 ? "Confirm" : "Next"}
+          <span className="material-icons" style={{ fontSize: 16 }}>arrow_forward</span>
+        </Box>
+      </Box>
     </Box>
   );
 }

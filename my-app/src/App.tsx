@@ -27,6 +27,8 @@ function App() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<Role | null>(null);
+  const [ownerTenantSlug, setOwnerTenantSlug] = useState<string | null>(null);
+  const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
 
@@ -91,7 +93,7 @@ function App() {
       try {
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("role, full_name, phone")
+          .select("role, full_name, phone, tenant_id")
           .eq("id", session.user.id)
           .single();
 
@@ -101,6 +103,24 @@ function App() {
           const userRole = profile.role as Role;
           console.log("[App] Profile loaded, role:", userRole);
           setRole(userRole);
+          setProfileTenantId(profile.tenant_id ?? null);
+
+          if (userRole === "owner" && profile.tenant_id) {
+            const { data: tenantRow } = await supabase
+              .from("tenants")
+              .select("slug")
+              .eq("id", profile.tenant_id)
+              .single();
+            if (!cancelled && tenantRow?.slug) {
+              setOwnerTenantSlug(tenantRow.slug);
+              // Force URL tenant to match owner's tenant so useTenant resolves correctly
+              const params = new URLSearchParams(window.location.search);
+              if (params.get("tenant") !== tenantRow.slug) {
+                params.set("tenant", tenantRow.slug);
+                window.location.replace(`/owner?${params.toString()}`);
+              }
+            }
+          }
 
           if (!profile.full_name || !profile.phone) {
             setShowCompleteProfile(true);
@@ -248,7 +268,11 @@ function App() {
                 allowedRoles={["professional"]}
                 loading={loading}
               >
-                <ProfessionalPanel />
+                {profileTenantId && tenant?.id && profileTenantId !== tenant.id ? (
+                  <Navigate to="/" replace />
+                ) : (
+                  <ProfessionalPanel />
+                )}
               </ProtectedRoute>
             }
           />

@@ -6,8 +6,10 @@ import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../configureStore";
 import { toggleTheme } from "../../slices/themeSlice";
 import {
+  Avatar,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,8 +23,13 @@ import {
 } from "@mui/material";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PendingIcon from "@mui/icons-material/Pending";
+import CancelIcon from "@mui/icons-material/Cancel";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import dayjs from "dayjs";
-import { Link } from "react-router-dom";
 import BookingStatistics from "../components/BookingStatistics";
 
 type BookingStatus =
@@ -76,6 +83,14 @@ const DAY_NAMES = [
   "Saturday",
 ];
 
+const STATUS_COLORS: Record<BookingStatus, { bg: string; color: string; label: string }> = {
+  confirmed: { bg: "#2e7d32", color: "#fff", label: "Confirmed" },
+  pending: { bg: "#ed6c02", color: "#fff", label: "Pending" },
+  cancelled: { bg: "#f44336", color: "#fff", label: "Cancelled" },
+  completed: { bg: "#6366f1", color: "#fff", label: "Completed" },
+  expired: { bg: "#78716c", color: "#fff", label: "Expired" },
+};
+
 export default function ProfessionalPanel() {
   const dispatch = useDispatch();
   const colors = useResolvedColors();
@@ -84,10 +99,8 @@ export default function ProfessionalPanel() {
 
   const [tab, setTab] = useState(0);
   const [professionalCode, setProfessionalCode] = useState<string | null>(null);
-  const [professionalName, setProfessionalName] =
-    useState<string>("Professional");
+  const [professionalName, setProfessionalName] = useState<string>("Professional");
   const [loadingIdentity, setLoadingIdentity] = useState(true);
-  
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -98,9 +111,7 @@ export default function ProfessionalPanel() {
     action: "confirm" | "cancel" | "complete" | "delete" | null;
   }>({ open: false, action: null });
 
-  const [professionalHours, setProfessionalHours] = useState<
-    ProfessionalHour[]
-  >([]);
+  const [professionalHours, setProfessionalHours] = useState<ProfessionalHour[]>([]);
   const [serviceMap, setServiceMap] = useState<Record<string, string>>({});
   const [loadingData, setLoadingData] = useState(false);
 
@@ -121,21 +132,14 @@ export default function ProfessionalPanel() {
 
   const loadIdentity = async () => {
     setLoadingIdentity(true);
-    // clear any previous identity state; errors are logged instead
-
     try {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
       const code = session?.user?.user_metadata?.professional_code;
-
       if (!code || typeof code !== "string") {
         setProfessionalCode(null);
-        console.warn(
-          "[ProfessionalPanel] account not linked to a professional code",
-        );
         return;
       }
-
       setProfessionalCode(code);
       const fullName =
         (session?.user?.user_metadata?.full_name as string | undefined) ??
@@ -152,29 +156,17 @@ export default function ProfessionalPanel() {
 
   const loadServiceMap = async () => {
     if (!tenant?.id) return;
-
+    const headers = await getAuthHeaders();
+    if (!headers) return;
     try {
-      const headers = await getAuthHeaders();
-      if (!headers) return;
-
       const response = await fetch(
         `${supabaseUrl}/rest/v1/services?tenant_id=eq.${tenant.id}&select=id,name`,
         { headers },
       );
-
-      if (!response.ok) {
-        console.error(
-          "[ProfessionalPanel] Error loading service map:",
-          response.statusText,
-        );
-        return;
-      }
-
+      if (!response.ok) return;
       const data = (await response.json()) as ServiceMapItem[];
       const map: Record<string, string> = {};
-      data.forEach((service) => {
-        map[service.id] = service.name;
-      });
+      data.forEach((s) => { map[s.id] = s.name; });
       setServiceMap(map);
     } catch (err) {
       console.error("[ProfessionalPanel] Exception loading service map:", err);
@@ -183,26 +175,16 @@ export default function ProfessionalPanel() {
 
   const loadBookings = async () => {
     if (!tenant?.id || !professionalCode) return;
-
+    setLoadingData(true);
     try {
-      setLoadingData(true);
       const headers = await getAuthHeaders();
       if (!headers) return;
-
       const response = await fetch(
         `${supabaseUrl}/rest/v1/bookings?tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}&select=*&order=date.desc,start_time.desc`,
         { headers },
       );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[ProfessionalPanel] Booking load error:", errorText);
-        setBookings([]);
-        return;
-      }
-
-      const data = (await response.json()) as Booking[];
-      setBookings(data);
+      if (!response.ok) { setBookings([]); return; }
+      setBookings((await response.json()) as Booking[]);
     } catch (err) {
       console.error("[ProfessionalPanel] Exception loading bookings:", err);
       setBookings([]);
@@ -213,34 +195,21 @@ export default function ProfessionalPanel() {
 
   const loadProfessionalHours = async () => {
     if (!tenant?.id || !professionalCode) return;
-
+    const headers = await getAuthHeaders();
+    if (!headers) return;
     try {
-      const headers = await getAuthHeaders();
-      if (!headers) return;
-
       const response = await fetch(
         `${supabaseUrl}/rest/v1/professional_hours?tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}&select=*&order=day_of_week`,
         { headers },
       );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[ProfessionalPanel] Hours load error:", errorText);
-        setProfessionalHours([]);
-        return;
-      }
-
-      const data = (await response.json()) as ProfessionalHour[];
-      setProfessionalHours(data);
+      if (!response.ok) { setProfessionalHours([]); return; }
+      setProfessionalHours((await response.json()) as ProfessionalHour[]);
     } catch (err) {
       console.error("[ProfessionalPanel] Exception loading hours:", err);
-      setProfessionalHours([]);
     }
   };
 
-  useEffect(() => {
-    loadIdentity();
-  }, []);
+  useEffect(() => { loadIdentity(); }, []);
 
   useEffect(() => {
     if (!professionalCode || !tenant?.id) return;
@@ -251,97 +220,67 @@ export default function ProfessionalPanel() {
   }, [professionalCode, tenant?.id]);
 
   const loadUserProfile = async (userId: string) => {
+    const headers = await getAuthHeaders();
+    if (!headers) return;
     try {
-      const headers = await getAuthHeaders();
-      if (!headers) return;
-
       const response = await fetch(
         `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=full_name,phone,email&limit=1`,
         { headers },
       );
-
       if (!response.ok) return;
-
       const data = await response.json();
-      const profileData = data?.[0];
-      if (profileData) {
-        setUserProfile({
-          full_name: profileData.full_name || "N/A",
-          phone: profileData.phone || "N/A",
-          email: profileData.email || "N/A",
-        });
-      } else {
-        setUserProfile({ full_name: "N/A", phone: "N/A", email: "N/A" });
-      }
+      const p = data?.[0];
+      setUserProfile(p
+        ? { full_name: p.full_name || "N/A", phone: p.phone || "N/A", email: p.email || "N/A" }
+        : { full_name: "N/A", phone: "N/A", email: "N/A" }
+      );
     } catch (err) {
       console.error("[ProfessionalPanel] Exception loading profile:", err);
     }
   };
 
   const selectedBookings = useMemo(
-    () =>
-      bookings.filter(
-        (booking) => booking.professional_id === professionalCode,
-      ),
+    () => bookings.filter((b) => b.professional_id === professionalCode),
     [bookings, professionalCode],
   );
 
   const upcomingBookings = useMemo(
-    () => selectedBookings.filter((booking) => booking.date >= today),
+    () => selectedBookings.filter((b) => b.date >= today),
     [selectedBookings, today],
   );
 
-  const statsByStatus = useMemo(
-    () => ({
-      total: selectedBookings.length,
-      confirmed: selectedBookings.filter((b) => b.status === "confirmed")
-        .length,
-      pending: selectedBookings.filter((b) => b.status === "pending").length,
-      cancelled: selectedBookings.filter((b) => b.status === "cancelled")
-        .length,
-      completed: selectedBookings.filter((b) => b.status === "completed")
-        .length,
-    }),
-    [selectedBookings],
-  );
+  const stats = useMemo(() => ({
+    total: selectedBookings.length,
+    confirmed: selectedBookings.filter((b) => b.status === "confirmed").length,
+    pending: selectedBookings.filter((b) => b.status === "pending").length,
+    cancelled: selectedBookings.filter((b) => b.status === "cancelled").length,
+    completed: selectedBookings.filter((b) => b.status === "completed").length,
+    upcoming: upcomingBookings.length,
+  }), [selectedBookings, upcomingBookings]);
 
   const getServiceNames = (servicesJson: string) => {
     try {
-      const ids = JSON.parse(servicesJson) as string[];
+      const parsed = JSON.parse(servicesJson);
+      const ids: string[] = Array.isArray(parsed) ? parsed : [parsed];
       return ids.map((id) => serviceMap[id] || id).join(", ");
     } catch {
-      return servicesJson;
+      return serviceMap[servicesJson] || servicesJson;
     }
   };
 
-  const getDayName = (dayOfWeek: number) =>
-    DAY_NAMES[dayOfWeek] ?? `Day ${dayOfWeek}`;
-
-  const setHourValue = (
-    dayOfWeek: number,
-    field: "start_time" | "end_time",
-    value: string,
-  ) => {
+  const setHourValue = (dayOfWeek: number, field: "start_time" | "end_time", value: string) => {
     setProfessionalHours((prev) => {
-      const existingIndex = prev.findIndex(
-        (hour) => hour.day_of_week === dayOfWeek,
-      );
-      if (existingIndex === -1) {
-        return [
-          ...prev,
-          {
-            professional_id: professionalCode ?? "",
-            day_of_week: dayOfWeek,
-            start_time: field === "start_time" ? value : "09:00",
-            end_time: field === "end_time" ? value : "17:00",
-          },
-        ].sort((a, b) => a.day_of_week - b.day_of_week);
+      const idx = prev.findIndex((h) => h.day_of_week === dayOfWeek);
+      if (idx === -1) {
+        return [...prev, {
+          professional_id: professionalCode ?? "",
+          day_of_week: dayOfWeek,
+          start_time: field === "start_time" ? value : "09:00",
+          end_time: field === "end_time" ? value : "17:00",
+        }].sort((a, b) => a.day_of_week - b.day_of_week);
       }
-
       return prev
-        .map((hour) =>
-          hour.day_of_week === dayOfWeek ? { ...hour, [field]: value } : hour,
-        )
+        .map((h) => h.day_of_week === dayOfWeek ? { ...h, [field]: value } : h)
         .sort((a, b) => a.day_of_week - b.day_of_week);
     });
   };
@@ -349,71 +288,46 @@ export default function ProfessionalPanel() {
   const addWorkingDay = (dayOfWeek: number) => {
     if (!professionalCode) return;
     setProfessionalHours((prev) => {
-      if (prev.some((hour) => hour.day_of_week === dayOfWeek)) return prev;
-      return [
-        ...prev,
-        {
-          professional_id: professionalCode,
-          day_of_week: dayOfWeek,
-          start_time: "09:00",
-          end_time: "17:00",
-        },
-      ].sort((a, b) => a.day_of_week - b.day_of_week);
+      if (prev.some((h) => h.day_of_week === dayOfWeek)) return prev;
+      return [...prev, {
+        professional_id: professionalCode,
+        day_of_week: dayOfWeek,
+        start_time: "09:00",
+        end_time: "17:00",
+      }].sort((a, b) => a.day_of_week - b.day_of_week);
     });
   };
 
   const removeWorkingDay = (dayOfWeek: number) => {
-    setProfessionalHours((prev) =>
-      prev.filter((hour) => hour.day_of_week !== dayOfWeek),
-    );
+    setProfessionalHours((prev) => prev.filter((h) => h.day_of_week !== dayOfWeek));
   };
 
   const saveProfessionalHours = async () => {
     if (!tenant?.id || !professionalCode) return;
-
     const headers = await getAuthHeaders();
     if (!headers) return;
-
     try {
-      const currentRows = professionalHours.filter(
-        (hour) => hour.professional_id === professionalCode,
-      );
-
-      const deleteResponse = await fetch(
+      const rows = professionalHours.filter((h) => h.professional_id === professionalCode);
+      const del = await fetch(
         `${supabaseUrl}/rest/v1/professional_hours?tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}`,
         { method: "DELETE", headers },
       );
-
-      if (!deleteResponse.ok) {
-        alert("Error clearing old hours: " + (await deleteResponse.text()));
-        return;
+      if (!del.ok) { alert("Error clearing old hours: " + (await del.text())); return; }
+      if (rows.length > 0) {
+        const ins = await fetch(`${supabaseUrl}/rest/v1/professional_hours`, {
+          method: "POST",
+          headers: { ...headers, Prefer: "return=representation" },
+          body: JSON.stringify(rows.map((h) => ({
+            professional_id: professionalCode,
+            day_of_week: h.day_of_week,
+            start_time: h.start_time,
+            end_time: h.end_time,
+            tenant_id: tenant.id,
+          }))),
+        });
+        if (!ins.ok) { alert("Error saving hours: " + (await ins.text())); return; }
       }
-
-      if (currentRows.length > 0) {
-        const insertResponse = await fetch(
-          `${supabaseUrl}/rest/v1/professional_hours`,
-          {
-            method: "POST",
-            headers: { ...headers, Prefer: "return=representation" },
-            body: JSON.stringify(
-              currentRows.map((hour) => ({
-                professional_id: professionalCode,
-                day_of_week: hour.day_of_week,
-                start_time: hour.start_time,
-                end_time: hour.end_time,
-                tenant_id: tenant.id,
-              })),
-            ),
-          },
-        );
-
-        if (!insertResponse.ok) {
-          alert("Error saving working hours: " + (await insertResponse.text()));
-          return;
-        }
-      }
-
-      alert("✅ Your working hours were saved successfully");
+      alert("Working hours saved successfully");
       await loadProfessionalHours();
     } catch (err) {
       console.error("[ProfessionalPanel] Error saving hours:", err);
@@ -427,558 +341,425 @@ export default function ProfessionalPanel() {
     setShowBookingDialog(true);
   };
 
-  const patchBookingStatus = async (
-    bookingId: string,
-    payload: Record<string, unknown>,
-  ) => {
+  const patchBookingStatus = async (bookingId: string, payload: Record<string, unknown>) => {
     const headers = await getAuthHeaders();
     if (!headers || !tenant?.id || !professionalCode) return false;
-
     const response = await fetch(
       `${supabaseUrl}/rest/v1/bookings?id=eq.${bookingId}&tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}`,
-      {
-        method: "PATCH",
-        headers: { ...headers, Prefer: "return=minimal" },
-        body: JSON.stringify(payload),
-      },
+      { method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify(payload) },
     );
-
-    if (!response.ok) {
-      alert("Error updating booking: " + (await response.text()));
-      return false;
-    }
-
+    if (!response.ok) { alert("Error updating booking: " + (await response.text())); return false; }
     await loadBookings();
     return true;
   };
 
   const handleConfirmBooking = async () => {
     if (!selectedBooking) return;
-    const ok = await patchBookingStatus(selectedBooking.id, {
-      status: "confirmed",
-      confirmed_at: new Date().toISOString(),
-    });
-    if (ok) {
-      alert("✅ Booking confirmed");
-      setShowBookingDialog(false);
-    }
+    const ok = await patchBookingStatus(selectedBooking.id, { status: "confirmed", confirmed_at: new Date().toISOString() });
+    if (ok) { setShowBookingDialog(false); }
   };
 
   const handleDeclineBooking = async () => {
     if (!selectedBooking) return;
-    const ok = await patchBookingStatus(selectedBooking.id, {
-      status: "cancelled",
-    });
-    if (ok) {
-      alert("❌ Booking declined/cancelled");
-      setShowBookingDialog(false);
-    }
+    const ok = await patchBookingStatus(selectedBooking.id, { status: "cancelled" });
+    if (ok) { setShowBookingDialog(false); }
   };
 
   const handleCompleteBooking = async () => {
     if (!selectedBooking) return;
-    const ok = await patchBookingStatus(selectedBooking.id, {
-      status: "completed",
-    });
-    if (ok) {
-      alert("✔️ Booking marked as completed");
-      setShowBookingDialog(false);
-    }
+    const ok = await patchBookingStatus(selectedBooking.id, { status: "completed" });
+    if (ok) { setShowBookingDialog(false); }
   };
 
   const handleDeleteBooking = async () => {
     if (!selectedBooking || !tenant?.id || !professionalCode) return;
-
     const headers = await getAuthHeaders();
     if (!headers) return;
-
     const response = await fetch(
       `${supabaseUrl}/rest/v1/bookings?id=eq.${selectedBooking.id}&tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}`,
       { method: "DELETE", headers },
     );
-
-    if (!response.ok) {
-      alert("Error deleting booking: " + (await response.text()));
-      return;
-    }
-
-    alert("🗑️ Booking deleted");
+    if (!response.ok) { alert("Error deleting booking: " + (await response.text())); return; }
     await loadBookings();
     setShowBookingDialog(false);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
+  const handleLogout = async () => { await supabase.auth.signOut(); };
 
   if (loadingIdentity) {
-    return <div style={{ padding: 24 }}>Loading your dashboard...</div>;
+    return (
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: colors.background.light }}>
+        <Typography sx={{ color: colors.text.secondary }}>Loading your dashboard...</Typography>
+      </Box>
+    );
   }
 
-  // if (identityError || !professionalCode) {
-  //   return (
-  //     <Box
-  //       sx={{
-  //         minHeight: "100vh",
-  //         width: "100vw",
-  //         display: "flex",
-  //         alignItems: "center",
-  //         justifyContent: "center",
-  //         p: 3,
-  //         backgroundColor: colors.background.light,
-  //       }}
-  //     >
-  //       <Box sx={{ maxWidth: 720, width: "100%", p: 4, borderRadius: 3, backgroundColor: colors.background.medium }}>
-  //         <Typography variant="h4" sx={{ mb: 2, color: colors.text.primary }}>
-  //           Professional Access Not Ready
-  //         </Typography>
-  //         <Typography sx={{ color: colors.text.secondary, mb: 3 }}>
-  //           {identityError ?? "Your account does not have a professional code yet."}
-  //         </Typography>
-  //         <Button component={Link} to="/" variant="contained">
-  //           Go Back
-  //         </Button>
-  //       </Box>
-  //     </Box>
-  //   );
-  // }
+  const cardSx = {
+    backgroundColor: colors.background.medium,
+    borderRadius: "10px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+    p: 2.5,
+  };
+
+  const initials = professionalName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        width: "100vw",
-        backgroundColor: colors.background.light,
-        p: 3,
-      }}
-    >
-      <Typography
-        variant="h4"
-        sx={{ textAlign: "center", color: colors.text.primary, mb: 1 }}
-      >
-        Professional Dashboard
-      </Typography>
-      <Typography
-        sx={{ textAlign: "center", color: colors.text.secondary, mb: 3 }}
-      >
-        {professionalName} · {professionalCode}
-      </Typography>
-
-      <Link
-        to="/professional"
-        style={{ display: "block", textAlign: "center", marginBottom: 20 }}
-      >
-        Professional Dashboard
-      </Link>
-
-      <IconButton
-        onClick={() => dispatch(toggleTheme())}
-        sx={{
-          position: "absolute",
-          top: 20,
-          right: 100,
-          color: colors.text.primary,
-          backgroundColor: colors.background.medium,
-          "&:hover": { backgroundColor: colors.background.light },
-          width: 40,
-          height: 40,
-          zIndex: 1000,
-        }}
-        aria-label={
-          mode === "dark" ? "Switch to light theme" : "Switch to dark theme"
-        }
-      >
-        {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
-      </IconButton>
-
-      <button
-        onClick={handleLogout}
-        style={{
-          position: "absolute",
-          top: 20,
-          right: 20,
-          padding: "8px 20px",
-          backgroundColor: colors.error.main,
-          color: "white",
-          border: "none",
-          borderRadius: 5,
-          fontWeight: "bold",
-          cursor: "pointer",
-          zIndex: 1000,
-        }}
-      >
-        Logout
-      </button>
-
+    <Box sx={{ minHeight: "100vh", width: "100vw", backgroundColor: colors.background.light }}>
+      {/* Top bar */}
       <Box
         sx={{
-          borderBottom: 1,
-          borderColor: "divider",
-          maxWidth: 1200,
-          mx: "auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: { xs: 2, sm: 3 },
+          py: 1.5,
+          backgroundColor: colors.background.medium,
+          borderBottom: `1px solid ${colors.border.main}`,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
         }}
       >
-        <Tabs value={tab} onChange={(_, value) => setTab(value)} centered>
-          <Tab label="My Stats" />
-          <Tab label="My Bookings" />
-          <Tab label="My Schedule" />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Avatar sx={{ bgcolor: colors.primary.main, width: 40, height: 40, fontSize: 14, fontWeight: 700 }}>
+            {initials}
+          </Avatar>
+          <Box>
+            <Typography sx={{ color: colors.text.primary, fontWeight: 700, lineHeight: 1.2, fontSize: 15 }}>
+              {professionalName}
+            </Typography>
+            {professionalCode && (
+              <Typography sx={{ color: colors.text.secondary, fontSize: 12 }}>
+                Code: {professionalCode}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+
+        <Typography variant="h6" sx={{ color: colors.text.primary, fontWeight: 700, display: { xs: "none", sm: "block" } }}>
+          Professional Dashboard
+        </Typography>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <IconButton
+            onClick={() => dispatch(toggleTheme())}
+            sx={{ color: colors.text.primary, backgroundColor: colors.background.light, width: 38, height: 38 }}
+            aria-label="Toggle theme"
+          >
+            {mode === "dark" ? <Brightness7Icon fontSize="small" /> : <Brightness4Icon fontSize="small" />}
+          </IconButton>
+          <Button
+            onClick={handleLogout}
+            variant="outlined"
+            size="small"
+            sx={{ borderRadius: "20px", borderColor: colors.error.main, color: colors.error.main, fontWeight: 600, textTransform: "none" }}
+          >
+            Logout
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Stats row */}
+      <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pt: 3, pb: 1 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(6, 1fr)" }, gap: 1.5 }}>
+          {[
+            { label: "Total", value: stats.total, icon: <TrendingUpIcon />, color: colors.primary.main },
+            { label: "Upcoming", value: stats.upcoming, icon: <EventAvailableIcon />, color: "#2e7d32" },
+            { label: "Confirmed", value: stats.confirmed, icon: <CheckCircleIcon />, color: "#2e7d32" },
+            { label: "Pending", value: stats.pending, icon: <PendingIcon />, color: "#ed6c02" },
+            { label: "Completed", value: stats.completed, icon: <CalendarMonthIcon />, color: "#6366f1" },
+            { label: "Cancelled", value: stats.cancelled, icon: <CancelIcon />, color: "#f44336" },
+          ].map(({ label, value, icon, color }) => (
+            <Box key={label} sx={{ ...cardSx, display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5, p: 2 }}>
+              <Box sx={{ color, display: "flex" }}>{icon}</Box>
+              <Typography sx={{ color: colors.text.primary, fontWeight: 700, fontSize: 22, lineHeight: 1 }}>
+                {value}
+              </Typography>
+              <Typography sx={{ color: colors.text.secondary, fontSize: 12 }}>{label}</Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+
+      {/* Tabs */}
+      <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, mt: 2, borderBottom: `1px solid ${colors.border.main}` }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+          <Tab label="My Stats" sx={{ textTransform: "none", fontWeight: 600 }} />
+          <Tab label="My Bookings" sx={{ textTransform: "none", fontWeight: 600 }} />
+          <Tab label="My Schedule" sx={{ textTransform: "none", fontWeight: 600 }} />
         </Tabs>
       </Box>
 
-      {tab === 0 && (
-        <Box sx={{ maxWidth: 1200, mx: "auto", mt: 3 }}>
-          <Box
-            sx={{
-              mb: 2,
-              p: 2,
-              borderRadius: 2,
-              backgroundColor: colors.background.medium,
-            }}
-          >
-            <Typography variant="h6" sx={{ color: colors.text.primary }}>
-              My Booking Summary
-            </Typography>
-            <Typography sx={{ color: colors.text.secondary }}>
-              Total: {statsByStatus.total} · Confirmed:{" "}
-              {statsByStatus.confirmed} · Pending: {statsByStatus.pending} ·
-              Cancelled: {statsByStatus.cancelled} · Completed:{" "}
-              {statsByStatus.completed}
-            </Typography>
-            <Typography sx={{ color: colors.text.secondary }}>
-              Upcoming bookings: {upcomingBookings.length}
-            </Typography>
-          </Box>
+      <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, py: 3 }}>
+        {/* Stats tab */}
+        {tab === 0 && (
           <BookingStatistics
             allBookings={selectedBookings}
-            professionalNameMap={
-              professionalCode ? { [professionalCode]: professionalName } : {}
-            }
+            professionalNameMap={professionalCode ? { [professionalCode]: professionalName } : {}}
           />
-        </Box>
-      )}
+        )}
 
-      {tab === 1 && (
-        <Box
-          sx={{
-            maxWidth: 1200,
-            mx: "auto",
-            mt: 3,
-            p: 3,
-            borderRadius: 2,
-            backgroundColor: colors.background.medium,
-          }}
-        >
-          <Typography variant="h5" sx={{ color: colors.text.primary, mb: 2 }}>
-            My Bookings
-          </Typography>
-          {loadingData && (
-            <Typography sx={{ color: colors.text.secondary, mb: 2 }}>
-              Loading your bookings...
+        {/* Bookings tab */}
+        {tab === 1 && (
+          <Box>
+            <Typography variant="h6" sx={{ color: colors.text.primary, fontWeight: 700, mb: 2 }}>
+              My Bookings
             </Typography>
-          )}
-          {selectedBookings.length === 0 ? (
-            <Typography sx={{ color: colors.text.secondary }}>
-              No bookings assigned to you yet.
-            </Typography>
-          ) : (
+            {loadingData && (
+              <Typography sx={{ color: colors.text.secondary, mb: 2 }}>Loading bookings...</Typography>
+            )}
+            {!loadingData && selectedBookings.length === 0 && (
+              <Box sx={{ ...cardSx, textAlign: "center", py: 5 }}>
+                <CalendarMonthIcon sx={{ fontSize: 48, color: colors.text.secondary, mb: 1 }} />
+                <Typography sx={{ color: colors.text.secondary }}>No bookings assigned to you yet.</Typography>
+              </Box>
+            )}
             <Box sx={{ display: "grid", gap: 1.5 }}>
-              {selectedBookings.map((booking) => (
-                <Box
-                  key={booking.id}
-                  sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    backgroundColor: colors.background.light,
-                    border: `1px solid ${colors.border.main}`,
-                  }}
-                >
-                  <Typography
-                    sx={{ color: colors.text.primary, fontWeight: "bold" }}
+              {selectedBookings.map((booking) => {
+                const s = STATUS_COLORS[booking.status] ?? STATUS_COLORS.expired;
+                return (
+                  <Box
+                    key={booking.id}
+                    sx={{
+                      ...cardSx,
+                      display: "flex",
+                      alignItems: { xs: "flex-start", sm: "center" },
+                      flexDirection: { xs: "column", sm: "row" },
+                      gap: 2,
+                      border: `1px solid ${colors.border.main}`,
+                    }}
                   >
-                    {dayjs(booking.date).format("MMMM DD, YYYY")} ·{" "}
-                    {booking.start_time?.substring(0, 5) ?? "--:--"} -{" "}
-                    {booking.end_time?.substring(0, 5) ?? "--:--"}
-                  </Typography>
-                  <Typography sx={{ color: colors.text.secondary }}>
-                    Status: {booking.status.toUpperCase()} · Location:{" "}
-                    {booking.location === "your_place"
-                      ? "At Customer Place"
-                      : "At Our Place"}
-                  </Typography>
-                  <Typography sx={{ color: colors.text.secondary }}>
-                    Services: {getServiceNames(booking.services)}
-                  </Typography>
-                  <Button
-                    sx={{ mt: 1 }}
-                    variant="outlined"
-                    onClick={() => openBookingDialog(booking)}
-                  >
-                    View Details
-                  </Button>
-                </Box>
-              ))}
-            </Box>
-          )}
-        </Box>
-      )}
-
-      {tab === 2 && (
-        <Box
-          sx={{
-            maxWidth: 1200,
-            mx: "auto",
-            mt: 3,
-            p: 3,
-            borderRadius: 2,
-            backgroundColor: colors.background.medium,
-          }}
-        >
-          <Typography variant="h5" sx={{ color: colors.text.primary, mb: 2 }}>
-            My Weekly Schedule
-          </Typography>
-          <Typography sx={{ color: colors.text.secondary, mb: 2 }}>
-            Manage only your own weekly hours. These are scoped to your
-            professional code and tenant.
-          </Typography>
-
-          <Box sx={{ display: "grid", gap: 1.5 }}>
-            {[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
-              const existing = professionalHours.find(
-                (hour) => hour.day_of_week === dayOfWeek,
-              );
-              return (
-                <Box
-                  key={dayOfWeek}
-                  sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    backgroundColor: colors.background.light,
-                    display: "grid",
-                    gap: 1,
-                  }}
-                >
-                  <Typography
-                    sx={{ color: colors.text.primary, fontWeight: "bold" }}
-                  >
-                    {getDayName(dayOfWeek)}
-                  </Typography>
-                  {existing ? (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 2,
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                      }}
-                    >
-                      <TextField
-                        label="Start"
-                        type="time"
-                        value={existing.start_time}
-                        onChange={(e) =>
-                          setHourValue(dayOfWeek, "start_time", e.target.value)
-                        }
-                        InputLabelProps={{ shrink: true }}
-                        size="small"
-                      />
-                      <TextField
-                        label="End"
-                        type="time"
-                        value={existing.end_time}
-                        onChange={(e) =>
-                          setHourValue(dayOfWeek, "end_time", e.target.value)
-                        }
-                        InputLabelProps={{ shrink: true }}
-                        size="small"
-                      />
-                      <Button
-                        color="error"
-                        variant="outlined"
-                        onClick={() => removeWorkingDay(dayOfWeek)}
-                      >
-                        Remove
-                      </Button>
+                    <Box sx={{ flex: 1 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                        <Typography sx={{ color: colors.text.primary, fontWeight: 700, fontSize: 15 }}>
+                          {dayjs(booking.date).format("MMM DD, YYYY")}
+                        </Typography>
+                        <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>
+                          {booking.start_time?.substring(0, 5)} – {booking.end_time?.substring(0, 5)}
+                        </Typography>
+                        <Chip
+                          label={s.label}
+                          size="small"
+                          sx={{ backgroundColor: s.bg, color: s.color, fontWeight: 600, fontSize: 11, height: 22, borderRadius: "9999px" }}
+                        />
+                      </Box>
+                      <Typography sx={{ color: colors.text.secondary, fontSize: 13 }}>
+                        {getServiceNames(booking.services)} · {booking.location === "your_place" ? "At Customer Place" : "At Our Place"}
+                      </Typography>
                     </Box>
-                  ) : (
                     <Button
                       variant="outlined"
-                      onClick={() => addWorkingDay(dayOfWeek)}
+                      size="small"
+                      onClick={() => openBookingDialog(booking)}
+                      sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600, whiteSpace: "nowrap" }}
                     >
-                      Add Working Hours
+                      View Details
                     </Button>
-                  )}
-                </Box>
-              );
-            })}
+                  </Box>
+                );
+              })}
+            </Box>
           </Box>
+        )}
 
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-            <Button variant="contained" onClick={saveProfessionalHours}>
-              Save My Schedule
-            </Button>
+        {/* Schedule tab */}
+        {tab === 2 && (
+          <Box>
+            <Typography variant="h6" sx={{ color: colors.text.primary, fontWeight: 700, mb: 0.5 }}>
+              My Weekly Schedule
+            </Typography>
+            <Typography sx={{ color: colors.text.secondary, fontSize: 14, mb: 2 }}>
+              Set your working hours for each day of the week.
+            </Typography>
+
+            <Box sx={{ display: "grid", gap: 1.5 }}>
+              {[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
+                const existing = professionalHours.find((h) => h.day_of_week === dayOfWeek);
+                return (
+                  <Box
+                    key={dayOfWeek}
+                    sx={{
+                      ...cardSx,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                      flexWrap: "wrap",
+                      border: `1px solid ${existing ? colors.primary.main + "60" : colors.border.main}`,
+                    }}
+                  >
+                    <Typography sx={{ color: colors.text.primary, fontWeight: 600, width: 90, flexShrink: 0 }}>
+                      {DAY_NAMES[dayOfWeek]}
+                    </Typography>
+                    {existing ? (
+                      <>
+                        <TextField
+                          label="Start"
+                          type="time"
+                          value={existing.start_time}
+                          onChange={(e) => setHourValue(dayOfWeek, "start_time", e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                          size="small"
+                          sx={{ width: 130 }}
+                        />
+                        <TextField
+                          label="End"
+                          type="time"
+                          value={existing.end_time}
+                          onChange={(e) => setHourValue(dayOfWeek, "end_time", e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                          size="small"
+                          sx={{ width: 130 }}
+                        />
+                        <Button
+                          color="error"
+                          variant="outlined"
+                          size="small"
+                          onClick={() => removeWorkingDay(dayOfWeek)}
+                          sx={{ borderRadius: "20px", textTransform: "none", ml: "auto" }}
+                        >
+                          Remove
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => addWorkingDay(dayOfWeek)}
+                        sx={{ borderRadius: "20px", textTransform: "none" }}
+                      >
+                        Add hours
+                      </Button>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
+              <Button
+                variant="contained"
+                onClick={saveProfessionalHours}
+                sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600, px: 4 }}
+              >
+                Save Schedule
+              </Button>
+            </Box>
           </Box>
-        </Box>
-      )}
+        )}
+      </Box>
 
-      <Dialog
-        open={showBookingDialog}
-        onClose={() => setShowBookingDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Booking Details</DialogTitle>
+      {/* Booking detail dialog */}
+      <Dialog open={showBookingDialog} onClose={() => setShowBookingDialog(false)} maxWidth="sm" fullWidth
+        PaperProps={{ sx: { borderRadius: "15px" } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Booking Details</DialogTitle>
         <DialogContent>
           {selectedBooking && userProfile && (
-            <Box sx={{ pt: 2 }}>
-              <Typography variant="h6" gutterBottom color="primary">
-                Customer Information
+            <Box sx={{ pt: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: colors.text.secondary, mb: 1, textTransform: "uppercase", fontSize: 11, letterSpacing: 1 }}>
+                Customer
               </Typography>
-              <Typography variant="body1">
-                <strong>Name:</strong> {userProfile.full_name}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Email:</strong> {userProfile.email}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Phone:</strong> {userProfile.phone}
-              </Typography>
+              <Typography><strong>{userProfile.full_name}</strong></Typography>
+              <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>{userProfile.email}</Typography>
+              <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>{userProfile.phone}</Typography>
+
               <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" gutterBottom color="primary">
-                Appointment Details
+
+              <Typography variant="subtitle2" sx={{ color: colors.text.secondary, mb: 1, textTransform: "uppercase", fontSize: 11, letterSpacing: 1 }}>
+                Appointment
               </Typography>
-              <Typography variant="body1">
-                <strong>Date:</strong>{" "}
-                {dayjs(selectedBooking.date).format("MMMM DD, YYYY")}
+              <Typography><strong>{dayjs(selectedBooking.date).format("MMMM DD, YYYY")}</strong></Typography>
+              <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>
+                {selectedBooking.start_time?.substring(0, 5)} – {selectedBooking.end_time?.substring(0, 5)}
               </Typography>
-              <Typography variant="body1">
-                <strong>Time:</strong>{" "}
-                {selectedBooking.start_time?.substring(0, 5)} -{" "}
-                {selectedBooking.end_time?.substring(0, 5)}
+              <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>
+                {selectedBooking.location === "your_place" ? "At Customer Place" : "At Our Place"}
               </Typography>
-              <Typography variant="body1">
-                <strong>Location:</strong>{" "}
-                {selectedBooking.location === "your_place"
-                  ? "At Customer Place"
-                  : "At Our Place"}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Services:</strong>{" "}
+              <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>
                 {getServiceNames(selectedBooking.services)}
               </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                <strong>Status:</strong> {selectedBooking.status.toUpperCase()}
-              </Typography>
+              <Box sx={{ mt: 1.5 }}>
+                <Chip
+                  label={STATUS_COLORS[selectedBooking.status]?.label ?? selectedBooking.status}
+                  sx={{
+                    backgroundColor: STATUS_COLORS[selectedBooking.status]?.bg ?? "#78716c",
+                    color: "#fff",
+                    fontWeight: 600,
+                    borderRadius: "9999px",
+                  }}
+                />
+              </Box>
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          {selectedBooking && selectedBooking.status === "pending" && (
-            <Button
-              onClick={() =>
-                setShowActionConfirmDialog({ open: true, action: "confirm" })
-              }
-              variant="outlined"
-              color="success"
-              sx={{ mr: 1 }}
-            >
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1, flexWrap: "wrap" }}>
+          {selectedBooking?.status === "pending" && (
+            <Button onClick={() => setShowActionConfirmDialog({ open: true, action: "confirm" })}
+              variant="contained" color="success" size="small"
+              sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600 }}>
               Confirm
             </Button>
           )}
-          {selectedBooking &&
-            selectedBooking.status !== "cancelled" &&
-            selectedBooking.status !== "completed" && (
-              <Button
-                onClick={() =>
-                  setShowActionConfirmDialog({ open: true, action: "cancel" })
-                }
-                variant="outlined"
-                color="warning"
-                sx={{ mr: 1 }}
-              >
-                Decline / Cancel
-              </Button>
-            )}
-          {selectedBooking && selectedBooking.status === "confirmed" && (
-            <Button
-              onClick={() =>
-                setShowActionConfirmDialog({ open: true, action: "complete" })
-              }
-              variant="contained"
-              color="secondary"
-              sx={{ mr: 1 }}
-            >
+          {selectedBooking && !["cancelled", "completed"].includes(selectedBooking.status) && (
+            <Button onClick={() => setShowActionConfirmDialog({ open: true, action: "cancel" })}
+              variant="outlined" color="warning" size="small"
+              sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600 }}>
+              Decline
+            </Button>
+          )}
+          {selectedBooking?.status === "confirmed" && (
+            <Button onClick={() => setShowActionConfirmDialog({ open: true, action: "complete" })}
+              variant="contained" color="secondary" size="small"
+              sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600 }}>
               Mark Completed
             </Button>
           )}
-          {selectedBooking && (
-            <Button
-              onClick={() =>
-                setShowActionConfirmDialog({ open: true, action: "delete" })
-              }
-              variant="contained"
-              color="error"
-              sx={{ mr: 1 }}
-            >
-              Delete Booking
-            </Button>
-          )}
-          <Button
-            onClick={() => setShowBookingDialog(false)}
-            variant="contained"
-          >
+          <Button onClick={() => setShowActionConfirmDialog({ open: true, action: "delete" })}
+            variant="outlined" color="error" size="small"
+            sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600, ml: "auto" }}>
+            Delete
+          </Button>
+          <Button onClick={() => setShowBookingDialog(false)} variant="outlined" size="small"
+            sx={{ borderRadius: "20px", textTransform: "none" }}>
             Close
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={showActionConfirmDialog.open}
-        onClose={() =>
-          setShowActionConfirmDialog({ open: false, action: null })
-        }
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Confirm Booking Action</DialogTitle>
+      {/* Action confirm dialog */}
+      <Dialog open={showActionConfirmDialog.open}
+        onClose={() => setShowActionConfirmDialog({ open: false, action: null })}
+        maxWidth="xs" fullWidth
+        PaperProps={{ sx: { borderRadius: "15px" } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Confirm Action</DialogTitle>
         <DialogContent>
           <Typography>
-            {showActionConfirmDialog.action === "confirm" &&
-              "Confirm this pending booking?"}
-            {showActionConfirmDialog.action === "cancel" &&
-              "Cancel / decline this booking?"}
-            {showActionConfirmDialog.action === "complete" &&
-              "Mark this booking as completed?"}
-            {showActionConfirmDialog.action === "delete" &&
-              "Permanently delete this booking? This cannot be undone."}
+            {showActionConfirmDialog.action === "confirm" && "Confirm this pending booking?"}
+            {showActionConfirmDialog.action === "cancel" && "Decline / cancel this booking?"}
+            {showActionConfirmDialog.action === "complete" && "Mark this booking as completed?"}
+            {showActionConfirmDialog.action === "delete" && "Permanently delete this booking? This cannot be undone."}
           </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() =>
-              setShowActionConfirmDialog({ open: false, action: null })
-            }
-            variant="outlined"
-          >
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setShowActionConfirmDialog({ open: false, action: null })}
+            variant="outlined" sx={{ borderRadius: "20px", textTransform: "none" }}>
             No
           </Button>
           <Button
             onClick={async () => {
-              if (!selectedBooking || !showActionConfirmDialog.action) return;
               const action = showActionConfirmDialog.action;
               setShowActionConfirmDialog({ open: false, action: null });
-              if (action === "confirm") {
-                await handleConfirmBooking();
-              } else if (action === "cancel") {
-                await handleDeclineBooking();
-              } else if (action === "complete") {
-                await handleCompleteBooking();
-              } else if (action === "delete") {
-                await handleDeleteBooking();
-              }
+              if (action === "confirm") await handleConfirmBooking();
+              else if (action === "cancel") await handleDeclineBooking();
+              else if (action === "complete") await handleCompleteBooking();
+              else if (action === "delete") await handleDeleteBooking();
             }}
-            variant="contained"
-            color="error"
-          >
+            variant="contained" color="error" sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600 }}>
             Yes
           </Button>
         </DialogActions>

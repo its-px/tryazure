@@ -1069,40 +1069,14 @@ export default function UserPanel() {
       // eslint-disable-next-line no-fallthrough
       default:
         return (
-          <div style={{ textAlign: "center", marginTop: "50px" }}>
-            {/* <h2>Customer Panel</h2> */}
-
-            {/* Reset button - visible at all steps */}
-            {currentStep > 1 && (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  px: 3,
-                  mb: 2,
-                }}
-              >
-                {/* <Button
-                  onClick={handleResetBooking}
-                  size="small"
-                  variant="outlined"
-                  color="warning"
-                  sx={{ fontSize: "0.75rem" }}
-                >
-                  Start Over
-                </Button> */}
-              </Box>
-            )}
-
-            {currentStep > 1 && (
-              <NavigationComponent
-                currentStep={currentStep}
-                totalSteps={totalSteps}
-                onPreviousStep={() => dispatch(setCurrentStep(currentStep - 1))}
-                onNextStep={handleNextStep}
-                canProceedNext={canProceedNext()}
-              />
-            )}
+          <div style={{ paddingTop: "8px" }}>
+            <NavigationComponent
+              currentStep={currentStep}
+              totalSteps={totalSteps}
+              onPreviousStep={() => dispatch(setCurrentStep(currentStep - 1))}
+              onNextStep={handleNextStep}
+              canProceedNext={canProceedNext()}
+            />
 
             <AnimatePresence mode="wait" initial={false}>
               {currentStep === 1 && (
@@ -1188,10 +1162,17 @@ export default function UserPanel() {
                   }}
                 >
                   <div>
-                    <h3>
-                      Select a Date for{" "}
-                      {getProfessionalName(selectedProfessional)}
-                    </h3>
+                    <Box sx={{ px: { xs: 2, md: 3 }, mb: 2 }}>
+                      <Box sx={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: colors.accent.light, mb: 0.75 }}>
+                        Step 4 of 5
+                      </Box>
+                      <Box sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 700, color: colors.text.primary }}>
+                        Pick a Date & Time
+                      </Box>
+                      <Box sx={{ fontSize: 14, color: colors.text.secondary, mt: 0.5 }}>
+                        For {getProfessionalName(selectedProfessional)}
+                      </Box>
+                    </Box>
 
                     {availableDates.length === 0 ? (
                       <Box

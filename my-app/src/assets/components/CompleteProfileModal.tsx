@@ -75,7 +75,6 @@ export default function CompleteProfileModal({
           email: user.email || userEmail || "",
           full_name: fullName.trim(),
           phone: phone.trim(),
-          role: "user",
         },
         {
           onConflict: "id",

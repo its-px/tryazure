@@ -1,7 +1,6 @@
-import { Box, Chip, CircularProgress } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
 import { fetchServices, type Service } from "./servicesService";
-import { getComponentColors } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { useTenantContext } from "../../context/useTenantContext";
 
@@ -10,177 +9,115 @@ interface ServicesStepProps {
   onServiceToggle: (serviceId: string) => void;
 }
 
-export default function ServicesStep({
-  selectedServices,
-  onServiceToggle,
-}: ServicesStepProps) {
+export default function ServicesStep({ selectedServices, onServiceToggle }: ServicesStepProps) {
   const colors = useResolvedColors();
   const { tenant } = useTenantContext();
-  const componentColors = getComponentColors(colors);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-
-    const loadServices = () => {
-      if (!tenant?.id) {
-        console.log("[ServicesStep] Tenant not ready, skipping services load");
-        setServices([]);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      console.log("[ServicesStep] Loading services for tenant:", tenant.id);
-
-      // Load services with timeout
-      const timeout = new Promise<Service[]>((_, reject) =>
-        setTimeout(() => reject(new Error("Services load timeout")), 8000),
-      );
-
-      Promise.race([fetchServices(tenant.id), timeout])
-        .then((data) => {
-          if (isMounted) {
-            console.log("[ServicesStep] Services loaded:", data.length);
-            setServices(data);
-          }
-        })
-        .catch((err) => {
-          console.error("[ServicesStep] Error loading services:", err);
-          if (isMounted) {
-            setServices([]);
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            console.log("[ServicesStep] Setting loading to false");
-            setLoading(false);
-          }
-        });
-    };
-
-    loadServices();
-
-    return () => {
-      isMounted = false;
-    };
+    if (!tenant?.id) { setServices([]); setLoading(false); return; }
+    setLoading(true);
+    Promise.race([
+      fetchServices(tenant.id),
+      new Promise<Service[]>((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ])
+      .then((data) => { if (isMounted) setServices(data); })
+      .catch(() => { if (isMounted) setServices([]); })
+      .finally(() => { if (isMounted) setLoading(false); });
+    return () => { isMounted = false; };
   }, [tenant?.id]);
 
   if (loading) {
     return (
-      <Box
-        textAlign="center"
-        padding={4}
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
-      >
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
         <CircularProgress sx={{ color: colors.accent.main }} />
       </Box>
     );
   }
 
-  if (services.length === 0) {
-    return (
-      <Box textAlign="center" padding={4}>
-        <h3 style={{ color: colors.text.secondary }}>No services available</h3>
-        <p style={{ color: colors.text.tertiary }}>
-          Please contact the administrator
-        </p>
-      </Box>
-    );
-  }
   return (
-    <Box textAlign="center" padding={4}>
-      <h3 style={{ marginBottom: "20px", color: colors.text.primary }}>
-        Select Services
-      </h3>
-      <p style={{ marginBottom: "30px", color: colors.text.secondary }}>
-        Choose at least one service (you can select multiple)
-      </p>
+    <Box sx={{ px: { xs: 2, md: 3 }, pb: 3 }}>
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: colors.accent.light, mb: 0.75 }}>
+          Step 2 of 5
+        </Box>
+        <Box sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 300, color: colors.text.primary, lineHeight: 1.2 }}>
+          <strong style={{ fontWeight: 700 }}>Pick Services</strong>
+          <br />
+          <span style={{ fontSize: 14, color: colors.text.secondary }}>Select one or more services</span>
+        </Box>
+      </Box>
 
-      <Box display="flex" gap={3} justifyContent="center" flexWrap="wrap">
-        {services.map((service: Service) => {
-          const isSelected = selectedServices.includes(service.id);
-
+      {services.length === 0 ? (
+        <Box sx={{ textAlign: "center", py: 4, color: colors.text.secondary }}>No services available</Box>
+      ) : (
+        services.map((service) => {
+          const selected = selectedServices.includes(service.id);
           return (
             <Box
               key={service.id}
               onClick={() => onServiceToggle(service.id)}
               sx={{
-                border: isSelected
-                  ? `3px solid ${componentColors.serviceCard.selectedBorder}`
-                  : `2px solid ${componentColors.serviceCard.border}`,
-                borderRadius: "15px",
-                padding: 3,
+                position: "relative",
+                background: selected ? colors.background.card : colors.background.medium,
+                border: `1px solid ${selected ? colors.accent.main : colors.border.main}`,
+                borderRadius: "14px",
+                p: 2.25,
+                mb: 1.25,
                 cursor: "pointer",
-                minWidth: "200px",
-                maxWidth: "220px",
-                backgroundColor: isSelected
-                  ? componentColors.serviceCard.selected
-                  : componentColors.serviceCard.background,
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  backgroundColor: isSelected
-                    ? componentColors.serviceCard.selected
-                    : colors.background.card,
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                },
+                overflow: "hidden",
+                transition: "border-color 0.2s, background 0.2s, transform 0.15s",
+                "&:hover": { background: colors.background.card, transform: "translateY(-1px)" },
+                "&:active": { transform: "translateY(0)" },
+                ...(selected && {
+                  "&::after": {
+                    content: '""',
+                    position: "absolute", inset: 0,
+                    background: colors.background.overlay,
+                    borderRadius: "14px",
+                    pointerEvents: "none",
+                  },
+                }),
               }}
             >
-              <h4 style={{ margin: "0 0 10px 0", color: colors.text.primary }}>
-                {service.name}
-              </h4>
-              <p
-                style={{
-                  margin: "0 0 8px 0",
-                  color: colors.text.secondary,
-                  fontSize: "14px",
-                }}
-              >
-                {service.description || "No description available"}
-              </p>
-              <p style={{ margin: "0 0 8px 0", color: colors.text.secondary }}>
-                <strong>Duration:</strong> {service.duration_minutes} min
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  color: colors.text.primary,
-                  fontWeight: "bold",
-                }}
-              >
-                ${service.price}
-              </p>
-
-              {isSelected && (
-                <Chip
-                  label="Selected"
-                  size="small"
-                  sx={{
-                    mt: 1,
-                    backgroundColor: componentColors.serviceCard.selected,
-                    color: colors.text.primary,
-                  }}
-                />
-              )}
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Box>
+                  <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary, mb: 0.25 }}>{service.name}</Box>
+                  <Box sx={{ fontSize: 12, color: colors.text.secondary }}>
+                    {service.duration_minutes} min
+                    {service.description ? ` · ${service.description}` : ""}
+                  </Box>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
+                  <Box sx={{ fontSize: 15, fontWeight: 700, color: colors.accent.light }}>
+                    {service.price ? `€${service.price}` : ""}
+                  </Box>
+                  <Box
+                    sx={{
+                      width: 22, height: 22, borderRadius: "50%",
+                      background: colors.accent.main,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      opacity: selected ? 1 : 0,
+                      transform: selected ? "scale(1)" : "scale(0.5)",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    <span className="material-icons" style={{ fontSize: 14, color: "#fff" }}>check</span>
+                  </Box>
+                </Box>
+              </Box>
             </Box>
           );
-        })}
-      </Box>
+        })
+      )}
 
-      <p
-        style={{
-          marginTop: "20px",
-          color: colors.text.primary,
-          fontWeight: "bold",
-        }}
-      >
-        Selected: {selectedServices.length} service(s)
-      </p>
+      {selectedServices.length > 0 && (
+        <Box sx={{ mt: 1.5, fontSize: 12, color: colors.text.secondary, textAlign: "center" }}>
+          {selectedServices.length} service{selectedServices.length > 1 ? "s" : ""} selected
+        </Box>
+      )}
     </Box>
   );
 }

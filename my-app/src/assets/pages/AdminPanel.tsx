@@ -1,5 +1,5 @@
 import { Calendar } from "../components/calendar";
-import { Box, Tabs, Tab, IconButton } from "@mui/material";
+import { Box, Tabs, Tab, IconButton, Select, MenuItem, FormControl, InputLabel } from "@mui/material";
 import { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../configureStore";
@@ -7,7 +7,7 @@ import { supabase } from "../components/supabaseClient";
 import { generateWeekdaysInRange, excludeDates } from "../components/dateUtils";
 import { Link } from "react-router-dom";
 import SMSAdminDashboard from "../components/SMSAdminDashboard";
-import { useResolvedColors } from "../../hooks/useResolvedColors";
+import { getColors } from "../../theme";
 import { toggleTheme } from "../../slices/themeSlice";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
@@ -17,6 +17,20 @@ import {
   getProfessionalNameByCode,
   type ProfessionalOption,
 } from "../components/professionalsService";
+
+interface TenantOption {
+  id: string;
+  name: string;
+  slug: string;
+  config: {
+    primaryColor?: string;
+    primaryLight?: string;
+    primaryDark?: string;
+    primaryHover?: string;
+    primaryOverlay?: string;
+    [key: string]: unknown;
+  };
+}
 
 interface ProfessionalHours {
   professional_id: string;
@@ -29,8 +43,19 @@ interface ProfessionalHours {
 export default function AdminPanel() {
   const dispatch = useDispatch();
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
-  const colors = useResolvedColors();
   const { tenant } = useTenantContext();
+  const [allTenants, setAllTenants] = useState<TenantOption[]>([]);
+  const [activeTenant, setActiveTenant] = useState<TenantOption | null>(null);
+  const activeBrand = activeTenant?.config?.primaryColor
+    ? {
+        primaryColor: activeTenant.config.primaryColor,
+        primaryLight: activeTenant.config.primaryLight ?? activeTenant.config.primaryColor,
+        primaryDark: activeTenant.config.primaryDark ?? activeTenant.config.primaryColor,
+        primaryHover: activeTenant.config.primaryHover ?? activeTenant.config.primaryColor,
+        primaryOverlay: activeTenant.config.primaryOverlay ?? `${activeTenant.config.primaryColor}1a`,
+      }
+    : undefined;
+  const colors = getColors(mode, activeBrand);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("2026-01-01");
   const [endDate, setEndDate] = useState("2026-12-31");
@@ -52,7 +77,7 @@ export default function AdminPanel() {
 
   const handleSaveAvailability = async () => {
     if (!selectedDates.length) return alert("Select at least one date");
-    if (!tenant?.id) {
+    if (!activeTenant?.id) {
       alert("❌ Tenant not loaded yet. Please wait and try again.");
       return;
     }
@@ -71,7 +96,7 @@ export default function AdminPanel() {
       const formattedDates: { date: string; tenant_id: string }[] =
         uniqueDates.map((date) => ({
           date,
-          tenant_id: tenant.id,
+          tenant_id: activeTenant.id,
         }));
 
       console.log(
@@ -85,7 +110,7 @@ export default function AdminPanel() {
       const { error: deleteError } = await supabase
         .from("availability")
         .delete()
-        .eq("tenant_id", tenant.id);
+        .eq("tenant_id", activeTenant.id);
 
       if (deleteError) {
         console.error(
@@ -144,25 +169,49 @@ export default function AdminPanel() {
     setSelectedDates(availableDates);
   };
 
+  // Sync activeTenant from context on first load
+  useEffect(() => {
+    if (tenant && !activeTenant) {
+      setActiveTenant({ id: tenant.id, name: tenant.name, slug: tenant.slug, config: tenant.config ?? {} });
+    }
+  }, [tenant, activeTenant]);
+
+  // Fetch all tenants for the switcher
+  useEffect(() => {
+    supabase
+      .from("tenants")
+      .select("id, name, slug, config")
+      .then(({ data }) => {
+        if (data) setAllTenants(data as TenantOption[]);
+      });
+  }, []);
+
+  const handleTenantSwitch = async (tenantId: string) => {
+    const selected = allTenants.find((t) => t.id === tenantId);
+    if (!selected) return;
+    await supabase.rpc("set_current_tenant", { tenant_id: tenantId });
+    setActiveTenant(selected);
+  };
+
   const isMountedRef = useRef(true);
   useEffect(() => {
     isMountedRef.current = true;
     return () => { isMountedRef.current = false; };
   }, []);
 
-  // Load professionals and professional hours whenever tenant is ready
+  // Reload data whenever the active tenant changes
   useEffect(() => {
-    if (tenant?.id) {
+    if (activeTenant?.id) {
       loadProfessionals();
       loadProfessionalHours();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant?.id]);
+  }, [activeTenant?.id]);
 
   const loadProfessionals = async () => {
-    if (!tenant?.id) return;
+    if (!activeTenant?.id) return;
 
-    const rows = await fetchProfessionals(tenant.id);
+    const rows = await fetchProfessionals(activeTenant.id);
     if (!isMountedRef.current) return;
     setProfessionals(rows);
 
@@ -173,12 +222,12 @@ export default function AdminPanel() {
   };
 
   const loadProfessionalHours = async () => {
-    if (!tenant?.id) return;
+    if (!activeTenant?.id) return;
 
     const { data, error } = await supabase
       .from("professional_hours")
       .select("*")
-      .eq("tenant_id", tenant.id)
+      .eq("tenant_id", activeTenant.id)
       .order("day_of_week");
 
     if (error) {
@@ -217,7 +266,7 @@ export default function AdminPanel() {
       return;
     }
 
-    if (!tenant?.id) {
+    if (!activeTenant?.id) {
       alert("❌ Tenant not loaded yet. Please wait and try again.");
       return;
     }
@@ -228,7 +277,7 @@ export default function AdminPanel() {
         day_of_week,
         start_time,
         end_time,
-        tenant_id: tenant.id,
+        tenant_id: activeTenant.id,
       }),
     );
 
@@ -244,7 +293,7 @@ export default function AdminPanel() {
         .from("professional_hours")
         .delete()
         .eq("professional_id", selectedProfessional)
-        .eq("tenant_id", tenant.id);
+        .eq("tenant_id", activeTenant.id);
 
       if (deleteError) {
         console.error("Error deleting old hours:", deleteError);
@@ -485,6 +534,27 @@ export default function AdminPanel() {
       >
         Logout
       </button>
+
+      {/* Tenant Switcher */}
+      {allTenants.length > 1 && (
+        <Box sx={{ maxWidth: 300, margin: "0 auto 20px auto" }}>
+          <FormControl fullWidth size="small">
+            <InputLabel sx={{ color: colors.text.primary }}>Active Tenant</InputLabel>
+            <Select
+              value={activeTenant?.id ?? ""}
+              label="Active Tenant"
+              onChange={(e) => handleTenantSwitch(e.target.value)}
+              sx={{ color: colors.text.primary }}
+            >
+              {allTenants.map((t) => (
+                <MenuItem key={t.id} value={t.id}>
+                  {t.name ?? t.slug}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      )}
 
       <Box
         sx={{

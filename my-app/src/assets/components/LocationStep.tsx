@@ -1,5 +1,4 @@
 import { Box } from "@mui/material";
-import { getComponentColors } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 interface LocationStepProps {
@@ -7,146 +6,105 @@ interface LocationStepProps {
   onLocationSelect: (location: "your_place" | "our_place") => void;
 }
 
-export default function LocationStep({
-  selectedLocation,
-  onLocationSelect,
-}: LocationStepProps) {
+const LOCATIONS = [
+  {
+    key: "our_place" as const,
+    icon: "store",
+    label: "At Our Place",
+    sub: "Visit our location",
+  },
+  {
+    key: "your_place" as const,
+    icon: "home",
+    label: "At Your Place",
+    sub: "We come to you",
+  },
+];
+
+export default function LocationStep({ selectedLocation, onLocationSelect }: LocationStepProps) {
   const colors = useResolvedColors();
-  const componentColors = getComponentColors(colors);
+
   return (
-    <Box
-      textAlign="center"
-      padding={{ xs: 2, sm: 3, md: 4 }}
-      sx={{
-        backgroundColor: colors.background.dark,
-        minHeight: "100vh",
-      }}
-    >
-      <h3
-        style={{
-          marginBottom: "30px",
-          color: colors.text.secondary,
-          fontSize: window.innerWidth < 600 ? "1.25rem" : "1.5rem",
-        }}
-      >
-        Where would you like your appointment?
-      </h3>
-
-      <Box
-        display="flex"
-        gap={{ xs: 2, sm: 3, md: 4 }}
-        justifyContent="center"
-        flexDirection={{ xs: "column", sm: "row" }} // Stack on mobile, row on desktop
-        alignItems="center"
-        sx={{
-          maxWidth: "800px",
-          margin: "0 auto",
-        }}
-      >
-        {/* Your Place Option */}
-        <Box
-          onClick={() => onLocationSelect("your_place")}
-          sx={{
-            border:
-              selectedLocation === "your_place"
-                ? `3px solid ${componentColors.locationCard.border}`
-                : `2px solid ${componentColors.locationCard.border}`,
-            borderRadius: "15px",
-            padding: { xs: 3, sm: 4 },
-            cursor: "pointer",
-            width: { xs: "100%", sm: "auto" },
-            minWidth: { xs: "100%", sm: "250px" },
-            maxWidth: { xs: "100%", sm: "350px" },
-            backgroundColor:
-              selectedLocation === "your_place"
-                ? componentColors.locationCard.background
-                : componentColors.locationCard.background,
-            transition: "all 0.3s ease",
-            "&:hover": {
-              backgroundColor:
-                selectedLocation === "your_place"
-                  ? componentColors.locationCard.hover
-                  : componentColors.locationCard.hover,
-              transform: "translateY(-2px)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            },
-            "&:active": {
-              transform: "scale(0.98)",
-            },
-          }}
-        >
-          <h4
-            style={{
-              margin: "0 0 10px 0",
-              color: colors.text.primary,
-              fontSize: window.innerWidth < 600 ? "1.1rem" : "1.25rem",
-            }}
-          >
-            Appointment at Your Place
-          </h4>
-          <p
-            style={{
-              margin: 0,
-              color: colors.text.secondary,
-              fontSize: window.innerWidth < 600 ? "0.875rem" : "1rem",
-            }}
-          >
-            We come to your location
-          </p>
+    <Box sx={{ px: { xs: 2, md: 3 }, pb: 3 }}>
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: colors.accent.light, mb: 0.75 }}>
+          Step 1 of 5
         </Box>
-
-        {/* Our Place Option */}
-        <Box
-          onClick={() => onLocationSelect("our_place")}
-          sx={{
-            border:
-              selectedLocation === "our_place"
-                ? `3px solid ${componentColors.locationCard.border}`
-                : `2px solid ${componentColors.locationCard.border}`,
-            borderRadius: "15px",
-            padding: { xs: 3, sm: 4 },
-            cursor: "pointer",
-            width: { xs: "100%", sm: "auto" },
-            minWidth: { xs: "100%", sm: "250px" },
-            maxWidth: { xs: "100%", sm: "350px" },
-            backgroundColor:
-              selectedLocation === "our_place"
-                ? componentColors.locationCard.background
-                : componentColors.locationCard.background,
-            transition: "all 0.3s ease",
-            "&:hover": {
-              backgroundColor:
-                selectedLocation === "our_place"
-                  ? componentColors.locationCard.hover
-                  : componentColors.locationCard.hover,
-              transform: "translateY(-2px)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            },
-            "&:active": {
-              transform: "scale(0.98)",
-            },
-          }}
-        >
-          <h4
-            style={{
-              margin: "0 0 10px 0",
-              color: colors.text.primary,
-              fontSize: window.innerWidth < 600 ? "1.1rem" : "1.25rem",
-            }}
-          >
-            Appointment at Our Place
-          </h4>
-          <p
-            style={{
-              margin: 0,
-              color: colors.text.secondary,
-              fontSize: window.innerWidth < 600 ? "0.875rem" : "1rem",
-            }}
-          >
-            Visit our location
-          </p>
+        <Box sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 300, color: colors.text.primary, lineHeight: 1.2 }}>
+          <strong style={{ fontWeight: 700 }}>Choose Location</strong>
+          <br />
+          <span style={{ fontSize: 14, color: colors.text.secondary }}>Where would you like your appointment?</span>
         </Box>
       </Box>
+
+      {LOCATIONS.map(({ key, icon, label, sub }) => {
+        const selected = selectedLocation === key;
+        return (
+          <Box
+            key={key}
+            onClick={() => onLocationSelect(key)}
+            sx={{
+              position: "relative",
+              background: selected ? colors.background.card : colors.background.medium,
+              border: `1px solid ${selected ? colors.accent.main : colors.border.main}`,
+              borderRadius: "14px",
+              p: 2.25,
+              mb: 1.25,
+              cursor: "pointer",
+              overflow: "hidden",
+              transition: "border-color 0.2s, background 0.2s, transform 0.15s",
+              "&:hover": {
+                borderColor: selected ? colors.accent.main : colors.border.main,
+                background: colors.background.card,
+                transform: "translateY(-1px)",
+              },
+              "&:active": { transform: "translateY(0)" },
+              ...(selected && {
+                "&::after": {
+                  content: '""',
+                  position: "absolute", inset: 0,
+                  background: colors.background.overlay,
+                  borderRadius: "14px",
+                  pointerEvents: "none",
+                },
+              }),
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.75 }}>
+              <Box
+                sx={{
+                  width: 44, height: 44, borderRadius: "50%",
+                  background: selected ? colors.accent.main : colors.background.card,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0, transition: "background 0.2s",
+                }}
+              >
+                <span className="material-icons" style={{ fontSize: 22, color: selected ? "#fff" : colors.text.secondary }}>
+                  {icon}
+                </span>
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary, mb: 0.25 }}>{label}</Box>
+                <Box sx={{ fontSize: 12, color: colors.text.secondary }}>{sub}</Box>
+              </Box>
+              {/* Check indicator */}
+              <Box
+                sx={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: colors.accent.main,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  opacity: selected ? 1 : 0,
+                  transform: selected ? "scale(1)" : "scale(0.5)",
+                  transition: "all 0.2s",
+                  flexShrink: 0,
+                }}
+              >
+                <span className="material-icons" style={{ fontSize: 14, color: "#fff" }}>check</span>
+              </Box>
+            </Box>
+          </Box>
+        );
+      })}
     </Box>
   );
 }

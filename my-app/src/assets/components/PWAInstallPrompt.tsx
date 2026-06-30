@@ -5,39 +5,35 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const VISIT_KEY = "pwa_install_visits";
 const INSTALLED_KEY = "pwa_installed";
-const DISMISSED_KEY = "pwa_dismissed";
+const SNOOZED_KEY = "pwa_snoozed_until";
+const MIN_VISITS = 3;
+const SNOOZE_DAYS = 7;
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
-  
-  const logoPath = "/logo.png"; 
-
-  useEffect(() => {
-    const dismissed = localStorage.getItem(DISMISSED_KEY);
-    const installed = localStorage.getItem(INSTALLED_KEY);
-
-    if (installed === "true") return;
-
-    let visits = Number(localStorage.getItem(VISIT_KEY) || "0");
-    visits += 1;
-    localStorage.setItem(VISIT_KEY, visits.toString());
-
-    if (!dismissed || visits >= 3) {
-      setShowPrompt(true);
-      localStorage.removeItem(VISIT_KEY);
-    }
-  }, []);
+  const logoPath = "/logo.png";
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+
+      if (localStorage.getItem(INSTALLED_KEY) === "true") return;
+
+      const snoozedUntil = Number(localStorage.getItem(SNOOZED_KEY) || "0");
+      if (Date.now() < snoozedUntil) return;
+
+      let visits = Number(localStorage.getItem(VISIT_KEY) || "0") + 1;
+      localStorage.setItem(VISIT_KEY, visits.toString());
+
+      if (visits >= MIN_VISITS) {
+        setDeferredPrompt(e);
+        setShowPrompt(true);
+      }
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-
     window.addEventListener("appinstalled", () => {
       localStorage.setItem(INSTALLED_KEY, "true");
       setShowPrompt(false);
@@ -55,17 +51,17 @@ export default function PWAInstallPrompt() {
 
     if (choiceResult.outcome === "accepted") {
       localStorage.setItem(INSTALLED_KEY, "true");
-      setShowPrompt(false);
     } else {
-      localStorage.setItem(DISMISSED_KEY, "true");
-      setShowPrompt(false);
+      snooze();
     }
 
     setDeferredPrompt(null);
+    setShowPrompt(false);
   };
 
-  const handleDismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, "true");
+  const snooze = () => {
+    localStorage.setItem(SNOOZED_KEY, String(Date.now() + SNOOZE_DAYS * 86400_000));
+    localStorage.removeItem(VISIT_KEY);
     setShowPrompt(false);
   };
 
@@ -105,7 +101,7 @@ export default function PWAInstallPrompt() {
                   Install Our App
                 </Typography>
               </Box>
-              <IconButton size="small" onClick={handleDismiss} sx={{ color: "#fff" }}>
+              <IconButton size="small" onClick={snooze} sx={{ color: "#fff" }}>
                 <CloseIcon fontSize="small" />
               </IconButton>
             </Box>
