@@ -75,8 +75,8 @@ export default function PWAInstallPrompt() {
           transition={{ duration: 0.4 }}
           style={{
             position: "fixed",
-            bottom: 20,
-            right: 20,
+            bottom: "calc(20px + env(safe-area-inset-bottom))",
+            right: "calc(20px + env(safe-area-inset-right))",
             zIndex: 2000,
           }}
         >

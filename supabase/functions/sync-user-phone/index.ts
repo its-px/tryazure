@@ -41,6 +41,24 @@ Deno.serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: callerData, error: callerError } =
+      await supabaseAdmin.auth.getUser(token);
+    if (callerError || !callerData?.user) {
+      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const body = await req.json().catch(() => null);
     const { userId, phone } = body || {};
 
@@ -48,6 +66,13 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ error: "userId and phone are required" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (callerData.user.id !== userId) {
+      return new Response(
+        JSON.stringify({ error: "Cannot update another user's phone" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 

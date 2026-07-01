@@ -71,6 +71,8 @@ export default function AdminPanel() {
   const [professionalHours, setProfessionalHours] = useState<{
     [key: string]: ProfessionalHours[];
   }>({});
+  const [committedHours, setCommittedHours] = useState<ProfessionalHours[]>([]);
+  const [committedLoading, setCommittedLoading] = useState(false);
 
   const getProfessionalName = (code: string | null | undefined) =>
     getProfessionalNameByCode(professionals, code);
@@ -189,7 +191,7 @@ export default function AdminPanel() {
   const handleTenantSwitch = async (tenantId: string) => {
     const selected = allTenants.find((t) => t.id === tenantId);
     if (!selected) return;
-    await supabase.rpc("set_current_tenant", { tenant_id: tenantId });
+    await supabase.rpc("set_current_tenant", { p_tenant_id: tenantId });
     setActiveTenant(selected);
   };
 
@@ -207,6 +209,11 @@ export default function AdminPanel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTenant?.id]);
+
+  useEffect(() => {
+    loadCommittedHours();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfessional, activeTenant?.id]);
 
   const loadProfessionals = async () => {
     if (!activeTenant?.id) return;
@@ -245,6 +252,19 @@ export default function AdminPanel() {
     });
 
     if (isMountedRef.current) setProfessionalHours(groupedHours);
+  };
+
+  const loadCommittedHours = async () => {
+    if (!activeTenant?.id || !selectedProfessional) return;
+    setCommittedLoading(true);
+    const { data, error } = await supabase
+      .from("professional_hours")
+      .select("*")
+      .eq("tenant_id", activeTenant.id)
+      .eq("professional_id", selectedProfessional)
+      .order("day_of_week");
+    if (!error && isMountedRef.current) setCommittedHours(data ?? []);
+    setCommittedLoading(false);
   };
 
   const handleSaveProfessionalHours = async () => {
@@ -320,6 +340,7 @@ export default function AdminPanel() {
 
       // Reload hours from database to sync state
       await loadProfessionalHours();
+      await loadCommittedHours();
     } catch (error) {
       console.error("Unexpected error in handleSaveProfessionalHours:", error);
       alert("❌ An unexpected error occurred. Check the console for details.");
@@ -896,20 +917,43 @@ export default function AdminPanel() {
             </button>
           </Box>
 
-          {/* Current Status */}
-          <Box
-            mt={3}
-            p={2}
-            sx={{ backgroundColor: colors.background.light, borderRadius: 1 }}
-          >
-            <strong style={{ color: colors.text.primary }}>
-              Current Status:
-            </strong>
-            <p style={{ margin: "5px 0", color: colors.text.secondary }}>
-              {getProfessionalName(selectedProfessional)} has{" "}
-              {(professionalHours[selectedProfessional ?? ""] ?? []).length}{" "}
-              working day(s) configured
-            </p>
+          {/* Committed Hours — live read from DB */}
+          <Box mt={3} p={2} sx={{ backgroundColor: colors.background.light, borderRadius: 1, border: `1px solid ${colors.border.main}` }}>
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+              <strong style={{ color: colors.text.primary }}>
+                ✅ Saved in DB for {getProfessionalName(selectedProfessional)}
+              </strong>
+              <button
+                onClick={loadCommittedHours}
+                style={{ fontSize: 12, padding: "4px 12px", cursor: "pointer", background: colors.background.medium, color: colors.text.primary, border: `1px solid ${colors.border.main}`, borderRadius: 4 }}
+              >
+                Refresh
+              </button>
+            </Box>
+            {committedLoading ? (
+              <p style={{ color: colors.text.secondary, margin: 0 }}>Loading…</p>
+            ) : committedHours.length === 0 ? (
+              <p style={{ color: "tomato", margin: 0 }}>⚠️ No hours committed to DB for this professional</p>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: colors.text.secondary }}>
+                <thead>
+                  <tr>
+                    {["Day", "Start", "End"].map((h) => (
+                      <th key={h} style={{ textAlign: "left", paddingBottom: 4, borderBottom: `1px solid ${colors.border.main}`, color: colors.text.primary }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {committedHours.map((h) => (
+                    <tr key={h.day_of_week}>
+                      <td style={{ padding: "3px 0" }}>{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][h.day_of_week]}</td>
+                      <td>{h.start_time}</td>
+                      <td>{h.end_time}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </Box>
         </Box>
       )}

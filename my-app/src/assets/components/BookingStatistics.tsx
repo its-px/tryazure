@@ -38,6 +38,7 @@ interface Booking {
 interface BookingStatisticsProps {
   allBookings: Booking[];
   professionalNameMap?: Record<string, string>;
+  tenantId: string;
 }
 
 interface DailyBooking {
@@ -85,6 +86,7 @@ interface ServiceCancellationData {
 export default function BookingStatistics({
   allBookings,
   professionalNameMap = {},
+  tenantId,
 }: BookingStatisticsProps) {
   const colors = useResolvedColors();
 
@@ -126,13 +128,7 @@ export default function BookingStatistics({
   >([]);
 
   const resolveProfessionalName = useCallback(
-    (profId: string) =>
-      professionalNameMap[profId] ??
-      (profId === "prof1"
-        ? "Person 1"
-        : profId === "prof2"
-          ? "Person 2"
-          : profId),
+    (profId: string) => professionalNameMap[profId] ?? profId,
     [professionalNameMap],
   );
   const [professionalPerformance, setProfessionalPerformance] = useState<
@@ -147,10 +143,12 @@ export default function BookingStatistics({
   });
 
   const loadServicePrices = useCallback(async () => {
+    if (!tenantId) return;
     try {
       const { data, error } = await supabase
         .from("services")
-        .select("id, name, price");
+        .select("id, name, price")
+        .eq("tenant_id", tenantId);
 
       if (error) {
         console.error("Error loading service prices:", error);
@@ -168,7 +166,7 @@ export default function BookingStatistics({
     } catch (err) {
       console.error("Exception loading service prices:", err);
     }
-  }, []);
+  }, [tenantId]);
 
   const calculateStatistics = useCallback(() => {
     const today = dayjs();

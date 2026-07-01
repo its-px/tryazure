@@ -17,6 +17,28 @@ Deno.serve(async (req) => {
   try {
     console.log("SMS function called");
 
+    // This relays to a paid SMS gateway with an arbitrary recipient number - without an
+    // auth check, anyone on the internet could use it to spam third parties on our bill.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: userData, error: authError } = await supabaseAuth.auth.getUser(token);
+    if (authError || !userData?.user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+
     if (method !== "POST") {
       return new Response(
         JSON.stringify({ success: false, error: "Method not allowed" }),

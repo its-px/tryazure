@@ -31,6 +31,7 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import dayjs from "dayjs";
 import BookingStatistics from "../components/BookingStatistics";
+import { fetchProfessionals } from "../components/professionalsService";
 
 type BookingStatus =
   | "pending"
@@ -210,6 +211,16 @@ export default function ProfessionalPanel() {
   };
 
   useEffect(() => { loadIdentity(); }, []);
+
+  // professionals.name is the single source of truth for display name;
+  // auth user_metadata.full_name is only a fallback until it loads.
+  useEffect(() => {
+    if (!professionalCode || !tenant?.id) return;
+    fetchProfessionals(tenant.id).then((professionals) => {
+      const match = professionals.find((p) => p.code === professionalCode);
+      if (match?.name) setProfessionalName(match.name);
+    });
+  }, [professionalCode, tenant?.id]);
 
   useEffect(() => {
     if (!professionalCode || !tenant?.id) return;
@@ -502,6 +513,7 @@ export default function ProfessionalPanel() {
           <BookingStatistics
             allBookings={selectedBookings}
             professionalNameMap={professionalCode ? { [professionalCode]: professionalName } : {}}
+            tenantId={tenant?.id ?? ""}
           />
         )}
 

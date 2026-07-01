@@ -68,6 +68,9 @@ export default function UserPanel() {
   const prefersReducedMotion = useReducedMotion();
   const previousStepRef = React.useRef(currentStep);
   const [stepDirection, setStepDirection] = React.useState<1 | -1>(1);
+  // Set when we open the login modal to gate step 4 -> 5, so we can resume
+  // the flow once the user logs in instead of stranding them on the time step.
+  const awaitingLoginRef = React.useRef(false);
 
   useEffect(() => {
     if (currentStep !== previousStepRef.current) {
@@ -145,67 +148,50 @@ export default function UserPanel() {
     serviceDuration,
   ]);
 
-  // Restore booking state from localStorage on mount
-  // COMMENTED OUT FOR TESTING - Check if this feature causes issues with service loading
+  // Restore an in-progress booking after a full-page reload. Google login does
+  // a full OAuth redirect that wipes Redux, so without this the user loses all
+  // their selections. Runs once on mount.
   useEffect(() => {
-    console.log("localStorage restoration is DISABLED for testing");
-    // const savedState = localStorage.getItem("bookingState");
+    try {
+      const saved = localStorage.getItem("bookingState");
+      if (!saved) return;
+      const s = JSON.parse(saved);
+      // Expire stale drafts after 1 hour.
+      if (!s.timestamp || Date.now() - s.timestamp > 60 * 60 * 1000) {
+        localStorage.removeItem("bookingState");
+        return;
+      }
+      dispatch(
+        setUserSelections({
+          selectedLocation: s.selectedLocation ?? null,
+          selectedServices: s.selectedServices ?? [],
+          selectedProfessional: s.selectedProfessional ?? null,
+          selectedDate: s.selectedDate ?? "",
+          selectedSlot: s.selectedSlot ?? null,
+          serviceDuration: s.serviceDuration ?? 0,
+        }),
+      );
 
-    // if (savedState) {
-    //   try {
-    //     const state = JSON.parse(savedState);
-    //     const { currentStep: savedStep, timestamp, ...selectionsOnly } = state;
+      // If we left for login from the step-4 gate and now have a session,
+      // resume at the summary step instead of the time picker.
+      const resume = localStorage.getItem("resumeBookingAfterLogin");
+      localStorage.removeItem("resumeBookingAfterLogin");
+      let hasSession = false;
+      try {
+        const sess = JSON.parse(localStorage.getItem("sb-auth-token") || "null");
+        hasSession = !!(
+          sess?.user && sess.expires_at > Math.floor(Date.now() / 1000)
+        );
+      } catch {
+        /* ignore malformed session */
+      }
 
-    //     // Check if state is expired (older than 24 hours)
-    //     const EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-    //     const isExpired = timestamp && (Date.now() - timestamp > EXPIRATION_TIME);
-
-    //     if (isExpired) {
-    //       console.log("Booking state expired, clearing localStorage");
-    //       localStorage.removeItem("bookingState");
-    //       return;
-    //     }
-
-    //     // Validate the restored state
-    //     const isValidState = () => {
-    //       // Must have selectedServices as an array
-    //       if (!selectionsOnly.selectedServices) return false;
-
-    //       // Convert object to array if needed (serialization fix)
-    //       if (!Array.isArray(selectionsOnly.selectedServices)) {
-    //         selectionsOnly.selectedServices = Object.values(selectionsOnly.selectedServices);
-    //       }
-
-    //       // Must have at least some selection to restore
-    //       const hasValidSelections =
-    //         selectionsOnly.selectedLocation ||
-    //         selectionsOnly.selectedServices.length > 0 ||
-    //         selectionsOnly.selectedProfessional;
-
-    //       return hasValidSelections && Array.isArray(selectionsOnly.selectedServices);
-    //     };
-
-    //     if (isValidState()) {
-    //       console.log("Restoring booking state from localStorage");
-    //       dispatch(setUserSelections({
-    //         selectedLocation: selectionsOnly.selectedLocation || null,
-    //         selectedServices: selectionsOnly.selectedServices || [],
-    //         selectedProfessional: selectionsOnly.selectedProfessional || null,
-    //         selectedDate: selectionsOnly.selectedDate || "",
-    //         selectedSlot: selectionsOnly.selectedSlot || null,
-    //         serviceDuration: selectionsOnly.serviceDuration || 0,
-    //       }));
-    //       if (savedStep && savedStep > 1) dispatch(setCurrentStep(savedStep));
-    //     } else {
-    //       console.log("Invalid or empty booking state, clearing localStorage");
-    //       localStorage.removeItem("bookingState");
-    //     }
-    //   } catch (err) {
-    //     console.error("Error restoring booking state, clearing localStorage:", err);
-    //     localStorage.removeItem("bookingState");
-    //   }
-    // }
-  }, [dispatch]);
+      dispatch(setCurrentStep(resume && hasSession ? 5 : (s.currentStep ?? 1)));
+    } catch {
+      /* ignore malformed draft */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load services from database once tenant is ready
   useEffect(() => {
@@ -374,84 +360,34 @@ export default function UserPanel() {
           return;
         }
 
-        console.log("[loadAvailableDates] Loading shop dates...");
-        const shopResponse = await fetch(
-          `${supabaseUrl}/rest/v1/availability?tenant_id=eq.${tenant.id}&select=date`,
+        console.log("[loadAvailableDates] Fetching available dates via RPC...");
+        const checkDuration = serviceDuration > 0 ? serviceDuration : 30;
+
+        const datesResponse = await fetch(
+          `${supabaseUrl}/rest/v1/rpc/get_available_dates`,
           {
+            method: "POST",
             headers,
+            signal: controller.signal,
+            body: JSON.stringify({
+              p_professional_id: selectedProfessional,
+              p_tenant_id: tenant.id,
+              p_service_duration_minutes: checkDuration,
+            }),
           },
         );
 
-        const shopDates = shopResponse.ok ? await shopResponse.json() : null;
-
         if (!isMounted) return;
 
-        if (!shopDates || shopDates.length === 0) {
-          console.error("[loadAvailableDates] No shop dates available");
+        if (!datesResponse.ok) {
+          console.error("[loadAvailableDates] RPC error:", datesResponse.statusText);
           setAvailableDates([]);
           return;
         }
 
-        console.log(
-          "[loadAvailableDates] Shop dates loaded:",
-          shopDates.length,
-        );
-
-        // Check each date to see if it has any available slots
-        // Only include dates that have at least one available slot
-        const datesWithSlots: string[] = [];
-
-        for (const dateEntry of shopDates) {
-          if (!isMounted) break;
-
-          const date = dateEntry.date;
-          // Check if there are any available slots for this date
-          // We'll use a minimum service duration of 30 minutes for the check
-          // If serviceDuration is set, use it; otherwise use 30 minutes as default
-          const checkDuration = serviceDuration > 0 ? serviceDuration : 30;
-
-          try {
-            const slotsResponse = await fetch(
-              `${supabaseUrl}/rest/v1/rpc/get_available_slots`,
-              {
-                method: "POST",
-                headers,
-                signal: controller.signal,
-                body: JSON.stringify({
-                  p_professional_id: selectedProfessional,
-                  p_date: date,
-                  p_service_duration_minutes: checkDuration,
-                  p_tenant_id: tenant.id,
-                }),
-              },
-            );
-
-            if (slotsResponse.ok) {
-              const slots = await slotsResponse.json();
-              if (slots && slots.length > 0) {
-                datesWithSlots.push(date);
-              }
-            } else {
-              console.error(
-                "[loadAvailableDates] Error checking slots for",
-                date,
-                ":",
-                slotsResponse.statusText,
-              );
-            }
-          } catch (err) {
-            console.error(
-              "[loadAvailableDates] Exception checking slots for date:",
-              date,
-              err,
-            );
-          }
-        }
-
-        console.log(
-          "[loadAvailableDates] Dates with slots:",
-          datesWithSlots.length,
-        );
+        const rows = await datesResponse.json();
+        const datesWithSlots = (rows as { date: string }[]).map((r) => r.date);
+        console.log("[loadAvailableDates] Dates with slots:", datesWithSlots.length);
 
         if (isMounted) {
           setAvailableDates(datesWithSlots);
@@ -503,6 +439,9 @@ export default function UserPanel() {
   const handleNextStep = () => {
     // If moving to final step (summary/booking), check login
     if (currentStep === 4 && !isLoggedIn) {
+      awaitingLoginRef.current = true;
+      // Persisted so the resume survives Google's full-page OAuth redirect.
+      localStorage.setItem("resumeBookingAfterLogin", "1");
       setShowLoginModal(true);
 
       return;
@@ -511,6 +450,19 @@ export default function UserPanel() {
       dispatch(setCurrentStep(currentStep + 1));
     }
   };
+
+  // After the user logs in from the step-4 gate, resume the flow: advance to
+  // the summary step instead of leaving them on the date/time picker.
+  useEffect(() => {
+    if (isLoggedIn && awaitingLoginRef.current) {
+      awaitingLoginRef.current = false;
+      localStorage.removeItem("resumeBookingAfterLogin");
+      setShowLoginModal(false);
+      if (currentStep === 4 && canProceedNext()) {
+        dispatch(setCurrentStep(5));
+      }
+    }
+  }, [isLoggedIn, currentStep, dispatch]);
 
   // Check if user is logged in and handle auth changes
   // Check auth state from localStorage (bypass hanging Supabase client)
@@ -563,13 +515,16 @@ export default function UserPanel() {
 
     window.addEventListener("storage", handleStorageChange);
 
-    // Also poll periodically in case storage event doesn't fire
-    //const pollInterval = setInterval(checkAuth, 2000);
+    // storage events don't fire in the tab that wrote localStorage, so also
+    // recheck on Supabase's own auth events (covers sign-in in this tab)
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      checkAuth();
+    });
 
     return () => {
       isMounted = false;
       window.removeEventListener("storage", handleStorageChange);
-      //clearInterval(pollInterval);
+      authListener.subscription.unsubscribe();
     };
   }, []); // Only run once on mount
 
@@ -697,7 +652,7 @@ export default function UserPanel() {
 
         if (hasOverlap) {
           alert(
-            "β This time slot is already booked. Please select a different time slot.",
+            "This time slot is already booked. Please select a different time slot.",
           );
           return;
         }
@@ -729,10 +684,15 @@ export default function UserPanel() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Booking error:", errorText);
-        if (errorText.includes("23505") || errorText.includes("duplicate")) {
-          alert("β This professional is already booked on this date!");
+        if (
+          errorText.includes("23505") ||
+          errorText.includes("23P01") ||
+          errorText.includes("duplicate") ||
+          errorText.includes("bookings_no_overlap")
+        ) {
+          alert("This professional is already booked on this date!");
         } else {
-          alert("β Error creating booking: " + errorText);
+          alert("Error creating booking: " + errorText);
         }
         return;
       }
@@ -756,7 +716,7 @@ export default function UserPanel() {
       const userEmail =
         typeof capturedUser === "string" ? capturedUser : capturedUser?.email;
 
-      console.log("π“‹ Captured booking data:", {
+      console.log("Captured booking data:", {
         user: userEmail,
         userType: typeof capturedUser,
         date: capturedDate,
@@ -766,7 +726,7 @@ export default function UserPanel() {
         services: serviceNames,
       });
 
-      alert("β… Booking confirmed successfully!");
+      alert("Booking confirmed successfully!");
 
       // Show notification with captured values - run in background, don't block email
       // Use setTimeout to make it non-blocking
@@ -777,9 +737,9 @@ export default function UserPanel() {
             services: capturedServices,
             id: insertedBooking?.id || Date.now(),
           });
-          console.log("β… Browser notification sent");
+          console.log("Browser notification sent");
         } catch (notifError) {
-          console.error("β Notification error:", notifError);
+          console.error("Notification error:", notifError);
         }
       }, 0);
 
@@ -808,7 +768,7 @@ export default function UserPanel() {
       let userPhone: string | null = null;
       const userId = typeof capturedUser === "object" ? capturedUser?.id : null;
 
-      console.log("π” Step 1: About to fetch phone number for user:", userId);
+      console.log("Step 1: About to fetch phone number for user:", userId);
 
       if (userId) {
         try {
@@ -849,12 +809,12 @@ export default function UserPanel() {
           // Continue without phone - don't block email
         }
       } else {
-        console.log("π” No user ID found, skipping phone lookup");
+        console.log("No user ID found, skipping phone lookup");
       }
 
-      console.log("π” Step 2: Phone lookup complete. Moving to SMS check...");
+      console.log("Step 2: Phone lookup complete. Moving to SMS check...");
 
-      console.log("π” Checking for SMS confirmation requirements:", {
+      console.log("Checking for SMS confirmation requirements:", {
         userHasPhone: !!userPhone,
         phoneNumber: userPhone
           ? `${userPhone.substring(0, 3)}***${userPhone.substring(
@@ -881,7 +841,7 @@ export default function UserPanel() {
         // Run SMS async with timeout - don't await, don't block email
         (async () => {
           try {
-            console.log("π“± Initiating SMS booking confirmation...", {
+            console.log("Initiating SMS booking confirmation...", {
               recipient: `${userPhone.substring(0, 3)}***${userPhone.substring(
                 userPhone.length - 4,
               )}`,
@@ -907,7 +867,7 @@ export default function UserPanel() {
               currency: string;
             };
 
-            console.log("β… SMS booking confirmation completed successfully:", {
+            console.log("SMS booking confirmation completed successfully:", {
               messageId: smsResult.messageId,
               success: smsResult.success,
               cost: smsResult.cost,
@@ -915,7 +875,7 @@ export default function UserPanel() {
               bookingId: smsDetails.bookingId,
             });
           } catch (smsError) {
-            console.error("β SMS booking confirmation failed:", {
+            console.error("SMS booking confirmation failed:", {
               error:
                 smsError instanceof Error ? smsError.message : String(smsError),
               bookingId: insertedBooking?.id?.toString() || "Unknown",
@@ -923,7 +883,7 @@ export default function UserPanel() {
           }
         })();
       } else {
-        console.log("π“± SMS confirmation skipped:", {
+        console.log("SMS confirmation skipped:", {
           reason: !userPhone
             ? "No phone number provided"
             : "Invalid phone number format",
@@ -932,11 +892,11 @@ export default function UserPanel() {
         });
       }
 
-      console.log("π” Step 3: SMS section complete. Starting email section...");
+      console.log("Step 3: SMS section complete. Starting email section...");
 
       // Send booking confirmation email
-      console.log("π“§ Preparing to send booking email...");
-      console.log("π“§ Email validation:", {
+      console.log("Preparing to send booking email...");
+      console.log("Email validation:", {
         hasUser: !!capturedUser,
         userEmail: userEmail,
         userType: typeof capturedUser,
@@ -946,12 +906,12 @@ export default function UserPanel() {
       });
 
       if (!userEmail) {
-        console.error("β Cannot send email: user email is missing", {
+        console.error("Cannot send email: user email is missing", {
           user: capturedUser,
           userEmail,
         });
       } else if (!capturedSlot?.start_time || !capturedSlot?.end_time) {
-        console.error("β Cannot send email: time slot is missing", {
+        console.error("Cannot send email: time slot is missing", {
           slot: capturedSlot,
         });
       } else {
@@ -972,7 +932,7 @@ export default function UserPanel() {
           appUrl: window.location.origin,
         };
 
-        console.log("π“§ Email payload:", emailPayload);
+        console.log("Email payload:", emailPayload);
 
         try {
           const response = await fetch(
@@ -990,27 +950,27 @@ export default function UserPanel() {
           const result = await response.json();
           if (result.success) {
             console.log(
-              "β… Booking confirmation email sent successfully!",
+              "Booking confirmation email sent successfully!",
               result.data?.id,
             );
           } else {
-            console.error("β Email API returned error:", result.error);
+            console.error("Email API returned error:", result.error);
             alert(
-              "β οΈ Booking confirmed but email notification failed. Please check your email settings.",
+              "Booking confirmed but email notification failed. Please check your email settings.",
             );
           }
         } catch (err) {
-          console.error("β Exception calling email Edge Function:", err);
+          console.error("Exception calling email Edge Function:", err);
           alert(
-            "β οΈ Booking confirmed but email notification failed. Please check your email settings.",
+            "Booking confirmed but email notification failed. Please check your email settings."
           );
         }
       }
 
-      console.log("π” Step 4: Email section complete. Booking flow finished!");
+      console.log("Step 4: Email section complete. Booking flow finished!");
     } catch (bookingError) {
       console.error("Overall booking error:", bookingError);
-      alert("β Error creating booking. Please try again.");
+      alert("Error creating booking. Please try again.");
     }
   };
 

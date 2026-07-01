@@ -78,7 +78,7 @@ export const sendSMS = async (
     );
 
     // Call Supabase Edge Function
-    const { data, error } = await supabase.functions.invoke("send-sms", {
+    const { data, error } = await supabase.functions.invoke("send-sms-final", {
       body: {
         phoneNumber: recipient,
         message,

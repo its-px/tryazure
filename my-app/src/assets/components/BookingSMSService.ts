@@ -1,6 +1,5 @@
 import {
   sendTemplatedSMS,
-  sendSMS,
   validatePhoneNumber,
   formatPhoneNumber,
 } from "./sendSMS";
@@ -149,64 +148,6 @@ export class BookingSMSService {
       userref: `verify_${Date.now()}`,
       priority: "VERY_URGENT",
     });
-  }
-
-  /**
-   * Sends custom promotional SMS (no template)
-   */
-  static async sendPromotionalMessage(
-    phoneNumbers: string[],
-    promotionDetails: {
-      title: string;
-      description: string;
-      validUntil?: string;
-      code?: string;
-    }
-  ) {
-    let message = `🎉 ${promotionDetails.title}
-
-${promotionDetails.description}`;
-
-    if (promotionDetails.code) {
-      message += `\n\n💳 Code: ${promotionDetails.code}`;
-    }
-
-    if (promotionDetails.validUntil) {
-      message += `\n⏰ Valid until: ${promotionDetails.validUntil}`;
-    }
-
-    message += "\n\nReply STOP to unsubscribe.";
-
-    const results = [];
-
-    // Send in batches to respect rate limits
-    const batchSize = 10; // Be conservative with promotional messages
-
-    for (let i = 0; i < phoneNumbers.length; i += batchSize) {
-      const batch = phoneNumbers.slice(i, i + batchSize);
-
-      const batchPromises = batch.map((phoneNumber) =>
-        sendSMS(phoneNumber, message, {
-          sender: "Promos",
-          userref: `promo_${Date.now()}_${i}`,
-          priority: "BULK",
-        }).catch((error: Error) => ({
-          phoneNumber,
-          success: false,
-          error: error.message,
-        }))
-      );
-
-      const batchResults = await Promise.allSettled(batchPromises);
-      results.push(...batchResults);
-
-      // Add delay between batches to respect rate limits
-      if (i + batchSize < phoneNumbers.length) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-    }
-
-    return results;
   }
 
   /**

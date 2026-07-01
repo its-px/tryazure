@@ -35,9 +35,10 @@ export function useTenant(): UseTenantResult {
 
     async function resolve() {
       try {
-        // Dev override: ?tenant=some-slug lets you switch tenants locally
+        // Dev override: ?tenant=some-slug lets you switch tenants locally.
+        // Disabled outside dev builds so prod visitors can't spoof tenant context.
         const params = new URLSearchParams(window.location.search);
-        const slugOverride = params.get("tenant");
+        const slugOverride = import.meta.env.DEV ? params.get("tenant") : null;
 
         let data: Tenant | null = null;
 

@@ -123,15 +123,16 @@ export default function OwnerPanel() {
   };
 
   const loadBookings = async () => {
+    if (!tenant?.id) return;
+
     try {
       const headers = await getAuthHeaders();
       if (!headers) {
         console.error("[OwnerPanel] No auth token available");
         return;
       }
-      const tenantFilter = tenant?.id ? `&tenant_id=eq.${tenant.id}` : "";
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/bookings?select=*&order=date.desc${tenantFilter}`,
+        `${supabaseUrl}/rest/v1/bookings?select=*&order=date.desc&tenant_id=eq.${tenant.id}`,
         { headers },
       );
       if (!response.ok) {
@@ -561,6 +562,7 @@ export default function OwnerPanel() {
             <BookingStatistics
               allBookings={allBookings}
               professionalNameMap={professionalNameMap}
+              tenantId={tenant?.id ?? ""}
             />
           )}
 

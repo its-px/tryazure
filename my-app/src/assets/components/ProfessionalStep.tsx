@@ -88,7 +88,6 @@ export default function ProfessionalStep({
               </Box>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary }}>{professional.name}</Box>
-                <Box sx={{ fontSize: 12, color: colors.text.secondary, mt: 0.25 }}>{professional.code}</Box>
               </Box>
               {/* Check */}
               <Box

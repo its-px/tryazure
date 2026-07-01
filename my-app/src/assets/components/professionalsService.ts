@@ -5,11 +5,6 @@ export interface ProfessionalOption {
   tenant_id: string;
 }
 
-const DEFAULT_PROFESSIONALS = [
-  { id: "prof1", code: "prof1", name: "Person 1" },
-  { id: "prof2", code: "prof2", name: "Person 2" },
-];
-
 export const fetchProfessionals = async (
   tenantId?: string,
 ): Promise<ProfessionalOption[]> => {
@@ -53,8 +48,8 @@ export const fetchProfessionals = async (
         response.status,
         errorText,
       );
-
-      return DEFAULT_PROFESSIONALS.map((p) => ({ ...p, tenant_id: tenantId }));
+      // Real failure (auth/RLS/network) — don't mask it with fake data
+      return [];
     }
 
     const rows = (await response.json()) as Array<Record<string, unknown>>;
@@ -74,14 +69,11 @@ export const fetchProfessionals = async (
       })
       .filter((p) => Boolean(p.code));
 
-    if (mapped.length === 0) {
-      return DEFAULT_PROFESSIONALS.map((p) => ({ ...p, tenant_id: tenantId }));
-    }
-
+    // 200 OK with zero rows means the tenant genuinely has no professionals yet
     return mapped;
   } catch (err) {
     console.error("[fetchProfessionals] Exception:", err);
-    return DEFAULT_PROFESSIONALS.map((p) => ({ ...p, tenant_id: tenantId }));
+    return [];
   }
 };
 
