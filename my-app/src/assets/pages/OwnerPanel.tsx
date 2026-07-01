@@ -50,17 +50,13 @@ export default function OwnerPanel() {
   const colors = useResolvedColors();
   const { tenant } = useTenantContext();
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
-  const [selectedProfessional, setSelectedProfessional] =
-    useState<string>("all");
+  const [selectedProfessional] = useState<string>("all");
   const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showCancelConfirmDialog, setShowCancelConfirmDialog] = useState(false);
-  const [selectedDates, setSelectedDates] = useState<string[]>([
-    dayjs().format("YYYY-MM-DD"),
-  ]);
   const [serviceMap, setServiceMap] = useState<Record<string, string>>({});
   const [userNameMap, setUserNameMap] = useState<Record<string, string>>({});
   const [showNewBookingDialog, setShowNewBookingDialog] = useState(false);

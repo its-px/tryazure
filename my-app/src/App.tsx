@@ -27,7 +27,6 @@ function App() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<Role | null>(null);
-  const [ownerTenantSlug, setOwnerTenantSlug] = useState<string | null>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
@@ -112,7 +111,6 @@ function App() {
               .eq("id", profile.tenant_id)
               .single();
             if (!cancelled && tenantRow?.slug) {
-              setOwnerTenantSlug(tenantRow.slug);
               // Force URL tenant to match owner's tenant so useTenant resolves correctly
               const params = new URLSearchParams(window.location.search);
               if (params.get("tenant") !== tenantRow.slug) {
