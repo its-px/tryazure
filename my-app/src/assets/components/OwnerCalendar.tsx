@@ -269,7 +269,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
       <Box sx={{
         width: 220, flexShrink: 0,
         borderRight: `1px solid ${colors.border.main}`,
-        display: "flex", flexDirection: "column",
+        display: { xs: "none", sm: "flex" }, flexDirection: "column",
         p: 2, gap: 2, overflowY: "auto",
       }}>
         {/* New Booking button */}

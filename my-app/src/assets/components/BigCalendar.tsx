@@ -72,6 +72,13 @@ export const BigCalendar = ({
     setViewDate(date);
   };
 
+  // Handle clicking the date number directly — a plain click/tap, no long-press
+  // needed (unlike onSelectSlot, which requires a hold on touch devices to
+  // distinguish selection from scrolling).
+  const handleDrillDown = (date: Date) => {
+    handleSelectSlot({ start: date, end: date });
+  };
+
   // Style dates that are not allowed
   const dayPropGetter = (date: Date) => {
     const isPast = moment(date).isBefore(moment(), "day");
@@ -489,7 +496,9 @@ export const BigCalendar = ({
           enableMultipleViews ? ["month", "week", "day", "agenda"] : ["month"]
         }
         selectable
+        longPressThreshold={10}
         onSelectSlot={handleSelectSlot}
+        onDrillDown={handleDrillDown}
         dayPropGetter={dayPropGetter}
         toolbar={true}
         events={[]}

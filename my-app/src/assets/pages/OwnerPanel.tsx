@@ -15,9 +15,13 @@ import {
   Typography,
   Divider,
   IconButton,
+  Drawer,
 } from "@mui/material";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import MenuIcon from "@mui/icons-material/Menu";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import dayjs from "dayjs";
 import { supabase } from "../components/supabaseClient";
 import { useTenantContext } from "../../context/useTenantContext";
@@ -238,6 +242,8 @@ export default function OwnerPanel() {
   };
 
   const [activeView, setActiveView] = useState<"dashboard" | "calendar" | "statistics">("dashboard");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "confirmed" | "pending" | "cancelled">("all");
 
   const confirmedCount = allBookings.filter((b) => b.status === "confirmed").length;
@@ -263,6 +269,62 @@ export default function OwnerPanel() {
     { key: "statistics",  icon: "bar_chart",       label: "Statistics" },
   ] as const;
 
+  const renderNavContent = (collapsed = false) => (
+    <>
+      {!collapsed && (
+        <Box sx={{ px: 2, mb: 0.5, fontSize: 10, fontWeight: 700, color: colors.text.tertiary, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          Management
+        </Box>
+      )}
+      {sidebarItems.map((item) => {
+        const active = activeView === item.key;
+        return (
+          <Box
+            key={item.key}
+            onClick={() => { setActiveView(item.key); setMobileNavOpen(false); }}
+            title={collapsed ? item.label : undefined}
+            sx={{
+              display: "flex", alignItems: "center", gap: 1.25,
+              justifyContent: collapsed ? "center" : "flex-start",
+              px: collapsed ? 1 : 2.5, py: 1.1,
+              cursor: "pointer", fontSize: 13,
+              color: active ? colors.accent.main : colors.text.secondary,
+              background: active ? colors.background.overlay : "transparent",
+              borderLeft: `3px solid ${active ? colors.accent.main : "transparent"}`,
+              fontWeight: active ? 600 : 400,
+              transition: "all 0.15s",
+              "&:hover": {
+                color: colors.text.primary,
+                background: colors.background.card,
+              },
+            }}
+          >
+            <span className="material-icons" style={{ fontSize: 18 }}>{item.icon}</span>
+            {!collapsed && item.label}
+          </Box>
+        );
+      })}
+      <Box sx={{ mt: "auto" }}>
+        <Box
+          onClick={handleLogout}
+          title={collapsed ? "Sign Out" : undefined}
+          sx={{
+            display: "flex", alignItems: "center", gap: 1.25,
+            justifyContent: collapsed ? "center" : "flex-start",
+            px: collapsed ? 1 : 2.5, py: 1.1,
+            cursor: "pointer", fontSize: 13,
+            color: colors.error.main,
+            transition: "all 0.15s",
+            "&:hover": { background: colors.background.card },
+          }}
+        >
+          <span className="material-icons" style={{ fontSize: 18 }}>exit_to_app</span>
+          {!collapsed && "Sign Out"}
+        </Box>
+      </Box>
+    </>
+  );
+
   return (
     <Box
       sx={{
@@ -280,7 +342,7 @@ export default function OwnerPanel() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          px: 3,
+          px: { xs: 1.5, sm: 3 },
           height: 56,
           backgroundColor: colors.background.medium,
           borderBottom: `1px solid ${colors.border.main}`,
@@ -288,6 +350,14 @@ export default function OwnerPanel() {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <IconButton
+            onClick={() => setMobileNavOpen(true)}
+            size="small"
+            sx={{ color: colors.text.secondary, display: { xs: "flex", sm: "none" } }}
+            aria-label="open navigation"
+          >
+            <MenuIcon fontSize="small" />
+          </IconButton>
           <Box
             sx={{
               width: 36, height: 36, borderRadius: "50%",
@@ -337,71 +407,61 @@ export default function OwnerPanel() {
 
       {/* Layout */}
       <Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* Sidebar */}
+        {/* Sidebar (persistent on sm+) */}
         <Box
           sx={{
-            width: 220, flexShrink: 0,
+            width: sidebarCollapsed ? 64 : 220, flexShrink: 0,
             backgroundColor: colors.background.medium,
             borderRight: `1px solid ${colors.border.main}`,
             py: 2.5,
-            display: "flex", flexDirection: "column",
+            display: { xs: "none", sm: "flex" }, flexDirection: "column",
+            transition: "width 0.15s",
+            position: "relative",
           }}
         >
-          <Box sx={{ px: 2, mb: 0.5, fontSize: 10, fontWeight: 700, color: colors.text.tertiary, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Management
-          </Box>
-          {sidebarItems.map((item) => {
-            const active = activeView === item.key;
-            return (
-              <Box
-                key={item.key}
-                onClick={() => setActiveView(item.key)}
-                sx={{
-                  display: "flex", alignItems: "center", gap: 1.25,
-                  px: 2.5, py: 1.1,
-                  cursor: "pointer", fontSize: 13,
-                  color: active ? colors.accent.main : colors.text.secondary,
-                  background: active ? colors.background.overlay : "transparent",
-                  borderLeft: `3px solid ${active ? colors.accent.main : "transparent"}`,
-                  fontWeight: active ? 600 : 400,
-                  transition: "all 0.15s",
-                  "&:hover": {
-                    color: colors.text.primary,
-                    background: colors.background.card,
-                  },
-                }}
-              >
-                <span className="material-icons" style={{ fontSize: 18 }}>{item.icon}</span>
-                {item.label}
-              </Box>
-            );
-          })}
-          <Box sx={{ mt: "auto" }}>
-            <Box
-              onClick={handleLogout}
-              sx={{
-                display: "flex", alignItems: "center", gap: 1.25,
-                px: 2.5, py: 1.1,
-                cursor: "pointer", fontSize: 13,
-                color: colors.error.main,
-                transition: "all 0.15s",
-                "&:hover": { background: colors.background.card },
-              }}
-            >
-              <span className="material-icons" style={{ fontSize: 18 }}>exit_to_app</span>
-              Sign Out
-            </Box>
-          </Box>
+          <IconButton
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            size="small"
+            aria-label={sidebarCollapsed ? "expand sidebar" : "collapse sidebar"}
+            sx={{
+              position: "absolute", top: 4, right: -12,
+              width: 24, height: 24,
+              backgroundColor: colors.background.card,
+              border: `1px solid ${colors.border.main}`,
+              color: colors.text.secondary,
+              "&:hover": { backgroundColor: colors.background.overlay },
+            }}
+          >
+            {sidebarCollapsed ? <ChevronRightIcon sx={{ fontSize: 16 }} /> : <ChevronLeftIcon sx={{ fontSize: 16 }} />}
+          </IconButton>
+          {renderNavContent(sidebarCollapsed)}
         </Box>
 
+        {/* Sidebar (drawer on xs) */}
+        <Drawer
+          open={mobileNavOpen}
+          onClose={() => setMobileNavOpen(false)}
+          sx={{ display: { xs: "block", sm: "none" } }}
+          PaperProps={{
+            sx: {
+              width: 220,
+              backgroundColor: colors.background.medium,
+              py: 2.5,
+              display: "flex", flexDirection: "column",
+            },
+          }}
+        >
+          {renderNavContent()}
+        </Drawer>
+
         {/* Main content */}
-        <Box sx={{ flex: 1, overflowY: "auto", p: 3 }}>
+        <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 1.5, sm: 3 } }}>
 
           {/* ── Dashboard view ── */}
           {activeView === "dashboard" && (
             <>
               {/* Stat cards */}
-              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1.75, mb: 3 }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2,1fr)", md: "repeat(4,1fr)" }, gap: 1.75, mb: 3 }}>
                 {[
                   { val: allBookings.length, label: "Total Bookings", icon: "calendar_month", color: colors.accent.main },
                   { val: confirmedCount,     label: "Confirmed",       icon: "check_circle",  color: colors.status.confirmed },
@@ -457,14 +517,18 @@ export default function OwnerPanel() {
                 {/* Table head */}
                 <Box
                   sx={{
-                    display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 100px",
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1.4fr 1fr 80px", sm: "1.4fr 1fr 1fr 1fr 100px" },
                     px: 2, py: 1.25,
                     background: colors.background.card,
                     fontSize: 11, fontWeight: 600, color: colors.text.tertiary,
                     textTransform: "uppercase", letterSpacing: "0.06em",
                   }}
                 >
-                  <span>Client / ID</span><span>Services</span><span>Professional</span><span>Date</span><span>Status</span>
+                  <span>Client / ID</span><span>Services</span>
+                  <Box component="span" sx={{ display: { xs: "none", sm: "block" } }}>Professional</Box>
+                  <Box component="span" sx={{ display: { xs: "none", sm: "block" } }}>Date</Box>
+                  <span>Status</span>
                 </Box>
 
                 {visibleBookings.length === 0 && (
@@ -484,7 +548,8 @@ export default function OwnerPanel() {
                         setShowBookingDialog(true);
                       }}
                       sx={{
-                        display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 100px",
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1.4fr 1fr 80px", sm: "1.4fr 1fr 1fr 1fr 100px" },
                         px: 2, py: 1.5,
                         alignItems: "center",
                         fontSize: 13,
@@ -494,7 +559,7 @@ export default function OwnerPanel() {
                         "&:hover": { background: colors.background.card },
                       }}
                     >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
                         <Box
                           sx={{
                             width: 30, height: 30, borderRadius: "50%",
@@ -505,13 +570,18 @@ export default function OwnerPanel() {
                         >
                           {(userNameMap[booking.user_id] ?? booking.user_id).slice(0, 2).toUpperCase()}
                         </Box>
-                        <Box sx={{ fontSize: 13, color: colors.text.primary }}>
-                          {userNameMap[booking.user_id] ?? booking.user_id.slice(0, 8) + "…"}
+                        <Box sx={{ minWidth: 0 }}>
+                          <Box sx={{ fontSize: 13, color: colors.text.primary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {userNameMap[booking.user_id] ?? booking.user_id.slice(0, 8) + "…"}
+                          </Box>
+                          <Box sx={{ display: { xs: "block", sm: "none" }, fontSize: 11, color: colors.text.tertiary }}>
+                            {dayjs(booking.date).format("ddd MMM D")}
+                          </Box>
                         </Box>
                       </Box>
-                      <span>{getServiceNames(booking.services)}</span>
-                      <span>{getProfessionalName(booking.professional_id)}</span>
-                      <span>{dayjs(booking.date).format("ddd MMM D")}</span>
+                      <Box sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{getServiceNames(booking.services)}</Box>
+                      <Box sx={{ display: { xs: "none", sm: "block" } }}>{getProfessionalName(booking.professional_id)}</Box>
+                      <Box sx={{ display: { xs: "none", sm: "block" } }}>{dayjs(booking.date).format("ddd MMM D")}</Box>
                       <Box
                         component="span"
                         sx={{
@@ -642,7 +712,7 @@ export default function OwnerPanel() {
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ flexWrap: "wrap", gap: 1, "& > button": { m: 0 } }}>
           {/* Owner can force-confirm a pending booking (bypasses customer confirmation) */}
           {selectedBooking && selectedBooking.status === "pending" && (
             <Button

@@ -570,30 +570,30 @@ export default function BookingStatistics({
     color,
   }: {
     title: string;
-    value: number;
+    value: React.ReactNode;
     icon: React.ReactNode;
     color: string;
   }) => (
     <Card
       sx={{
         backgroundColor: colors.background.medium,
-        borderRadius: "15px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+        borderRadius: "12px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
         height: "100%",
       }}
     >
-      <CardContent>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Box>
+      <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" gap={1}>
+          <Box sx={{ minWidth: 0 }}>
             <Typography
-              variant="body2"
-              sx={{ color: colors.text.secondary, mb: 1 }}
+              variant="caption"
+              sx={{ color: colors.text.secondary, display: "block", lineHeight: 1.2 }}
             >
               {title}
             </Typography>
             <Typography
-              variant="h3"
-              sx={{ color: colors.text.primary, fontWeight: "bold" }}
+              variant="subtitle1"
+              sx={{ color: colors.text.primary, fontWeight: "bold", lineHeight: 1.3 }}
             >
               {value}
             </Typography>
@@ -601,11 +601,12 @@ export default function BookingStatistics({
           <Box
             sx={{
               backgroundColor: `${color}20`,
-              borderRadius: "12px",
-              p: 1.5,
+              borderRadius: "10px",
+              p: 0.9,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              flexShrink: 0,
             }}
           >
             {icon}
@@ -654,226 +655,74 @@ export default function BookingStatistics({
   };
 
   return (
-    <Box sx={{ width: "100%", maxWidth: "1400px", margin: "0 auto", mb: 4 }}>
+    <Box sx={{ width: "100%", maxWidth: "1400px", margin: "0 auto", mb: 3 }}>
       <Typography
-        variant="h4"
+        variant="h6"
         sx={{
           color: colors.text.primary,
           fontWeight: "bold",
-          mb: 3,
+          mb: 1.5,
           textAlign: "center",
         }}
       >
         📊 Booking Statistics (Last 30 Days)
       </Typography>
 
-      {/* Stats Cards */}
+      {/* KPI Cards */}
       <Box
         sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 3,
-          mb: 4,
-          justifyContent: "center",
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "repeat(2, 1fr)",
+            sm: "repeat(4, 1fr)",
+            md: "repeat(7, 1fr)",
+          },
+          gap: 1.5,
+          mb: 2.5,
         }}
       >
-        <Box sx={{ flex: "1 1 220px", minWidth: "220px", maxWidth: "280px" }}>
-          <StatCard
-            title="Total Bookings"
-            value={stats.total}
-            icon={
-              <CalendarMonthIcon
-                sx={{ fontSize: 40, color: colors.accent.main }}
-              />
-            }
-            color={colors.accent.main}
-          />
-        </Box>
-        <Box sx={{ flex: "1 1 220px", minWidth: "220px", maxWidth: "280px" }}>
-          <StatCard
-            title="Confirmed"
-            value={stats.confirmed}
-            icon={
-              <CheckCircleIcon
-                sx={{ fontSize: 40, color: colors.status.confirmed }}
-              />
-            }
-            color={colors.status.confirmed}
-          />
-        </Box>
-        <Box sx={{ flex: "1 1 220px", minWidth: "220px", maxWidth: "280px" }}>
-          <StatCard
-            title="Pending"
-            value={stats.pending}
-            icon={
-              <PendingIcon sx={{ fontSize: 40, color: colors.accent.main }} />
-            }
-            color={colors.accent.main}
-          />
-        </Box>
-        <Box sx={{ flex: "1 1 220px", minWidth: "220px", maxWidth: "280px" }}>
-          <StatCard
-            title="Cancelled"
-            value={stats.cancelled}
-            icon={
-              <TrendingUpIcon sx={{ fontSize: 40, color: colors.error.main }} />
-            }
-            color={colors.error.main}
-          />
-        </Box>
-      </Box>
-
-      {/* Revenue Stats Cards */}
-      <Box
-        sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 3,
-          mb: 4,
-          justifyContent: "center",
-        }}
-      >
-        <Box sx={{ flex: "1 1 280px", minWidth: "280px", maxWidth: "350px" }}>
-          <Card
-            sx={{
-              backgroundColor: colors.background.medium,
-              borderRadius: "15px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              height: "100%",
-            }}
-          >
-            <CardContent>
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Box>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: colors.text.secondary, mb: 1 }}
-                  >
-                    Revenue (Last 30 Days)
-                  </Typography>
-                  <Typography
-                    variant="h3"
-                    sx={{ color: colors.status.confirmed, fontWeight: "bold" }}
-                  >
-                    ${revenueStats.past30Days.toLocaleString()}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    backgroundColor: `${colors.status.confirmed}20`,
-                    borderRadius: "12px",
-                    p: 1.5,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <AttachMoneyIcon
-                    sx={{ fontSize: 40, color: colors.status.confirmed }}
-                  />
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
-        <Box sx={{ flex: "1 1 280px", minWidth: "280px", maxWidth: "350px" }}>
-          <Card
-            sx={{
-              backgroundColor: colors.background.medium,
-              borderRadius: "15px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              height: "100%",
-            }}
-          >
-            <CardContent>
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Box>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: colors.text.secondary, mb: 1 }}
-                  >
-                    Projected (Next 30 Days)
-                  </Typography>
-                  <Typography
-                    variant="h3"
-                    sx={{ color: colors.accent.main, fontWeight: "bold" }}
-                  >
-                    ${revenueStats.projected30Days.toLocaleString()}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    backgroundColor: `${colors.accent.main}20`,
-                    borderRadius: "12px",
-                    p: 1.5,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <TrendingUpIcon
-                    sx={{ fontSize: 40, color: colors.accent.main }}
-                  />
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
-        <Box sx={{ flex: "1 1 280px", minWidth: "280px", maxWidth: "350px" }}>
-          <Card
-            sx={{
-              backgroundColor: colors.background.medium,
-              borderRadius: "15px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              height: "100%",
-            }}
-          >
-            <CardContent>
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Box>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: colors.text.secondary, mb: 1 }}
-                  >
-                    Avg Revenue/Booking
-                  </Typography>
-                  <Typography
-                    variant="h3"
-                    sx={{ color: colors.text.primary, fontWeight: "bold" }}
-                  >
-                    ${revenueStats.averagePerBooking.toLocaleString()}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    backgroundColor: `${colors.text.secondary}20`,
-                    borderRadius: "12px",
-                    p: 1.5,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <AttachMoneyIcon
-                    sx={{ fontSize: 40, color: colors.text.secondary }}
-                  />
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
+        <StatCard
+          title="Total Bookings"
+          value={stats.total}
+          icon={<CalendarMonthIcon sx={{ fontSize: 20, color: colors.accent.main }} />}
+          color={colors.accent.main}
+        />
+        <StatCard
+          title="Confirmed"
+          value={stats.confirmed}
+          icon={<CheckCircleIcon sx={{ fontSize: 20, color: colors.status.confirmed }} />}
+          color={colors.status.confirmed}
+        />
+        <StatCard
+          title="Pending"
+          value={stats.pending}
+          icon={<PendingIcon sx={{ fontSize: 20, color: colors.accent.main }} />}
+          color={colors.accent.main}
+        />
+        <StatCard
+          title="Cancelled"
+          value={stats.cancelled}
+          icon={<TrendingUpIcon sx={{ fontSize: 20, color: colors.error.main }} />}
+          color={colors.error.main}
+        />
+        <StatCard
+          title="Revenue (30d)"
+          value={`$${revenueStats.past30Days.toLocaleString()}`}
+          icon={<AttachMoneyIcon sx={{ fontSize: 20, color: colors.status.confirmed }} />}
+          color={colors.status.confirmed}
+        />
+        <StatCard
+          title="Projected (30d)"
+          value={`$${revenueStats.projected30Days.toLocaleString()}`}
+          icon={<TrendingUpIcon sx={{ fontSize: 20, color: colors.accent.main }} />}
+          color={colors.accent.main}
+        />
+        <StatCard
+          title="Avg / Booking"
+          value={`$${revenueStats.averagePerBooking.toLocaleString()}`}
+          icon={<AttachMoneyIcon sx={{ fontSize: 20, color: colors.text.secondary }} />}
+          color={colors.text.secondary}
+        />
       </Box>
 
       {/* Best Performing Months */}
@@ -882,8 +731,8 @@ export default function BookingStatistics({
           sx={{
             display: "flex",
             flexWrap: "wrap",
-            gap: 3,
-            mb: 4,
+            gap: 2,
+            mb: 2.5,
             justifyContent: "center",
           }}
         >
@@ -891,8 +740,8 @@ export default function BookingStatistics({
             <Card
               sx={{
                 backgroundColor: colors.background.medium,
-                borderRadius: "15px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                 height: "100%",
                 border: `2px solid ${colors.accent.main}40`,
               }}
@@ -949,7 +798,7 @@ export default function BookingStatistics({
                       }}
                     >
                       <CalendarMonthIcon
-                        sx={{ fontSize: 50, color: colors.accent.main }}
+                        sx={{ fontSize: 34, color: colors.accent.main }}
                       />
                     </Box>
                   </Box>
@@ -962,8 +811,8 @@ export default function BookingStatistics({
             <Card
               sx={{
                 backgroundColor: colors.background.medium,
-                borderRadius: "15px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                 height: "100%",
                 border: `2px solid ${colors.status.confirmed}40`,
               }}
@@ -1022,7 +871,7 @@ export default function BookingStatistics({
                       }}
                     >
                       <AttachMoneyIcon
-                        sx={{ fontSize: 50, color: colors.status.confirmed }}
+                        sx={{ fontSize: 34, color: colors.status.confirmed }}
                       />
                     </Box>
                   </Box>
@@ -1039,18 +888,18 @@ export default function BookingStatistics({
           <Card
             sx={{
               backgroundColor: colors.background.medium,
-              borderRadius: "15px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              p: 3,
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              p: 2,
             }}
           >
             <Typography
               variant="h6"
-              sx={{ color: colors.text.primary, mb: 3, fontWeight: "bold" }}
+              sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
             >
               📈 Monthly Performance Overview
             </Typography>
-            <ResponsiveContainer width="100%" height={350}>
+            <ResponsiveContainer width="100%" height={230}>
               <BarChart data={monthlyPerformance}>
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -1128,8 +977,8 @@ export default function BookingStatistics({
         sx={{
           display: "flex",
           flexWrap: "wrap",
-          gap: 3,
-          mb: 4,
+          gap: 2,
+          mb: 2.5,
         }}
       >
         {/* Overall Cancellation Rate Card */}
@@ -1137,8 +986,8 @@ export default function BookingStatistics({
           <Card
             sx={{
               backgroundColor: colors.background.medium,
-              borderRadius: "15px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               height: "100%",
               border: `2px solid ${colors.error.main}40`,
             }}
@@ -1165,7 +1014,7 @@ export default function BookingStatistics({
                 >
                   <Box>
                     <Typography
-                      variant="h2"
+                      variant="h4"
                       sx={{ color: colors.error.main, fontWeight: "bold" }}
                     >
                       {cancellationRate.toFixed(2)}%
@@ -1185,7 +1034,7 @@ export default function BookingStatistics({
                     sx={{
                       backgroundColor: `${colors.error.main}20`,
                       borderRadius: "50%",
-                      p: 3,
+                      p: 2,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1212,18 +1061,18 @@ export default function BookingStatistics({
             <Card
               sx={{
                 backgroundColor: colors.background.medium,
-                borderRadius: "15px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                p: 3,
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                p: 2,
               }}
             >
               <Typography
                 variant="h6"
-                sx={{ color: colors.text.primary, mb: 3, fontWeight: "bold" }}
+                sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
               >
                 🎯 Cancellation Rate by Service
               </Typography>
-              <ResponsiveContainer width="100%" height={350}>
+              <ResponsiveContainer width="100%" height={230}>
                 <BarChart data={serviceCancellations}>
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -1321,8 +1170,8 @@ export default function BookingStatistics({
           sx={{
             display: "flex",
             flexWrap: "wrap",
-            gap: 3,
-            mb: 4,
+            gap: 2,
+            mb: 2.5,
           }}
         >
           {/* Most Booked Professional */}
@@ -1330,8 +1179,8 @@ export default function BookingStatistics({
             <Card
               sx={{
                 backgroundColor: colors.background.medium,
-                borderRadius: "15px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                 height: "100%",
                 border: `2px solid ${colors.accent.main}40`,
               }}
@@ -1390,7 +1239,7 @@ export default function BookingStatistics({
                       }}
                     >
                       <Typography
-                        variant="h3"
+                        variant="h5"
                         sx={{ color: colors.accent.main, fontWeight: "bold" }}
                       >
                         {topProfessionals.byBookings.bookings}
@@ -1413,8 +1262,8 @@ export default function BookingStatistics({
             <Card
               sx={{
                 backgroundColor: colors.background.medium,
-                borderRadius: "15px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                 height: "100%",
                 border: `2px solid ${colors.status.confirmed}40`,
               }}
@@ -1476,7 +1325,7 @@ export default function BookingStatistics({
                       }}
                     >
                       <AttachMoneyIcon
-                        sx={{ fontSize: 50, color: colors.status.confirmed }}
+                        sx={{ fontSize: 34, color: colors.status.confirmed }}
                       />
                     </Box>
                   </Box>
@@ -1493,18 +1342,18 @@ export default function BookingStatistics({
           <Card
             sx={{
               backgroundColor: colors.background.medium,
-              borderRadius: "15px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              p: 3,
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              p: 2,
             }}
           >
             <Typography
               variant="h6"
-              sx={{ color: colors.text.primary, mb: 3, fontWeight: "bold" }}
+              sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
             >
               👥 Professional Performance (All Time)
             </Typography>
-            <ResponsiveContainer width="100%" height={350}>
+            <ResponsiveContainer width="100%" height={230}>
               <BarChart data={professionalPerformance}>
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -1579,7 +1428,7 @@ export default function BookingStatistics({
         sx={{
           display: "flex",
           flexWrap: "wrap",
-          gap: 3,
+          gap: 2,
         }}
       >
         {/* Daily Bookings Area Chart */}
@@ -1587,18 +1436,18 @@ export default function BookingStatistics({
           <Card
             sx={{
               backgroundColor: colors.background.medium,
-              borderRadius: "15px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              p: 3,
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              p: 2,
             }}
           >
             <Typography
               variant="h6"
-              sx={{ color: colors.text.primary, mb: 3, fontWeight: "bold" }}
+              sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
             >
               📈 Daily Bookings Trend
             </Typography>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={210}>
               <AreaChart data={dailyBookings}>
                 <defs>
                   <linearGradient
@@ -1655,9 +1504,9 @@ export default function BookingStatistics({
           <Card
             sx={{
               backgroundColor: colors.background.medium,
-              borderRadius: "15px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              p: 3,
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              p: 2,
               height: "100%",
             }}
           >
@@ -1668,7 +1517,7 @@ export default function BookingStatistics({
               📊 Status Distribution
             </Typography>
             {statusData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
                     data={statusData}
@@ -1694,7 +1543,7 @@ export default function BookingStatistics({
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
-                height={250}
+                height={180}
               >
                 <Typography sx={{ color: colors.text.secondary }}>
                   No data available
@@ -1710,14 +1559,14 @@ export default function BookingStatistics({
             <Card
               sx={{
                 backgroundColor: colors.background.medium,
-                borderRadius: "15px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                p: 3,
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                p: 2,
               }}
             >
               <Typography
                 variant="h6"
-                sx={{ color: colors.text.primary, mb: 3, fontWeight: "bold" }}
+                sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
               >
                 💰 Projected Income (Next 30 Days)
               </Typography>
@@ -1727,7 +1576,7 @@ export default function BookingStatistics({
               >
                 Based on historical booking trends and average service prices
               </Typography>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={210}>
                 <AreaChart data={projectedIncome}>
                   <defs>
                     <linearGradient
@@ -1808,18 +1657,18 @@ export default function BookingStatistics({
             <Card
               sx={{
                 backgroundColor: colors.background.medium,
-                borderRadius: "15px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                p: 3,
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                p: 2,
               }}
             >
               <Typography
                 variant="h6"
-                sx={{ color: colors.text.primary, mb: 3, fontWeight: "bold" }}
+                sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
               >
                 👥 Professional Performance (Last 30 Days)
               </Typography>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={210}>
                 <BarChart data={professionalData}>
                   <CartesianGrid
                     strokeDasharray="3 3"
