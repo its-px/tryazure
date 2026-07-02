@@ -126,6 +126,8 @@ export default function BookingStatistics({
   const [serviceCancellations, setServiceCancellations] = useState<
     ServiceCancellationData[]
   >([]);
+  const [confirmationsRecovered, setConfirmationsRecovered] =
+    useState<number>(0);
 
   const resolveProfessionalName = useCallback(
     (profId: string) => professionalNameMap[profId] ?? profId,
@@ -560,6 +562,33 @@ export default function BookingStatistics({
   }, [loadServicePrices]);
 
   useEffect(() => {
+    if (!tenantId) return;
+    let isMounted = true;
+
+    // Real, countable events (not an estimate): a booking that was pending and
+    // is now confirmed only got there because someone acted on it.
+    supabase
+      .from("booking_status_history")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("old_status", "pending")
+      .eq("new_status", "confirmed")
+      .gte("changed_at", dayjs().subtract(30, "day").toISOString())
+      .then(({ count, error }) => {
+        if (!isMounted) return;
+        if (error) {
+          console.error("Error loading confirmations recovered:", error);
+          return;
+        }
+        setConfirmationsRecovered(count ?? 0);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tenantId]);
+
+  useEffect(() => {
     calculateStatistics();
   }, [calculateStatistics]);
 
@@ -722,6 +751,12 @@ export default function BookingStatistics({
           value={`$${revenueStats.averagePerBooking.toLocaleString()}`}
           icon={<AttachMoneyIcon sx={{ fontSize: 20, color: colors.text.secondary }} />}
           color={colors.text.secondary}
+        />
+        <StatCard
+          title="Confirmations Recovered (30d)"
+          value={confirmationsRecovered}
+          icon={<CheckCircleIcon sx={{ fontSize: 20, color: colors.status.confirmed }} />}
+          color={colors.status.confirmed}
         />
       </Box>
 
