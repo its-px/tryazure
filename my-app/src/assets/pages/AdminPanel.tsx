@@ -46,6 +46,9 @@ export default function AdminPanel() {
   const { tenant } = useTenantContext();
   const [allTenants, setAllTenants] = useState<TenantOption[]>([]);
   const [activeTenant, setActiveTenant] = useState<TenantOption | null>(null);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoResult, setDemoResult] = useState<{ slug: string; tenant_id: string } | null>(null);
+  const demoTenants = allTenants.filter((t) => t.slug.startsWith("demo-"));
   const activeBrand = activeTenant?.config?.primaryColor
     ? {
         primaryColor: activeTenant.config.primaryColor,
@@ -193,6 +196,43 @@ export default function AdminPanel() {
     if (!selected) return;
     await supabase.rpc("set_current_tenant", { p_tenant_id: tenantId });
     setActiveTenant(selected);
+  };
+
+  const reloadTenants = async () => {
+    const { data } = await supabase.from("tenants").select("id, name, slug, config");
+    if (data) setAllTenants(data as TenantOption[]);
+  };
+
+  const handleGenerateDemoTenant = async () => {
+    setDemoBusy(true);
+    setDemoResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-demo-tenant", { body: {} });
+      if (error) throw error;
+      setDemoResult({ slug: data.slug, tenant_id: data.tenant_id });
+      await reloadTenants();
+    } catch (err) {
+      alert("❌ Failed to generate demo tenant: " + (err as Error).message);
+    } finally {
+      setDemoBusy(false);
+    }
+  };
+
+  const handleDeleteDemoTenant = async (tenantId: string, slug: string) => {
+    if (!confirm(`Delete demo tenant "${slug}" and all its data? This cannot be undone.`)) return;
+    setDemoBusy(true);
+    try {
+      const { error } = await supabase.functions.invoke("generate-demo-tenant", {
+        body: { action: "delete", tenant_id: tenantId },
+      });
+      if (error) throw error;
+      if (activeTenant?.id === tenantId) setActiveTenant(null);
+      await reloadTenants();
+    } catch (err) {
+      alert("❌ Failed to delete demo tenant: " + (err as Error).message);
+    } finally {
+      setDemoBusy(false);
+    }
   };
 
   const isMountedRef = useRef(true);
@@ -555,6 +595,70 @@ export default function AdminPanel() {
       >
         Logout
       </button>
+
+      {/* Demo Tenant Generator */}
+      <Box
+        sx={{
+          maxWidth: 500,
+          margin: "0 auto 20px auto",
+          padding: 2,
+          backgroundColor: colors.background.medium,
+          borderRadius: 2,
+        }}
+      >
+        <strong style={{ color: colors.text.primary }}>Demo Tenants</strong>
+        <Box display="flex" gap={2} alignItems="center" mt={1}>
+          <button
+            onClick={handleGenerateDemoTenant}
+            disabled={demoBusy}
+            style={{
+              padding: "8px 16px",
+              cursor: demoBusy ? "default" : "pointer",
+              backgroundColor: colors.accent.main,
+              color: "white",
+              border: "none",
+              borderRadius: "5px",
+            }}
+          >
+            {demoBusy ? "Working…" : "Generate Demo Tenant"}
+          </button>
+        </Box>
+        {demoResult && (
+          <p style={{ color: colors.text.secondary, marginTop: 8 }}>
+            ✅ Created <strong>{demoResult.slug}</strong>
+          </p>
+        )}
+        {demoTenants.length > 0 && (
+          <Box mt={2}>
+            {demoTenants.map((t) => (
+              <Box
+                key={t.id}
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                py={0.5}
+              >
+                <span style={{ color: colors.text.secondary }}>{t.slug}</span>
+                <button
+                  onClick={() => handleDeleteDemoTenant(t.id, t.slug)}
+                  disabled={demoBusy}
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: 12,
+                    cursor: demoBusy ? "default" : "pointer",
+                    backgroundColor: colors.error.main,
+                    color: "white",
+                    border: "none",
+                    borderRadius: "5px",
+                  }}
+                >
+                  Delete
+                </button>
+              </Box>
+            ))}
+          </Box>
+        )}
+      </Box>
 
       {/* Tenant Switcher */}
       {allTenants.length > 1 && (
