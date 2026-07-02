@@ -26,6 +26,7 @@ import {
 } from "../../notifications";
 import TimeSlotsStep from "../components/TimeSlotsStep";
 import { fetchServices, type Service } from "../components/servicesService";
+import { fetchProducts, type Product } from "../components/productsService";
 import {
   fetchProfessionals,
   getProfessionalNameByCode,
@@ -49,6 +50,13 @@ export default function UserPanel() {
   const [professionals, setProfessionals] = React.useState<
     ProfessionalOption[]
   >([]);
+  // Retail add-ons: picked on the summary step, not part of Redux
+  // userSelections since (unlike service/professional/time) they don't
+  // gate step progression and don't need to survive the login redirect.
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [selectedProducts, setSelectedProducts] = React.useState<
+    Record<string, number>
+  >({});
 
   const dispatch = useDispatch();
   const currentStep =
@@ -239,6 +247,18 @@ export default function UserPanel() {
 
     loadServices();
 
+    return () => {
+      isMounted = false;
+    };
+  }, [tenant?.id]);
+
+  // Load retail add-on products scoped to current tenant
+  useEffect(() => {
+    let isMounted = true;
+    if (!tenant?.id) return;
+    fetchProducts(tenant.id).then((data) => {
+      if (isMounted) setProducts(data);
+    });
     return () => {
       isMounted = false;
     };
@@ -700,6 +720,33 @@ export default function UserPanel() {
       const insertedBookings = await response.json();
       const insertedBooking = insertedBookings?.[0];
 
+      // Record any add-on products picked on the summary step. Best-effort:
+      // a failure here shouldn't undo the booking itself.
+      const productEntries = Object.entries(selectedProducts).filter(
+        ([, qty]) => qty > 0,
+      );
+      if (insertedBooking?.id && productEntries.length > 0) {
+        try {
+          const rows = productEntries.map(([productId, quantity]) => {
+            const product = products.find((p) => p.id === productId);
+            return {
+              booking_id: insertedBooking.id,
+              product_id: productId,
+              tenant_id: tenant.id,
+              quantity,
+              unit_price: product?.price ?? 0,
+            };
+          });
+          await fetch(`${supabaseUrl}/rest/v1/booking_products`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(rows),
+          });
+        } catch (productError) {
+          console.error("Error recording booking products:", productError);
+        }
+      }
+
       // IMPORTANT: Capture values BEFORE clearing state for email/SMS sending
       const capturedUser = user; // Capture user object
       const capturedDate = selectedDate;
@@ -755,6 +802,7 @@ export default function UserPanel() {
           serviceDuration: 0,
         }),
       );
+      setSelectedProducts({});
       localStorage.removeItem("bookingState");
 
       // If on account page, refresh it by toggling the key
@@ -1188,6 +1236,17 @@ export default function UserPanel() {
                           selectedDate={selectedDate}
                           serviceDuration={serviceDuration}
                           selectedSlot={selectedSlot}
+                          serviceId={userSelections?.selectedServices?.[0] ?? null}
+                          userId={(() => {
+                            // ponytail: same localStorage session read used by slotService,
+                            // no need to thread a prop from a higher-level effect.
+                            try {
+                              const sess = JSON.parse(localStorage.getItem("sb-auth-token") || "null");
+                              return sess?.user?.id ?? null;
+                            } catch {
+                              return null;
+                            }
+                          })()}
                           onSlotSelect={(slot) =>
                             dispatch(
                               setUserSelections({
@@ -1266,6 +1325,54 @@ export default function UserPanel() {
                         Time: {selectedSlot.start_time.substring(0, 5)} -{" "}
                         {selectedSlot.end_time.substring(0, 5)}
                       </p>
+                    )}
+                    {products.length > 0 && (
+                      <Box sx={{ mt: 2 }}>
+                        <h4 style={{ marginBottom: 8 }}>Add products</h4>
+                        {products.map((product) => {
+                          const qty = selectedProducts[product.id] ?? 0;
+                          return (
+                            <Box
+                              key={product.id}
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                py: 0.75,
+                              }}
+                            >
+                              <span>
+                                {product.name} (€{product.price})
+                              </span>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <Button
+                                  size="small"
+                                  onClick={() =>
+                                    setSelectedProducts((prev) => ({
+                                      ...prev,
+                                      [product.id]: Math.max(0, qty - 1),
+                                    }))
+                                  }
+                                >
+                                  -
+                                </Button>
+                                <span>{qty}</span>
+                                <Button
+                                  size="small"
+                                  onClick={() =>
+                                    setSelectedProducts((prev) => ({
+                                      ...prev,
+                                      [product.id]: qty + 1,
+                                    }))
+                                  }
+                                >
+                                  +
+                                </Button>
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
                     )}
                     <Button
                       onClick={handleCompleteBooking}

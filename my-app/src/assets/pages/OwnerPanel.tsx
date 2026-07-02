@@ -5,6 +5,8 @@ import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { toggleTheme } from "../../slices/themeSlice";
 import OwnerCalendar from "../components/OwnerCalendar";
 import BookingStatistics from "../components/BookingStatistics";
+import ReferralStats from "../components/ReferralStats";
+import ProductCatalog from "../components/ProductCatalog";
 import {
   Box,
   Dialog,
@@ -241,7 +243,7 @@ export default function OwnerPanel() {
     await supabase.auth.signOut();
   };
 
-  const [activeView, setActiveView] = useState<"dashboard" | "calendar" | "statistics">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "calendar" | "statistics" | "products">("dashboard");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "confirmed" | "pending" | "cancelled">("all");
@@ -267,6 +269,7 @@ export default function OwnerPanel() {
     { key: "dashboard",   icon: "dashboard",       label: "Dashboard" },
     { key: "calendar",    icon: "calendar_month",  label: "Calendar" },
     { key: "statistics",  icon: "bar_chart",       label: "Statistics" },
+    { key: "products",    icon: "inventory_2",     label: "Products" },
   ] as const;
 
   const renderNavContent = (collapsed = false) => (
@@ -625,11 +628,19 @@ export default function OwnerPanel() {
 
           {/* ── Statistics view ── */}
           {activeView === "statistics" && (
-            <BookingStatistics
-              allBookings={allBookings}
-              professionalNameMap={professionalNameMap}
-              tenantId={tenant?.id ?? ""}
-            />
+            <>
+              <BookingStatistics
+                allBookings={allBookings}
+                professionalNameMap={professionalNameMap}
+                tenantId={tenant?.id ?? ""}
+              />
+              <ReferralStats tenantId={tenant?.id ?? ""} />
+            </>
+          )}
+
+          {/* ── Products view ── */}
+          {activeView === "products" && (
+            <ProductCatalog tenantId={tenant?.id ?? ""} />
           )}
 
         </Box>
