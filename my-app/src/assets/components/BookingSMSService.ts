@@ -22,6 +22,8 @@ export class BookingSMSService {
       professional: string;
       location: "your_place" | "our_place";
       bookingId: string;
+      actionToken?: string;
+      appUrl?: string;
     }
   ) {
     // Log SMS initiation
@@ -47,6 +49,8 @@ export class BookingSMSService {
           ? "at your location"
           : "at our location",
       booking_id: bookingDetails.bookingId,
+      action_token: bookingDetails.actionToken,
+      app_url: bookingDetails.appUrl,
     };
 
     try {

@@ -836,6 +836,8 @@ export default function UserPanel() {
           professional: getProfessionalName(capturedProfessional),
           location: capturedLocation,
           bookingId: insertedBooking?.id?.toString() || "Unknown",
+          actionToken: insertedBooking?.sms_action_token as string | undefined,
+          appUrl: window.location.origin,
         };
 
         // Run SMS async with timeout - don't await, don't block email

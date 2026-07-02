@@ -100,6 +100,17 @@ Deno.serve(async (req) => {
     // Generate message based on template
     let message = "Test message from BookingApp";
     if (templateType === "booking_confirmation" && templateData) {
+      // One-tap confirm/cancel links (no login required) — only added when
+      // the caller supplied a per-booking token, so this stays backward
+      // compatible with any other caller of this template.
+      let actionLinks = "";
+      if (templateData.action_token) {
+        const base = (templateData.app_url || "https://pxbs.site").replace(/\/$/, "");
+        const confirmUrl = `${base}/booking-action?token=${templateData.action_token}&action=confirm`;
+        const cancelUrl = `${base}/booking-action?token=${templateData.action_token}&action=cancel`;
+        actionLinks = `\n\n✅ Επιβεβαίωση: ${confirmUrl}\n❌ Ακύρωση: ${cancelUrl}`;
+      }
+
       message = `✅ Επιβεβαίωση Ραντεβού!
 
 📅 Ημερομηνία: ${templateData.date || "TBD"}
@@ -111,7 +122,7 @@ Deno.serve(async (req) => {
           ? "Στο χώρο σας"
           : "Στο κατάστημά μας"
       }
-🆔 Κωδικός: ${templateData.bookingId || "N/A"}
+🆔 Κωδικός: ${templateData.bookingId || "N/A"}${actionLinks}
 
 Ευχαριστούμε που μας επιλέξατε! Σας περιμένουμε.`;
     }

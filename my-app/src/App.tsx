@@ -4,6 +4,7 @@ import AdminPanel from "./assets/pages/AdminPanel";
 import UserPanel from "./assets/pages/UserPanel";
 import OwnerPanel from "./assets/pages/OwnerPanel";
 import ProfessionalPanel from "./assets/pages/ProfessionalPanel.tsx";
+import BookingActionPage from "./assets/pages/BookingActionPage";
 import { Box } from "@mui/material";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
@@ -212,6 +213,8 @@ function App() {
               )
             }
           />
+          {/* Public one-tap SMS confirm/cancel link target — no auth required */}
+          <Route path="/booking-action" element={<BookingActionPage />} />
           {/* Legacy booking confirmation link target */}
           <Route
             path="/bookings"
