@@ -3,6 +3,7 @@
 
 import { Navigate } from "react-router-dom";
 import type { Role } from "../../App";
+import LoadingScreen from "./LoadingScreen";
 
 interface ProtectedRouteProps {
   children: React.ReactElement;
@@ -19,7 +20,7 @@ export default function ProtectedRoute({
   allowedRoles,
   loading,
 }: ProtectedRouteProps) {
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <LoadingScreen variant="full" />;
 
   if (!session) {
     return <Navigate to="/" replace />; // redirect to home/login

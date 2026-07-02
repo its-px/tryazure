@@ -8,6 +8,7 @@ import BookingActionPage from "./assets/pages/BookingActionPage";
 import { Box } from "@mui/material";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
+import LoadingScreen from "./assets/components/LoadingScreen";
 import PWAInstallPrompt from "./assets/components/PWAInstallPrompt";
 import CompleteProfileModal from "./assets/components/CompleteProfileModal";
 import i18n from "./i18n";
@@ -167,7 +168,7 @@ function App() {
 
   // Block render until we know which tenant this domain belongs to
   if (tenantLoading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen variant="full" />;
   }
 
   return (
@@ -201,7 +202,7 @@ function App() {
             path="/"
             element={
               loading ? (
-                <div>Loading...</div>
+                <LoadingScreen variant="full" />
               ) : session && role === "owner" ? (
                 <Navigate to="/owner" replace />
               ) : session && role === "professional" ? (
@@ -220,7 +221,7 @@ function App() {
             path="/bookings"
             element={
               loading ? (
-                <div>Loading...</div>
+                <LoadingScreen variant="full" />
               ) : session && role === "owner" ? (
                 <Navigate to="/owner" replace />
               ) : session && role === "professional" ? (

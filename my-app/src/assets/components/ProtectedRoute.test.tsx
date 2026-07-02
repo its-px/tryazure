@@ -7,6 +7,12 @@ vi.mock("react-router-dom", () => ({
   Navigate: ({ to }: { to: string }) => <div>REDIRECT:{to}</div>,
 }));
 
+// LoadingScreen pulls in Redux/tenant context that isn't set up in this
+// unit test — stub it since ProtectedRoute only cares that it renders.
+vi.mock("./LoadingScreen", () => ({
+  default: () => <div data-testid="loading-screen">Loading...</div>,
+}));
+
 const child = <div>SECRET</div>;
 
 describe("ProtectedRoute", () => {
@@ -16,7 +22,7 @@ describe("ProtectedRoute", () => {
         {child}
       </ProtectedRoute>,
     );
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.getByTestId("loading-screen")).toBeInTheDocument();
     expect(screen.queryByText("SECRET")).not.toBeInTheDocument();
   });
 

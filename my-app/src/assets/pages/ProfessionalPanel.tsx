@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
+import LoadingScreen from "../components/LoadingScreen";
 import { useTenantContext } from "../../context/useTenantContext";
 import { supabase } from "../components/supabaseClient";
 import { useDispatch, useSelector } from "react-redux";
@@ -398,11 +399,7 @@ export default function ProfessionalPanel() {
   const handleLogout = async () => { await supabase.auth.signOut(); };
 
   if (loadingIdentity) {
-    return (
-      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: colors.background.light }}>
-        <Typography sx={{ color: colors.text.secondary }}>Loading your dashboard...</Typography>
-      </Box>
-    );
+    return <LoadingScreen variant="full" />;
   }
 
   const cardSx = {
@@ -523,9 +520,7 @@ export default function ProfessionalPanel() {
             <Typography variant="h6" sx={{ color: colors.text.primary, fontWeight: 700, mb: 2 }}>
               My Bookings
             </Typography>
-            {loadingData && (
-              <Typography sx={{ color: colors.text.secondary, mb: 2 }}>Loading bookings...</Typography>
-            )}
+            {loadingData && <LoadingScreen variant="inline" />}
             {!loadingData && selectedBookings.length === 0 && (
               <Box sx={{ ...cardSx, textAlign: "center", py: 5 }}>
                 <CalendarMonthIcon sx={{ fontSize: 48, color: colors.text.secondary, mb: 1 }} />

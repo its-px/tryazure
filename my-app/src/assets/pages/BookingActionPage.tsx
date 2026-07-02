@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Box, Typography, CircularProgress } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { supabase } from "../components/supabaseClient";
+import LoadingScreen from "../components/LoadingScreen";
 
 // Public, unauthenticated landing page for the one-tap confirm/cancel links
 // sent in booking SMS. No login required by design.
@@ -54,12 +55,7 @@ export default function BookingActionPage() {
         gap: 2,
       }}
     >
-      {state === "loading" && (
-        <>
-          <CircularProgress />
-          <Typography>Processing your request…</Typography>
-        </>
-      )}
+      {state === "loading" && <LoadingScreen variant="full" />}
       {state === "success" && (
         <Typography variant="h6" color="success.main">
           {status === "confirmed"
