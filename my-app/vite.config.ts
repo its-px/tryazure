@@ -20,9 +20,11 @@ export default defineConfig({
         "apple-touch-icon.png",
         "offline.html",
       ],
+      // ponytail: dev-mode SW registration (devOptions.enabled) fights the Vite
+      // dev server/HMR and was a source of spurious reloads + console errors in
+      // dev. Production builds are unaffected — only devOptions changes.
       devOptions: {
-        enabled: true,
-        type: "module",
+        enabled: false,
       },
       manifest: {
         name: "RENDEZVOUS",

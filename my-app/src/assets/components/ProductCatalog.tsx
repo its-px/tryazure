@@ -53,6 +53,7 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
   };
 
   const save = async () => {
+    const wasEditing = editingId !== null;
     const payload = {
       tenant_id: tenantId,
       name: form.name,
@@ -69,6 +70,10 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
       if (data?.id) setEditingId(data.id);
     }
     await load();
+    // Editing an existing product has no photo step left to do, so close
+    // right away — otherwise the dialog just sat there looking unchanged.
+    // A brand-new product stays open once so its photo can be attached.
+    if (wasEditing) closeDialog();
   };
 
   const closeDialog = () => {
