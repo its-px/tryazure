@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Box, Typography, Card, CardContent } from "@mui/material";
+import { Box, Typography, Card, CardContent, Button } from "@mui/material";
 import {
   AreaChart,
   Area,
@@ -23,6 +23,10 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PendingIcon from "@mui/icons-material/Pending";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import { supabase } from "../components/supabaseClient";
+import {
+  buildOpenWindowsByDay,
+  isBookedWhileClosed,
+} from "./businessHoursUtils";
 
 interface Booking {
   id: string;
@@ -73,6 +77,15 @@ interface MonthlyPerformance {
   displayMonth: string;
   bookings: number;
   revenue: number;
+}
+
+interface LapsedClient {
+  userId: string;
+  name: string;
+  email: string;
+  lastCompletedDate: string;
+  daysSince: number;
+  lastBookingId: string;
 }
 
 interface ServiceCancellationData {
@@ -128,6 +141,15 @@ export default function BookingStatistics({
   >([]);
   const [confirmationsRecovered, setConfirmationsRecovered] =
     useState<number>(0);
+  const [rebookingNudgeDays, setRebookingNudgeDays] = useState<number>(45);
+  const [lapsedClients, setLapsedClients] = useState<LapsedClient[]>([]);
+  const [winBackSending, setWinBackSending] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [winBackSent, setWinBackSent] = useState<Record<string, boolean>>({});
+  const [bookedWhileClosedCount, setBookedWhileClosedCount] =
+    useState<number>(0);
+  const [completedRevenue30d, setCompletedRevenue30d] = useState<number>(0);
 
   const resolveProfessionalName = useCallback(
     (profId: string) => professionalNameMap[profId] ?? profId,
@@ -588,6 +610,166 @@ export default function BookingStatistics({
     };
   }, [tenantId]);
 
+  // Tenant's configured lapse window (same convention as send-rebooking-nudges).
+  useEffect(() => {
+    if (!tenantId) return;
+    let isMounted = true;
+    supabase
+      .from("tenants")
+      .select("config")
+      .eq("id", tenantId)
+      .single()
+      .then(({ data, error }) => {
+        if (!isMounted || error) return;
+        const days = Number(
+          (data?.config as Record<string, unknown> | null)?.rebookingNudgeDays,
+        );
+        if (days > 0) setRebookingNudgeDays(days);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [tenantId]);
+
+  // Lapsed clients: most recent completed booking > rebookingNudgeDays ago,
+  // with no booking of any kind since. Real DB rows, no estimation.
+  useEffect(() => {
+    if (!tenantId) return;
+    let isMounted = true;
+
+    const lastCompletedByUser: Record<
+      string,
+      { date: string; bookingId: string }
+    > = {};
+    const lastAnyBookingByUser: Record<string, string> = {};
+
+    allBookings.forEach((b) => {
+      if (!b.user_id) return;
+      if (!lastAnyBookingByUser[b.user_id] || b.date > lastAnyBookingByUser[b.user_id]) {
+        lastAnyBookingByUser[b.user_id] = b.date;
+      }
+      if (b.status === "completed") {
+        const existing = lastCompletedByUser[b.user_id];
+        if (!existing || b.date > existing.date) {
+          lastCompletedByUser[b.user_id] = { date: b.date, bookingId: b.id };
+        }
+      }
+    });
+
+    const cutoff = dayjs().subtract(rebookingNudgeDays, "day");
+    const candidates = Object.entries(lastCompletedByUser).filter(
+      ([userId, { date }]) =>
+        dayjs(date).isBefore(cutoff) && lastAnyBookingByUser[userId] === date,
+    );
+
+    if (candidates.length === 0) {
+      setLapsedClients([]);
+      return;
+    }
+
+    const userIds = candidates.map(([userId]) => userId);
+    supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", userIds)
+      .then(({ data, error }) => {
+        if (!isMounted || error) return;
+        const profileMap: Record<string, { name: string; email: string }> = {};
+        (data ?? []).forEach((p) => {
+          profileMap[p.id] = { name: p.full_name || p.id, email: p.email || "" };
+        });
+        setLapsedClients(
+          candidates
+            .map(([userId, { date, bookingId }]) => ({
+              userId,
+              name: profileMap[userId]?.name ?? userId,
+              email: profileMap[userId]?.email ?? "",
+              lastCompletedDate: date,
+              daysSince: dayjs().diff(dayjs(date), "day"),
+              lastBookingId: bookingId,
+            }))
+            .sort((a, b) => b.daysSince - a.daysSince),
+        );
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [allBookings, tenantId, rebookingNudgeDays]);
+
+  const sendWinBack = useCallback(async (client: LapsedClient) => {
+    setWinBackSending((prev) => ({ ...prev, [client.userId]: true }));
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-rebooking-nudges`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ booking_id: client.lastBookingId }),
+        },
+      );
+      if (res.ok) {
+        setWinBackSent((prev) => ({ ...prev, [client.userId]: true }));
+      } else {
+        console.error("Win-back send failed:", await res.text());
+      }
+    } catch (err) {
+      console.error("Exception sending win-back:", err);
+    } finally {
+      setWinBackSending((prev) => ({ ...prev, [client.userId]: false }));
+    }
+  }, []);
+
+  // "Booked while closed": bookings created outside every professional's hours.
+  useEffect(() => {
+    if (!tenantId) return;
+    let isMounted = true;
+    supabase
+      .from("professional_hours")
+      .select("day_of_week, start_time, end_time")
+      .eq("tenant_id", tenantId)
+      .then(({ data, error }) => {
+        if (!isMounted || error || !data) return;
+        const windows = buildOpenWindowsByDay(data);
+        const cutoff = dayjs().subtract(30, "day");
+        const count = allBookings.filter(
+          (b) =>
+            dayjs(b.created_at).isAfter(cutoff) &&
+            isBookedWhileClosed(b.created_at, windows),
+        ).length;
+        setBookedWhileClosedCount(count);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [allBookings, tenantId]);
+
+  // Revenue from completed bookings (30d) — real service prices, no estimation.
+  useEffect(() => {
+    const cutoff = dayjs().subtract(30, "day");
+    let total = 0;
+    allBookings
+      .filter(
+        (b) => b.status === "completed" && dayjs(b.date).isAfter(cutoff),
+      )
+      .forEach((b) => {
+        try {
+          const serviceIds = JSON.parse(b.services);
+          serviceIds.forEach((serviceId: string) => {
+            total += serviceMap[serviceId]?.price ?? 0;
+          });
+        } catch {
+          // ponytail: same JSON.parse-or-skip pattern as the rest of this file
+        }
+      });
+    setCompletedRevenue30d(Math.round(total * 100) / 100);
+  }, [allBookings, serviceMap]);
+
   useEffect(() => {
     calculateStatistics();
   }, [calculateStatistics]);
@@ -759,6 +941,116 @@ export default function BookingStatistics({
           color={colors.status.confirmed}
         />
       </Box>
+
+      {/* ROI ticker: real, countable revenue-adjacent rollup */}
+      <Box sx={{ mb: 2.5 }}>
+        <Card
+          sx={{
+            backgroundColor: colors.background.medium,
+            borderRadius: "12px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            border: `2px solid ${colors.status.confirmed}40`,
+          }}
+        >
+          <CardContent>
+            <Typography
+              variant="h6"
+              sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
+            >
+              💵 What The App Captured (Last 30 Days)
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+              <Box>
+                <Typography variant="h4" sx={{ color: colors.status.confirmed, fontWeight: "bold" }}>
+                  ${completedRevenue30d.toLocaleString()}
+                </Typography>
+                <Typography variant="body2" sx={{ color: colors.text.secondary }}>
+                  Revenue from Completed Bookings
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="h4" sx={{ color: colors.accent.main, fontWeight: "bold" }}>
+                  {bookedWhileClosedCount}
+                </Typography>
+                <Typography variant="body2" sx={{ color: colors.text.secondary }}>
+                  Bookings Made While Closed
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="h4" sx={{ color: colors.status.confirmed, fontWeight: "bold" }}>
+                  {confirmationsRecovered}
+                </Typography>
+                <Typography variant="body2" sx={{ color: colors.text.secondary }}>
+                  Confirmations Recovered
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
+
+      {/* Lapsed Clients + Win-Back */}
+      {lapsedClients.length > 0 && (
+        <Box sx={{ mb: 2.5 }}>
+          <Card
+            sx={{
+              backgroundColor: colors.background.medium,
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              p: 2,
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ color: colors.text.primary, mb: 0.5, fontWeight: "bold" }}
+            >
+              👋 Lapsed Clients ({lapsedClients.length})
+            </Typography>
+            <Typography variant="body2" sx={{ color: colors.text.secondary, mb: 1.5 }}>
+              No completed booking or new booking in the last {rebookingNudgeDays}+ days
+            </Typography>
+            {lapsedClients.slice(0, 15).map((client) => (
+              <Box
+                key={client.userId}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  py: 1,
+                  borderTop: `1px solid ${colors.border.main}`,
+                  gap: 1,
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ color: colors.text.primary, fontWeight: 600 }}>
+                    {client.name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: colors.text.secondary }}>
+                    Last visit {client.daysSince} days ago
+                    {client.email ? ` · ${client.email}` : ""}
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={
+                    !client.email ||
+                    winBackSending[client.userId] ||
+                    winBackSent[client.userId]
+                  }
+                  onClick={() => sendWinBack(client)}
+                >
+                  {winBackSent[client.userId]
+                    ? "Sent"
+                    : winBackSending[client.userId]
+                      ? "Sending…"
+                      : "Send Win-Back"}
+                </Button>
+              </Box>
+            ))}
+          </Card>
+        </Box>
+      )}
 
       {/* Best Performing Months */}
       {bestMonths.byBookings && bestMonths.byRevenue && (

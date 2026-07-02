@@ -39,13 +39,32 @@ serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Manual on-demand trigger from the owner dashboard "Send Win-Back" button:
+    // skip the day-window/gate logic (which only fires the cron sweep on the
+    // exact Nth day) and process this one booking directly.
+    // ponytail: reuses the same completed-booking-> email path below instead of
+    // a separate send-email edge function.
+    let manualBookingId: string | null = null;
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (body?.booking_id) manualBookingId = body.booking_id;
+      } catch {
+        // no body / not JSON — fall through to normal cron sweep
+      }
+    }
+
     // Completion transitions, joined to their booking + tenant.
-    const { data: history, error: historyError } = await supabase
+    let historyQuery = supabase
       .from("booking_status_history")
       .select(
         "booking_id, changed_at, bookings!inner(id, tenant_id, user_id, status, date, booking_date, rebooking_nudge_sent_at, tenants!inner(name, config))",
       )
       .eq("new_status", "completed");
+    if (manualBookingId) {
+      historyQuery = historyQuery.eq("booking_id", manualBookingId);
+    }
+    const { data: history, error: historyError } = await historyQuery;
 
     if (historyError) {
       console.error("Error fetching completed bookings:", historyError);
@@ -72,20 +91,23 @@ serve(async (req: Request) => {
 
       if (
         booking.status !== "completed" ||
-        booking.rebooking_nudge_sent_at ||
+        (booking.rebooking_nudge_sent_at && !manualBookingId) ||
         !booking.user_id
       ) {
         continue;
       }
 
-      const nudgeDays =
-        Number(booking.tenants?.config?.rebookingNudgeDays) || DEFAULT_NUDGE_DAYS;
+      if (!manualBookingId) {
+        const nudgeDays =
+          Number(booking.tenants?.config?.rebookingNudgeDays) ||
+          DEFAULT_NUDGE_DAYS;
 
-      // changed_at falls within a ~24h window centered on "N days ago".
-      const changedAt = new Date(row.changed_at as string);
-      const daysAgo =
-        (Date.now() - changedAt.getTime()) / (24 * 60 * 60 * 1000);
-      if (daysAgo < nudgeDays || daysAgo >= nudgeDays + 1) continue;
+        // changed_at falls within a ~24h window centered on "N days ago".
+        const changedAt = new Date(row.changed_at as string);
+        const daysAgo =
+          (Date.now() - changedAt.getTime()) / (24 * 60 * 60 * 1000);
+        if (daysAgo < nudgeDays || daysAgo >= nudgeDays + 1) continue;
+      }
 
       const bookingDate = booking.date || booking.booking_date;
 
