@@ -25,7 +25,7 @@ export type Role = "admin" | "user" | "owner" | "professional";
 
 function App() {
   const dispatch = useDispatch();
-  const { tenant, loading: tenantLoading } = useTenantContext();
+  const { tenant, loading: tenantLoading, switchTenant } = useTenantContext();
 
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<Role | null>(null);
@@ -112,12 +112,18 @@ function App() {
               .select("slug")
               .eq("id", profile.tenant_id)
               .single();
-            if (!cancelled && tenantRow?.slug) {
-              // Force URL tenant to match owner's tenant so useTenant resolves correctly
+            if (!cancelled && tenantRow?.slug && tenant?.slug !== tenantRow.slug) {
+              // Switch tenant in place — no reload, avoids a "wrong tenant"
+              // flash and repeated reloads whenever this effect re-runs.
+              await switchTenant(tenantRow.slug);
               const params = new URLSearchParams(window.location.search);
               if (params.get("tenant") !== tenantRow.slug) {
                 params.set("tenant", tenantRow.slug);
-                window.location.replace(`/owner?${params.toString()}`);
+                window.history.replaceState(
+                  {},
+                  "",
+                  `${window.location.pathname}?${params.toString()}`,
+                );
               }
             }
           }

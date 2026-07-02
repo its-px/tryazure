@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../assets/components/supabaseClient";
 
 export interface Tenant {
@@ -17,6 +17,8 @@ interface UseTenantResult {
   tenant: Tenant | null;
   loading: boolean;
   error: string | null;
+  /** Switch the active tenant client-side (no page reload), e.g. once an owner's real tenant is known. */
+  switchTenant: (slug: string) => Promise<void>;
 }
 
 /**
@@ -83,5 +85,18 @@ export function useTenant(): UseTenantResult {
     };
   }, []);
 
-  return { tenant, loading, error };
+  const switchTenant = useCallback(async (slug: string) => {
+    const { data: row, error: err } = await supabase.rpc("get_tenant_by_slug", {
+      p_slug: slug,
+    });
+    if (err || !row?.[0]) {
+      console.error("[Tenant] Failed to switch tenant:", err);
+      return;
+    }
+    await supabase.rpc("set_current_tenant", { p_tenant_id: row[0].id });
+    setTenant(row[0]);
+    console.log("[Tenant] Switched tenant:", row[0].slug, row[0].id);
+  }, []);
+
+  return { tenant, loading, error, switchTenant };
 }

@@ -43,7 +43,7 @@ function resolveBrandColors(
 
 // ─── Provider ───────────────────────────────────────────────────────────────
 export function TenantProvider({ children }: { children: ReactNode }) {
-  const { tenant, loading } = useTenant();
+  const { tenant, loading, switchTenant } = useTenant();
 
   const value: TenantContextValue = {
     tenant,
@@ -51,6 +51,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     logoUrl: resolveLogoUrl(tenant),
     brandColors: resolveBrandColors(tenant),
     senderName: (tenant?.config?.senderName as string) ?? null,
+    switchTenant,
   };
 
   return (

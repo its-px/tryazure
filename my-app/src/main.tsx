@@ -38,17 +38,13 @@ export function ThemeProviderWrapper({
   );
 }
 
-const updateSW = registerSW({
+// ponytail: updateSW(true) force-reloads the tab the instant a new service
+// worker is found — combined with the 60s poll this reloaded users mid-session
+// (most noticeably right after a tab regains focus, when Chrome re-checks the
+// SW). Let the new SW take over silently; it activates on the user's next
+// natural full page load instead of yanking the rug out from under them.
+registerSW({
   immediate: true,
-  onRegisteredSW(_swUrl, registration) {
-    if (!registration) return;
-    setInterval(() => {
-      registration.update();
-    }, 60 * 1000);
-  },
-  onNeedRefresh() {
-    updateSW(true);
-  },
   onOfflineReady() {
     console.log("App ready to work offline");
   },

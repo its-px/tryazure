@@ -24,6 +24,8 @@ export interface TenantContextValue {
   brandColors: TenantBrandColors;
   /** SMS sender name from config */
   senderName: string | null;
+  /** Switch the active tenant client-side (no page reload), e.g. once an owner's real tenant is known. */
+  switchTenant: (slug: string) => Promise<void>;
 }
 
 // Default brand colors (original green scheme)
