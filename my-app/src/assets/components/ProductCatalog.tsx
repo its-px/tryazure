@@ -3,6 +3,7 @@ import { Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextFie
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { supabase } from "./supabaseClient";
 import type { Product } from "./productsService";
+import PhotoUploadField from "./PhotoUploadField";
 
 interface ProductCatalogProps {
   tenantId: string;
@@ -62,10 +63,17 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
     if (editingId) {
       await supabase.from("products").update(payload).eq("id", editingId);
     } else {
-      await supabase.from("products").insert(payload);
+      // Insert first so the photo (if any is added next) has a stable
+      // {productId}.webp storage path to upload against.
+      const { data } = await supabase.from("products").insert(payload).select("id").single();
+      if (data?.id) setEditingId(data.id);
     }
-    setDialogOpen(false);
     await load();
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setEditingId(null);
   };
 
   const toggleActive = async (p: Product) => {
@@ -114,9 +122,19 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
         ))}
       </Box>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
         <DialogTitle>{editingId ? "Edit Product" : "Add Product"}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+          {editingId && (
+            <PhotoUploadField
+              storagePath={`${tenantId}/products/${editingId}.webp`}
+              currentUrl={products.find((p) => p.id === editingId)?.photo_url}
+              onUploaded={async (url) => {
+                await supabase.from("products").update({ photo_url: url }).eq("id", editingId);
+                await load();
+              }}
+            />
+          )}
           <TextField
             label="Name"
             value={form.name}
@@ -149,7 +167,7 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={closeDialog}>{editingId ? "Close" : "Cancel"}</Button>
           <Button variant="contained" onClick={save} disabled={!form.name}>
             Save
           </Button>

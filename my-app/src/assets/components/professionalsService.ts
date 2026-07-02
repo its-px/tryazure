@@ -3,6 +3,7 @@ export interface ProfessionalOption {
   code: string;
   name: string;
   tenant_id: string;
+  photo_url?: string | null;
 }
 
 export const fetchProfessionals = async (
@@ -65,6 +66,7 @@ export const fetchProfessionals = async (
           code,
           name,
           tenant_id: String(row.tenant_id ?? tenantId),
+          photo_url: (row.photo_url as string | null) ?? null,
         } as ProfessionalOption;
       })
       .filter((p) => Boolean(p.code));

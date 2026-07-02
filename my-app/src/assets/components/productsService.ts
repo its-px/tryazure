@@ -8,6 +8,7 @@ export interface Product {
   replenish_days: number | null;
   active: boolean;
   tenant_id?: string | null;
+  photo_url?: string | null;
 }
 
 export const fetchProducts = async (tenantId?: string): Promise<Product[]> => {

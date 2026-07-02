@@ -7,6 +7,7 @@ import OwnerCalendar from "../components/OwnerCalendar";
 import BookingStatistics from "../components/BookingStatistics";
 import ReferralStats from "../components/ReferralStats";
 import ProductCatalog from "../components/ProductCatalog";
+import PhotoUploadField from "../components/PhotoUploadField";
 import {
   Box,
   Dialog,
@@ -640,7 +641,31 @@ export default function OwnerPanel() {
 
           {/* ── Products view ── */}
           {activeView === "products" && (
-            <ProductCatalog tenantId={tenant?.id ?? ""} />
+            <>
+              <ProductCatalog tenantId={tenant?.id ?? ""} />
+
+              <Box sx={{ mt: 4 }}>
+                <Box sx={{ fontSize: 16, fontWeight: 700, mb: 1.75 }}>Professional Photos</Box>
+                <Box sx={{ background: colors.background.medium, borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.10)", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                  {professionals.length === 0 && (
+                    <Box sx={{ color: colors.text.tertiary, fontSize: 13 }}>No professionals yet</Box>
+                  )}
+                  {professionals.map((p) => (
+                    <Box key={p.id} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Box sx={{ minWidth: 140, fontSize: 13 }}>{p.name}</Box>
+                      <PhotoUploadField
+                        storagePath={`${tenant?.id}/professionals/${p.id}.webp`}
+                        currentUrl={p.photo_url}
+                        onUploaded={async (url) => {
+                          await supabase.from("professionals").update({ photo_url: url }).eq("id", p.id);
+                          await loadProfessionals();
+                        }}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </>
           )}
 
         </Box>

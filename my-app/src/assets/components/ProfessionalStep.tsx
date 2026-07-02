@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Avatar, Box } from "@mui/material";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import type { ProfessionalOption } from "./professionalsService";
 
@@ -74,18 +74,18 @@ export default function ProfessionalStep({
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.75 }}>
               {/* Avatar */}
-              <Box
+              <Avatar
+                src={professional.photo_url || undefined}
                 sx={{
-                  width: 46, height: 46, borderRadius: "50%",
+                  width: 46, height: 46,
                   background: colors.accent.main,
-                  display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 15, fontWeight: 700, color: "#fff",
                   flexShrink: 0,
                   boxShadow: `0 4px 12px ${colors.background.overlay}`,
                 }}
               >
                 {initials(professional.name)}
-              </Box>
+              </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary }}>{professional.name}</Box>
               </Box>
