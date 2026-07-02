@@ -9,14 +9,19 @@ const SNOOZED_KEY = "pwa_snoozed_until";
 const MIN_VISITS = 3;
 const SNOOZE_DAYS = 7;
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 export default function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
   const logoPath = "/logo.png";
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
+    const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
 
       if (localStorage.getItem(INSTALLED_KEY) === "true") return;
@@ -24,11 +29,11 @@ export default function PWAInstallPrompt() {
       const snoozedUntil = Number(localStorage.getItem(SNOOZED_KEY) || "0");
       if (Date.now() < snoozedUntil) return;
 
-      let visits = Number(localStorage.getItem(VISIT_KEY) || "0") + 1;
+      const visits = Number(localStorage.getItem(VISIT_KEY) || "0") + 1;
       localStorage.setItem(VISIT_KEY, visits.toString());
 
       if (visits >= MIN_VISITS) {
-        setDeferredPrompt(e);
+        setDeferredPrompt(e as BeforeInstallPromptEvent);
         setShowPrompt(true);
       }
     };

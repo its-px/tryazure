@@ -10,7 +10,7 @@ const getInitialTheme = (): ThemeMode => {
   try {
     const saved = localStorage.getItem("themeMode");
     if (saved === "light" || saved === "dark") return saved;
-  } catch (e) {
+  } catch {
     // ignore
   }
 
