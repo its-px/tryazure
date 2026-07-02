@@ -69,12 +69,36 @@ export default function CompleteProfileModal({
       // Step 2: Update or create profile in profiles table
       console.log("[CompleteProfileModal] Updating profile table...");
 
+      // Referral attribution: only set on first completion, never overwrite.
+      // ponytail: single lookup by code, no fraud checks (self-referral etc) —
+      // fine for a v1 attribution signal, not a monetary reward yet.
+      let referredBy: string | undefined;
+      const refCode = localStorage.getItem("referralCode");
+      if (refCode) {
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("referred_by")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!existing?.referred_by) {
+          const { data: referrer } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("referral_code", refCode)
+            .neq("id", user.id)
+            .maybeSingle();
+          if (referrer?.id) referredBy = referrer.id;
+        }
+        localStorage.removeItem("referralCode");
+      }
+
       const { error: upsertError } = await supabase.from("profiles").upsert(
         {
           id: user.id,
           email: user.email || userEmail || "",
           full_name: fullName.trim(),
           phone: phone.trim(),
+          ...(referredBy ? { referred_by: referredBy } : {}),
         },
         {
           onConflict: "id",

@@ -1,6 +1,14 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+
+// Referral capture: stash ?ref=<code> before Google OAuth's full-page redirect
+// can drop the query param. Read back in CompleteProfileModal at signup.
+// ponytail: last-ref-wins, no expiry — fine for a v1 attribution signal.
+const refParam = new URLSearchParams(window.location.search).get("ref");
+if (refParam) {
+  localStorage.setItem("referralCode", refParam);
+}
 import App from "./App.tsx";
 import { TenantProvider } from "./context/TenantContext";
 import { BrowserRouter } from "react-router-dom";

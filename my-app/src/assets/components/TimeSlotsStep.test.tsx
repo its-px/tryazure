@@ -4,12 +4,16 @@ import userEvent from "@testing-library/user-event";
 import { stubColors } from "../../test/setup";
 
 const getAvailableSlots = vi.fn();
+const joinWaitlist = vi.fn();
 
 vi.mock("../../hooks/useResolvedColors", () => ({
   useResolvedColors: () => stubColors,
 }));
 vi.mock("./slotService", () => ({
   getAvailableSlots: (...args: unknown[]) => getAvailableSlots(...args),
+}));
+vi.mock("./waitlistService", () => ({
+  joinWaitlist: (...args: unknown[]) => joinWaitlist(...args),
 }));
 
 import TimeSlotsStep from "./TimeSlotsStep";
@@ -22,7 +26,10 @@ const base = {
   onSlotSelect: () => {},
 };
 
-beforeEach(() => getAvailableSlots.mockReset());
+beforeEach(() => {
+  getAvailableSlots.mockReset();
+  joinWaitlist.mockReset();
+});
 
 describe("TimeSlotsStep", () => {
   it("renders returned slots as HH:MM buttons", async () => {
@@ -67,5 +74,29 @@ describe("TimeSlotsStep", () => {
   it("does not fetch when a required field is missing", async () => {
     render(<TimeSlotsStep {...base} professionalId={null} selectedDate="2099-01-01" />);
     expect(getAvailableSlots).not.toHaveBeenCalled();
+  });
+
+  it("shows Join Waitlist when empty and serviceId/userId are provided, and confirms after joining", async () => {
+    getAvailableSlots.mockResolvedValue([]);
+    joinWaitlist.mockResolvedValue(true);
+    render(
+      <TimeSlotsStep
+        {...base}
+        selectedDate="2099-01-01"
+        serviceId="svc1"
+        userId="user1"
+      />,
+    );
+    const button = await screen.findByText("Join Waitlist");
+    await userEvent.click(button);
+    expect(joinWaitlist).toHaveBeenCalledWith("t1", "user1", "svc1", "p1", "2099-01-01");
+    expect(await screen.findByText(/You're on the waitlist/)).toBeInTheDocument();
+  });
+
+  it("does not show Join Waitlist without serviceId/userId", async () => {
+    getAvailableSlots.mockResolvedValue([]);
+    render(<TimeSlotsStep {...base} selectedDate="2099-01-01" />);
+    await screen.findByText("No available slots for this date");
+    expect(screen.queryByText("Join Waitlist")).not.toBeInTheDocument();
   });
 });

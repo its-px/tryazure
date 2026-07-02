@@ -45,6 +45,7 @@ interface Booking {
 interface UserProfile {
   full_name: string;
   phone: string;
+  referral_code?: string;
 }
 
 // (removed AppUser) using Supabase `User` type instead
@@ -237,7 +238,7 @@ export default function UserAccountPage() {
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=full_name,phone`,
+        `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=full_name,phone,referral_code`,
         {
           headers: {
             apikey: supabaseKey,
@@ -845,6 +846,47 @@ export default function UserAccountPage() {
           </Box>
         </CardContent>
       </Card>
+
+      {/* Refer a friend */}
+      {profile.referral_code && (
+        <Card sx={{ mb: 3, ...commonStyles.card }}>
+          <CardContent sx={{ padding: { xs: 2, sm: 3 } }}>
+            <Typography variant="h6" sx={{ fontSize: { xs: "1rem", sm: "1.1rem" }, mb: 0.5 }}>
+              Refer a friend
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Share your link — friends who book get you noticed by the owner.
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: { xs: "stretch", sm: "center" },
+              }}
+            >
+              <TextField
+                value={`${window.location.origin}?ref=${profile.referral_code}`}
+                fullWidth
+                size="small"
+                InputProps={{ readOnly: true }}
+              />
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `${window.location.origin}?ref=${profile.referral_code}`,
+                  );
+                  alert("Referral link copied!");
+                }}
+                sx={{ whiteSpace: "nowrap" }}
+              >
+                Copy Link
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabs for Upcoming vs Past */}
       <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>

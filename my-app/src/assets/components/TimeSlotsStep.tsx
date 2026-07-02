@@ -1,7 +1,8 @@
-import { Box, CircularProgress } from "@mui/material";
+import { Box, Button, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { getAvailableSlots } from "./slotService";
+import { joinWaitlist } from "./waitlistService";
 
 interface TimeSlot {
   start_time: string;
@@ -15,6 +16,8 @@ interface TimeSlotsStepProps {
   serviceDuration: number;
   selectedSlot: TimeSlot | null;
   onSlotSelect: (slot: TimeSlot) => void;
+  serviceId?: string | null;
+  userId?: string | null;
 }
 
 export default function TimeSlotsStep({
@@ -24,10 +27,13 @@ export default function TimeSlotsStep({
   serviceDuration,
   selectedSlot,
   onSlotSelect,
+  serviceId,
+  userId,
 }: TimeSlotsStepProps) {
   const colors = useResolvedColors();
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
+  const [waitlisted, setWaitlisted] = useState(false);
 
   useEffect(() => {
     if (!professionalId || !tenantId || !selectedDate || !serviceDuration) {
@@ -48,6 +54,10 @@ export default function TimeSlotsStep({
     return () => { isMounted = false; };
   }, [professionalId, tenantId, selectedDate, serviceDuration]);
 
+  useEffect(() => {
+    setWaitlisted(false);
+  }, [selectedDate, professionalId, serviceId]);
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 160, mt: 2 }}>
@@ -66,7 +76,25 @@ export default function TimeSlotsStep({
 
       {slots.length === 0 ? (
         <Box sx={{ textAlign: "center", py: 3, color: colors.text.secondary, fontSize: 13, px: 2 }}>
-          No available slots for this date
+          <Box sx={{ mb: waitlisted ? 0 : 1.5 }}>No available slots for this date</Box>
+          {serviceId && userId && tenantId && (
+            waitlisted ? (
+              <Box sx={{ color: colors.accent.main, fontSize: 13 }}>You're on the waitlist — we'll email you if a slot opens up.</Box>
+            ) : (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={async () => {
+                  const ok = await joinWaitlist(tenantId, userId, serviceId, professionalId, selectedDate || null);
+                  if (ok) setWaitlisted(true);
+                  else alert("Couldn't join the waitlist, please try again.");
+                }}
+                sx={{ borderColor: colors.accent.main, color: colors.accent.main }}
+              >
+                Join Waitlist
+              </Button>
+            )
+          )}
         </Box>
       ) : (
         <Box
