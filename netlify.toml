@@ -1,0 +1,8 @@
+[build]
+  base = "my-app"
+  command = "npm run build"
+  publish = "my-app/dist"
+
+[[edge_functions]]
+  path = "/*"
+  function = "block-bots"
