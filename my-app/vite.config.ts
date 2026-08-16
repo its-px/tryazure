@@ -26,6 +26,10 @@ export default defineConfig({
       devOptions: {
         enabled: false,
       },
+      // Main bundle is ~2.2MB, over workbox's default 2MB precache limit.
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
       manifest: {
         name: "RENDEZVOUS",
         short_name: "RENDEZVOUS",
