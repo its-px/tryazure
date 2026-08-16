@@ -81,13 +81,14 @@ export default function CompleteProfileModal({
           .eq("id", user.id)
           .maybeSingle();
         if (!existing?.referred_by) {
-          const { data: referrer } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("referral_code", refCode)
-            .neq("id", user.id)
-            .maybeSingle();
-          if (referrer?.id) referredBy = referrer.id;
+          // Security-definer RPC — profiles RLS blocks selecting someone
+          // else's row directly, so a plain .eq("referral_code") lookup
+          // silently returned nothing.
+          const { data: referrerId } = await supabase.rpc(
+            "get_profile_id_by_referral_code",
+            { p_code: refCode },
+          );
+          if (referrerId && referrerId !== user.id) referredBy = referrerId;
         }
         localStorage.removeItem("referralCode");
       }

@@ -1,4 +1,6 @@
 // SMS Sending Function for Gateway API
+import { rateLimit, tooManyRequests } from "../_shared/rateLimit.ts";
+
 Deno.serve(async (req) => {
   const { method } = req;
 
@@ -37,6 +39,12 @@ Deno.serve(async (req) => {
           },
         }
       );
+    }
+
+    // SMS costs real money per message — cap per authenticated user.
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    if (!(await rateLimit(admin, `sms:${userData.user.id}`, 20, 3600))) {
+      return tooManyRequests({ "Access-Control-Allow-Origin": "*" });
     }
 
     if (method !== "POST") {

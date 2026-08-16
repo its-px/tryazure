@@ -5,6 +5,7 @@
 // mutating status. No login required — that's the point of a one-tap link.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit, clientIp, tooManyRequests } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +31,11 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Public endpoint keyed by a guessable-if-brute-forced token — throttle per IP.
+    if (!(await rateLimit(supabase, `sms-action:${clientIp(req)}`, 10, 60))) {
+      return tooManyRequests(corsHeaders);
+    }
 
     const { data: booking, error: fetchError } = await supabase
       .from("bookings")

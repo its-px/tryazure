@@ -6,6 +6,8 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 // @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+// @ts-ignore - relative Deno import
+import { sendEmail, tenantBookingUrl } from "../_shared/sendEmail.ts";
 
 declare const Deno: {
   env: {
@@ -45,6 +47,7 @@ serve(async (req: Request) => {
     // ponytail: reuses the same completed-booking-> email path below instead of
     // a separate send-email edge function.
     let manualBookingId: string | null = null;
+    let manualTenantFilter: string | null = null;
     if (req.method === "POST") {
       try {
         const body = await req.json();
@@ -54,11 +57,38 @@ serve(async (req: Request) => {
       }
     }
 
+    // The manual path bypasses the once-only nudge gate, so it must not be
+    // callable by anyone holding the anon key: require an owner/admin caller,
+    // and scope owners to their own tenant's bookings.
+    if (manualBookingId) {
+      const token = (req.headers.get("Authorization") ?? "").replace("Bearer ", "");
+      const supabaseAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+      const { data: userData, error: authError } = await supabaseAuth.auth.getUser(token);
+      if (authError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: callerProfile } = await supabase
+        .from("profiles")
+        .select("role, tenant_id")
+        .eq("id", userData.user.id)
+        .single();
+      if (!callerProfile || (callerProfile.role !== "admin" && callerProfile.role !== "owner")) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (callerProfile.role === "owner") manualTenantFilter = callerProfile.tenant_id;
+    }
+
     // Completion transitions, joined to their booking + tenant.
     let historyQuery = supabase
       .from("booking_status_history")
       .select(
-        "booking_id, changed_at, bookings!inner(id, tenant_id, user_id, status, date, booking_date, rebooking_nudge_sent_at, tenants!inner(name, config))",
+        "booking_id, changed_at, bookings!inner(id, tenant_id, user_id, status, date, booking_date, rebooking_nudge_sent_at, tenants!inner(name, config, domain))",
       )
       .eq("new_status", "completed");
     if (manualBookingId) {
@@ -86,13 +116,14 @@ serve(async (req: Request) => {
         date: string | null;
         booking_date: string | null;
         rebooking_nudge_sent_at: string | null;
-        tenants: { name: string; config: Record<string, unknown> };
+        tenants: { name: string; config: Record<string, unknown>; domain: string | null };
       };
 
       if (
         booking.status !== "completed" ||
         (booking.rebooking_nudge_sent_at && !manualBookingId) ||
-        !booking.user_id
+        !booking.user_id ||
+        (manualTenantFilter && booking.tenant_id !== manualTenantFilter)
       ) {
         continue;
       }
@@ -138,39 +169,20 @@ serve(async (req: Request) => {
       }
 
       const tenantName = booking.tenants?.name || "us";
-      const displayName = profile.full_name || "there";
 
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
+      const ok = await sendEmail(
+        resendApiKey,
+        profile.email,
+        `Time for another visit to ${tenantName}?`,
+        {
+          greetingName: profile.full_name || "there",
+          bodyText: `It's been a while since your last visit to ${tenantName}. We'd love to see you again!`,
+          ctaLabel: "Book Again",
+          ctaUrl: tenantBookingUrl(booking.tenants),
         },
-        body: JSON.stringify({
-          from: "team@pxbs.site",
-          to: profile.email,
-          subject: `Time for another visit to ${tenantName}?`,
-          html: `
-            <!DOCTYPE html>
-            <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                  <p>Hi ${displayName},</p>
-                  <p>It's been a while since your last visit to ${tenantName}. We'd love to see you again!</p>
-                  <p style="text-align: center; margin: 24px 0;">
-                    <a href="https://${tenantName.toLowerCase().replace(/\s+/g, "-")}.pxbs.site" style="display: inline-block; padding: 12px 28px; background-color: #2e7d32; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">Book Again</a>
-                  </p>
-                  <p>Thank you!</p>
-                </div>
-              </body>
-            </html>
-          `,
-        }),
-      });
+      );
 
-      if (!res.ok) {
-        const errData = await res.json();
-        console.error(`Resend error for booking ${booking.id}:`, errData);
+      if (!ok) {
         results.push({ booking_id: booking.id, status: "email_failed" });
         continue;
       }

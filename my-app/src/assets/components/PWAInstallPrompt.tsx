@@ -3,6 +3,7 @@ import { Box, Button, Typography, IconButton, Paper, Avatar } from "@mui/materia
 import CloseIcon from "@mui/icons-material/Close";
 import { motion, AnimatePresence } from "framer-motion";
 
+const COOKIE_CONSENT_KEY = "cookieConsent";
 const VISIT_KEY = "pwa_install_visits";
 const INSTALLED_KEY = "pwa_installed";
 const SNOOZED_KEY = "pwa_snoozed_until";
@@ -80,7 +81,9 @@ export default function PWAInstallPrompt() {
           transition={{ duration: 0.4 }}
           style={{
             position: "fixed",
-            bottom: "calc(20px + env(safe-area-inset-bottom))",
+            bottom: localStorage.getItem(COOKIE_CONSENT_KEY)
+              ? "calc(20px + env(safe-area-inset-bottom))"
+              : "calc(90px + env(safe-area-inset-bottom))",
             right: "calc(20px + env(safe-area-inset-right))",
             zIndex: 2000,
           }}
@@ -93,7 +96,7 @@ export default function PWAInstallPrompt() {
               flexDirection: "column",
               alignItems: "flex-start",
               borderRadius: 3,
-              maxWidth: 320,
+              maxWidth: "min(320px, calc(100vw - 40px))",
               backgroundColor: "#616161b9",
               color: "#fff",
               boxShadow: "0px 4px 20px rgba(0,0,0,0.25)",

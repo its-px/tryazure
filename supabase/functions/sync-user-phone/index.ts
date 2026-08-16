@@ -76,6 +76,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // @ts-ignore - relative Deno import
+    const { rateLimit, tooManyRequests } = await import("../_shared/rateLimit.ts");
+    const allowed = await rateLimit(supabaseAdmin, `sync-user-phone:${userId}`, 5, 3600);
+    if (!allowed) {
+      return tooManyRequests({ "Content-Type": "application/json" });
+    }
+
     console.log(`Syncing phone for user ${userId}: ${phone}`);
 
     // Use Admin API to update the phone field

@@ -36,6 +36,12 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Prune stale rate-limit counters (piggybacks on this 15-min cron).
+    await supabase
+      .from("rate_limits")
+      .delete()
+      .lt("window_start", new Date(Date.now() - 24 * 3600 * 1000).toISOString());
+
     // --- 1. Expire pending bookings past their deadline ---
     const { data: expiredResult, error: expireError } = await supabase.rpc(
       "expire_unconfirmed_bookings",

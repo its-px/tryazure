@@ -2,6 +2,8 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 // @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+// @ts-ignore - relative Deno import
+import { rateLimit, clientIp, tooManyRequests } from "../_shared/rateLimit.ts";
 
 declare const Deno: {
   env: {
@@ -14,6 +16,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 // Helper to determine if DST is active in Athens
 function isDSTActive(year: number, month: number, day: number): boolean {
@@ -221,6 +232,11 @@ serve(async (req: Request) => {
     }
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Unauthenticated endpoint that sends email on our Resend bill — throttle per IP.
+    if (!(await rateLimit(supabase, `email:${clientIp(req)}`, 10, 60))) {
+      return tooManyRequests(corsHeaders);
+    }
+
     // Parse services
     let serviceIds: string[] = [];
     if (typeof services === "string") {
@@ -262,10 +278,10 @@ serve(async (req: Request) => {
     }
 
     const locationText = location === "our_place" ? "Our Place" : "Your Place";
-    const servicesText = Array.isArray(serviceNames)
-      ? serviceNames.join(", ")
-      : serviceNames;
-    const displayName = name || "Customer";
+    const servicesText = escapeHtml(
+      Array.isArray(serviceNames) ? serviceNames.join(", ") : serviceNames,
+    );
+    const displayName = escapeHtml(name || "Customer");
 
     // Resolve app URL for confirmation links.
     // Prefer caller-provided origin (supports tenant domains/subdomains),
@@ -316,7 +332,7 @@ serve(async (req: Request) => {
       startTime && endTime
         ? `
       <div class="detail-row">
-        <span class="detail-label">🕐 Time:</span> ${startTime} - ${endTime}
+        <span class="detail-label">🕐 Time:</span> ${escapeHtml(startTime)} - ${escapeHtml(endTime)}
       </div>`
         : "";
 
@@ -423,13 +439,13 @@ serve(async (req: Request) => {
                     <h2 style="margin-top: 0; color: #2e7d32;">Appointment Details</h2>
 
                     <div class="detail-row">
-                      <span class="detail-label">📅 Date:</span> ${bookingDate}
+                      <span class="detail-label">📅 Date:</span> ${escapeHtml(bookingDate)}
                     </div>
 
                     ${timeRow}
 
                     <div class="detail-row">
-                      <span class="detail-label">👤 Professional:</span> ${professional}
+                      <span class="detail-label">👤 Professional:</span> ${escapeHtml(professional)}
                     </div>
 
                     <div class="detail-row">

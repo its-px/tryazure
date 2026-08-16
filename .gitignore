@@ -1,5 +1,8 @@
 CLAUDE.md
 
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json
+
 # Environment variables - NEVER commit credentials
 .env
 .env.local

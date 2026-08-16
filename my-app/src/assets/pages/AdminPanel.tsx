@@ -692,7 +692,9 @@ export default function AdminPanel() {
         <Tabs
           value={currentTab}
           onChange={(_, newValue) => setCurrentTab(newValue)}
-          centered
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
         >
           <Tab label="Store Availability" />
           <Tab label="Professional Hours" />

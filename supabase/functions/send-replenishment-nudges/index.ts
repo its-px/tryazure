@@ -27,9 +27,18 @@ serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Cron-only: reject callers not presenting the service role key (see manage-booking-lifecycle).
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (authHeader !== `Bearer ${supabaseKey}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+    });
+  }
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const gatewayApiKey = Deno.env.get("SMS_API_KEY");
     const smsSender = Deno.env.get("SMS_SENDER") || "px business";
 

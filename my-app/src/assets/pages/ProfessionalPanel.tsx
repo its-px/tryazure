@@ -497,7 +497,7 @@ export default function ProfessionalPanel() {
 
       {/* Tabs */}
       <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, mt: 2, borderBottom: `1px solid ${colors.border.main}` }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
           <Tab label="My Stats" sx={{ textTransform: "none", fontWeight: 600 }} />
           <Tab label="My Bookings" sx={{ textTransform: "none", fontWeight: 600 }} />
           <Tab label="My Schedule" sx={{ textTransform: "none", fontWeight: 600 }} />

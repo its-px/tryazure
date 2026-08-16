@@ -1,6 +1,19 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import posthog from "posthog-js";
+import { Crisp } from "crisp-sdk-web";
+
+// Analytics + support chat. Both no-op when the env var is missing (dev, CI).
+if (import.meta.env.VITE_POSTHOG_KEY) {
+  posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
+    api_host: import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com",
+    capture_pageview: "history_change", // SPA: track react-router navigations too
+  });
+}
+if (import.meta.env.VITE_CRISP_WEBSITE_ID) {
+  Crisp.configure(import.meta.env.VITE_CRISP_WEBSITE_ID);
+}
 
 // Referral capture: stash ?ref=<code> before Google OAuth's full-page redirect
 // can drop the query param. Read back in CompleteProfileModal at signup.
@@ -21,6 +34,7 @@ import { ThemeProvider, CssBaseline } from "@mui/material";
 import { getMuiTheme } from "./theme";
 import type { RootState } from "./configureStore";
 import { useTenantContext } from "./context/useTenantContext";
+import CookieBanner from "./components/CookieBanner";
 
 export function ThemeProviderWrapper({
   children,
@@ -57,6 +71,7 @@ createRoot(document.getElementById("root")!).render(
         <TenantProvider>
           <ThemeProviderWrapper>
             <App />
+            <CookieBanner />
           </ThemeProviderWrapper>
         </TenantProvider>
       </BrowserRouter>

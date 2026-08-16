@@ -189,7 +189,9 @@ Deno.serve(async (req) => {
         service_id: service.id,
         professional_id: professional.code,
         status,
-        services: [{ id: service.id, name: service.name, price: service.price }],
+        // Same shape the app writes (UserPanel: JSON.stringify of a service-id
+        // array into the jsonb column) so dashboard revenue parsing works.
+        services: JSON.stringify([service.id]),
       };
     });
     const { data: bookings, error: bookingsError } = await admin.from("bookings").insert(bookingRows).select();

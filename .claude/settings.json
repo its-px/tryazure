@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); if echo \"$input\" | grep -q \"git commit\"; then cd my-app && npx eslint . 1>&2 || { echo \"ESLint failed - commit blocked. Fix lint errors first.\" >&2; exit 2; }; fi",
+            "timeout": 180,
+            "statusMessage": "Linting before commit..."
+          }
+        ]
+      }
+    ]
+  }
+}

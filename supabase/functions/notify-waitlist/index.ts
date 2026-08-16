@@ -8,6 +8,8 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 // @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+// @ts-ignore - relative Deno import
+import { sendEmail, tenantBookingUrl } from "../_shared/sendEmail.ts";
 
 declare const Deno: {
   env: {
@@ -30,9 +32,18 @@ serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Cron-only: reject callers not presenting the service role key (see manage-booking-lifecycle).
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (authHeader !== `Bearer ${supabaseKey}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+    });
+  }
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       return new Response(
@@ -46,7 +57,7 @@ serve(async (req: Request) => {
     const { data: entries, error: entriesError } = await supabase
       .from("waitlist_entries")
       .select(
-        "id, tenant_id, user_id, service_id, professional_id, preferred_date, services(duration_minutes, name), tenants(name)",
+        "id, tenant_id, user_id, service_id, professional_id, preferred_date, services(duration_minutes, name), tenants(name, domain)",
       )
       .eq("status", "waiting");
 
@@ -61,9 +72,14 @@ serve(async (req: Request) => {
     let notified = 0;
     const results: Array<{ entry_id: string; status: string }> = [];
 
+    // Memoize per run: entries for the same tenant/professional/date/duration
+    // shouldn't re-hit the slots RPC (this loop was an N+1 storm otherwise).
+    const slotCache = new Map<string, boolean>();
+    const prosByTenant = new Map<string, string[]>();
+
     for (const entry of entries || []) {
       const service = entry.services as { duration_minutes: number; name: string } | null;
-      const tenant = entry.tenants as { name: string } | null;
+      const tenant = entry.tenants as { name: string; domain: string | null } | null;
       if (!service?.duration_minutes) {
         results.push({ entry_id: entry.id, status: "no_service_duration" });
         continue;
@@ -71,15 +87,22 @@ serve(async (req: Request) => {
 
       // Which professionals to check: the requested one, or every professional
       // for this tenant if the customer said "any professional".
+      // get_available_slots (and everything else in the app) keys professionals
+      // by their text CODE, not the uuid id — waitlist entries store the code too.
       let professionalIds: string[] = [];
       if (entry.professional_id) {
         professionalIds = [entry.professional_id];
       } else {
-        const { data: pros } = await supabase
-          .from("professionals")
-          .select("id")
-          .eq("tenant_id", entry.tenant_id);
-        professionalIds = (pros || []).map((p: { id: string }) => p.id);
+        let codes = prosByTenant.get(entry.tenant_id);
+        if (!codes) {
+          const { data: pros } = await supabase
+            .from("professionals")
+            .select("code")
+            .eq("tenant_id", entry.tenant_id);
+          codes = (pros || []).map((p: { code: string }) => p.code);
+          prosByTenant.set(entry.tenant_id, codes);
+        }
+        professionalIds = codes;
       }
 
       // Which dates to check: the requested one, or the next DAYS_AHEAD days.
@@ -94,17 +117,22 @@ serve(async (req: Request) => {
       let foundSlot: { date: string } | null = null;
       outer: for (const date of dates) {
         for (const profId of professionalIds) {
-          const { data: slots, error: slotsError } = await supabase.rpc(
-            "get_available_slots",
-            {
-              p_professional_id: profId,
-              p_date: date,
-              p_service_duration_minutes: service.duration_minutes,
-              p_tenant_id: entry.tenant_id,
-            },
-          );
-          if (slotsError) continue;
-          if (slots && slots.length > 0) {
+          const cacheKey = `${entry.tenant_id}|${profId}|${date}|${service.duration_minutes}`;
+          let hasSlots = slotCache.get(cacheKey);
+          if (hasSlots === undefined) {
+            const { data: slots, error: slotsError } = await supabase.rpc(
+              "get_available_slots",
+              {
+                p_professional_id: profId,
+                p_date: date,
+                p_service_duration_minutes: service.duration_minutes,
+                p_tenant_id: entry.tenant_id,
+              },
+            );
+            hasSlots = !slotsError && !!slots && slots.length > 0;
+            slotCache.set(cacheKey, hasSlots);
+          }
+          if (hasSlots) {
             foundSlot = { date };
             break outer;
           }
@@ -128,39 +156,20 @@ serve(async (req: Request) => {
       }
 
       const tenantName = tenant?.name || "us";
-      const displayName = profile.full_name || "there";
 
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
+      const ok = await sendEmail(
+        resendApiKey,
+        profile.email,
+        `A slot opened up for ${service.name} at ${tenantName}`,
+        {
+          greetingName: profile.full_name || "there",
+          bodyText: `Good news — a slot opened up around ${foundSlot.date} for ${service.name} at ${tenantName}. You were on the waitlist for this, so grab it before someone else does!`,
+          ctaLabel: "Book Now",
+          ctaUrl: tenantBookingUrl(tenant),
         },
-        body: JSON.stringify({
-          from: "team@pxbs.site",
-          to: profile.email,
-          subject: `A slot opened up for ${service.name} at ${tenantName}`,
-          html: `
-            <!DOCTYPE html>
-            <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                  <p>Hi ${displayName},</p>
-                  <p>Good news — a slot opened up around ${foundSlot.date} for ${service.name} at ${tenantName}. You were on the waitlist for this, so grab it before someone else does!</p>
-                  <p style="text-align: center; margin: 24px 0;">
-                    <a href="https://${tenantName.toLowerCase().replace(/\s+/g, "-")}.pxbs.site" style="display: inline-block; padding: 12px 28px; background-color: #2e7d32; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">Book Now</a>
-                  </p>
-                  <p>Thank you!</p>
-                </div>
-              </body>
-            </html>
-          `,
-        }),
-      });
+      );
 
-      if (!res.ok) {
-        const errData = await res.json();
-        console.error(`Resend error for waitlist entry ${entry.id}:`, errData);
+      if (!ok) {
         results.push({ entry_id: entry.id, status: "email_failed" });
         continue;
       }

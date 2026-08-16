@@ -4,6 +4,7 @@ import AdminPanel from "./assets/pages/AdminPanel";
 import UserPanel from "./assets/pages/UserPanel";
 import OwnerPanel from "./assets/pages/OwnerPanel";
 import ProfessionalPanel from "./assets/pages/ProfessionalPanel.tsx";
+import LandingPage from "./assets/pages/LandingPage";
 import BookingActionPage from "./assets/pages/BookingActionPage";
 import { Box } from "@mui/material";
 import { Routes, Route, Navigate } from "react-router-dom";
@@ -207,7 +208,9 @@ function App() {
           <Route
             path="/"
             element={
-              loading ? (
+              !tenant ? (
+                <LandingPage />
+              ) : loading ? (
                 <LoadingScreen variant="full" />
               ) : session && role === "owner" ? (
                 <Navigate to="/owner" replace />

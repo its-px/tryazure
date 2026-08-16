@@ -6,6 +6,8 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 // @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+// @ts-ignore - relative Deno import
+import { sendEmail } from "../_shared/sendEmail.ts";
 
 declare const Deno: {
   env: {
@@ -93,39 +95,20 @@ serve(async (req: Request) => {
       }
 
       const tenantName = booking.tenants?.name || "us";
-      const displayName = profile.full_name || "there";
 
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
+      const ok = await sendEmail(
+        resendApiKey,
+        profile.email,
+        `How was your visit to ${tenantName}?`,
+        {
+          greetingName: profile.full_name || "there",
+          bodyText: `Thanks for visiting ${tenantName}! If you have a minute, a quick review helps us a lot.`,
+          ctaLabel: "Leave a Review",
+          ctaUrl: reviewUrl,
         },
-        body: JSON.stringify({
-          from: "team@pxbs.site",
-          to: profile.email,
-          subject: `How was your visit to ${tenantName}?`,
-          html: `
-            <!DOCTYPE html>
-            <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                  <p>Hi ${displayName},</p>
-                  <p>Thanks for visiting ${tenantName}! If you have a minute, a quick review helps us a lot.</p>
-                  <p style="text-align: center; margin: 24px 0;">
-                    <a href="${reviewUrl}" style="display: inline-block; padding: 12px 28px; background-color: #2e7d32; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">Leave a Review</a>
-                  </p>
-                  <p>Thank you!</p>
-                </div>
-              </body>
-            </html>
-          `,
-        }),
-      });
+      );
 
-      if (!res.ok) {
-        const errData = await res.json();
-        console.error(`Resend error for booking ${booking.id}:`, errData);
+      if (!ok) {
         results.push({ booking_id: booking.id, status: "email_failed" });
         continue;
       }
