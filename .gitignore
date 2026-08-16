@@ -88,3 +88,6 @@ desktop.ini
 ehthumbs.db
 $RECYCLE.BIN/
 
+
+# Local Netlify folder
+.netlify
