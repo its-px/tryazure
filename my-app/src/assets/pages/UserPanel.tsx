@@ -398,6 +398,59 @@ export default function UserPanel() {
   const getProfessionalName = (code: string | null | undefined) =>
     code === null ? "Any professional" : getProfessionalNameByCode(professionals, code);
 
+  // Deep-link pre-fill: ?service_ids=a,b&worker_id=c lets marketing links
+  // (SMS/email/social) jump straight to a pre-selected service+professional
+  // instead of starting the wizard from scratch. Param names match the
+  // competitor site's (Datelly) convention. Runs once services/professionals
+  // are loaded, only if the user hasn't already made selections.
+  const appliedDeepLinkRef = React.useRef(false);
+  useEffect(() => {
+    if (appliedDeepLinkRef.current) return;
+    if (services.length === 0 && professionals.length === 0) return;
+    const serviceIdsParam = searchParams.get("service_ids");
+    const workerIdParam = searchParams.get("worker_id");
+    if (!serviceIdsParam && !workerIdParam) return;
+    appliedDeepLinkRef.current = true;
+
+    const requestedServiceIds = serviceIdsParam
+      ? serviceIdsParam.split(",").map((id) => id.trim()).filter(Boolean)
+      : [];
+    const validServiceIds = requestedServiceIds.filter((id) =>
+      services.some((s) => s.id === id),
+    );
+    const validProfessional =
+      workerIdParam && professionals.some((p) => p.code === workerIdParam)
+        ? workerIdParam
+        : null;
+
+    if (validServiceIds.length === 0 && !validProfessional) return;
+
+    const totalDuration = validServiceIds.reduce((sum, id) => {
+      const service = services.find((s) => s.id === id);
+      return sum + (service?.duration_minutes || 0);
+    }, 0);
+
+    dispatch(
+      setUserSelections({
+        selectedLocation: userSelections?.selectedLocation ?? null,
+        selectedServices: validServiceIds,
+        selectedProfessional: validProfessional,
+        selectedDate: "",
+        selectedSlot: null,
+        serviceDuration: totalDuration,
+      }),
+    );
+
+    // Jump to the furthest step the deep link actually satisfies: professional
+    // step if only a service was given, time step if both were given.
+    if (validServiceIds.length > 0 && validProfessional) {
+      goToStep(4, { push: false });
+    } else if (validServiceIds.length > 0) {
+      goToStep(3, { push: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [services, professionals]);
+
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     const handler = (event: MessageEvent) => {
