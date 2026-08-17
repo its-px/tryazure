@@ -119,6 +119,7 @@ Deno.serve(async (req) => {
       .from("tenants")
       .insert({
         slug,
+        domain: `${slug}.pxbs.site`,
         name: name ?? `Demo Salon ${slug.replace("demo-", "")}`,
         config: {
           primaryColor: "#7C5CFC",
