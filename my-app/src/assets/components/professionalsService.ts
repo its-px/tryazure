@@ -1,3 +1,61 @@
+const authHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    "Content-Type": "application/json",
+  };
+  try {
+    const stored = localStorage.getItem("sb-auth-token");
+    const token = stored ? JSON.parse(stored)?.access_token : null;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  } catch {
+    // ponytail: no token = anon request, RLS will reject if needed
+  }
+  return headers;
+};
+
+// Earliest upcoming slot for a professional, for the "Next: ..." hint on ProfessionalStep cards.
+export const getNextAvailableSlot = async (
+  professionalCode: string,
+  tenantId: string,
+  serviceDurationMinutes: number,
+): Promise<{ date: string; start_time: string } | null> => {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const headers = authHeaders();
+  try {
+    const datesRes = await fetch(`${supabaseUrl}/rest/v1/rpc/get_available_dates`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        p_professional_id: professionalCode,
+        p_tenant_id: tenantId,
+        p_service_duration_minutes: serviceDurationMinutes > 0 ? serviceDurationMinutes : 30,
+      }),
+    });
+    if (!datesRes.ok) return null;
+    const dates = (await datesRes.json()) as { date: string }[];
+    const nextDate = dates?.map((d) => d.date).sort()[0];
+    if (!nextDate) return null;
+
+    const slotsRes = await fetch(`${supabaseUrl}/rest/v1/rpc/get_available_slots`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        p_professional_id: professionalCode,
+        p_date: nextDate,
+        p_service_duration_minutes: serviceDurationMinutes > 0 ? serviceDurationMinutes : 30,
+        p_tenant_id: tenantId,
+      }),
+    });
+    if (!slotsRes.ok) return null;
+    const slots = (await slotsRes.json()) as { start_time: string }[];
+    if (!slots?.length) return null;
+    return { date: nextDate, start_time: slots[0].start_time };
+  } catch (err) {
+    console.error("[getNextAvailableSlot] Exception:", err);
+    return null;
+  }
+};
+
 export interface ProfessionalOption {
   id: string;
   code: string;

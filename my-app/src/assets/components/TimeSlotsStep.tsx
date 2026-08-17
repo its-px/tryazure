@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { getAvailableSlots } from "./slotService";
 import { joinWaitlist } from "./waitlistService";
+import type { ProfessionalOption } from "./professionalsService";
 
 interface TimeSlot {
   start_time: string;
@@ -11,6 +12,7 @@ interface TimeSlot {
 
 interface TimeSlotsStepProps {
   professionalId: string | null;
+  professionals?: ProfessionalOption[];
   tenantId: string | null;
   selectedDate: string;
   serviceDuration: number;
@@ -22,6 +24,7 @@ interface TimeSlotsStepProps {
 
 export default function TimeSlotsStep({
   professionalId,
+  professionals = [],
   tenantId,
   selectedDate,
   serviceDuration,
@@ -36,12 +39,28 @@ export default function TimeSlotsStep({
   const [waitlisted, setWaitlisted] = useState(false);
 
   useEffect(() => {
-    if (!professionalId || !tenantId || !selectedDate || !serviceDuration) {
+    if (!tenantId || !selectedDate || !serviceDuration) {
+      setSlots([]); setLoading(false); return;
+    }
+    // "Any professional" (professionalId === null): union the slots of every
+    // tenant professional, deduped by start time.
+    // ponytail: no per-professional attribution here — booking submission
+    // resolves the actual professional again at that point.
+    if (!professionalId && professionals.length === 0) {
       setSlots([]); setLoading(false); return;
     }
     let isMounted = true;
     setLoading(true);
-    getAvailableSlots(professionalId, selectedDate, serviceDuration, tenantId)
+    const fetchAll = professionalId
+      ? getAvailableSlots(professionalId, selectedDate, serviceDuration, tenantId)
+      : Promise.all(
+          professionals.map((p) => getAvailableSlots(p.code, selectedDate, serviceDuration, tenantId)),
+        ).then((lists) => {
+          const byStart = new Map<string, TimeSlot>();
+          lists.flat().forEach((s) => byStart.set(s.start_time, s));
+          return Array.from(byStart.values()).sort((a, b) => a.start_time.localeCompare(b.start_time));
+        });
+    fetchAll
       .then((available) => {
         if (!isMounted) return;
         const today = new Date().toISOString().split("T")[0];
@@ -52,7 +71,7 @@ export default function TimeSlotsStep({
       })
       .catch(() => { if (isMounted) { setSlots([]); setLoading(false); } });
     return () => { isMounted = false; };
-  }, [professionalId, tenantId, selectedDate, serviceDuration]);
+  }, [professionalId, professionals, tenantId, selectedDate, serviceDuration]);
 
   useEffect(() => {
     setWaitlisted(false);

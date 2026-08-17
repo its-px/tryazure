@@ -19,7 +19,7 @@ import LoginModal from "../components/LoginModal";
 import { Button } from "@mui/material";
 import UserAccountPage from "../components/UserAccountPage";
 //import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   showBookingNotification,
   checkUpcomingAppointments,
@@ -33,6 +33,24 @@ import {
   type ProfessionalOption,
 } from "../components/professionalsService";
 import BookingSMSService from "../components/BookingSMSService";
+
+// Furthest step reachable given selections made so far — used to stop
+// someone deep-linking (or hitting Back/Forward into) a step whose
+// prerequisites aren't met, e.g. ?step=4 with no service selected.
+function maxReachableStepFor(sel: {
+  selectedLocation: unknown;
+  selectedServices: unknown[];
+  selectedProfessional: unknown;
+  selectedDate: string;
+  selectedSlot: unknown;
+}) {
+  if (!sel.selectedLocation) return 1;
+  if (!(Array.isArray(sel.selectedServices) && sel.selectedServices.length > 0))
+    return 2;
+  // Step 3 (professional) is always satisfied — null means "any professional".
+  if (!(sel.selectedDate && sel.selectedSlot)) return 4;
+  return 5;
+}
 
 export default function UserPanel() {
   const colors = useResolvedColors();
@@ -73,12 +91,50 @@ export default function UserPanel() {
     serviceDuration = 0,
   } = userSelections || {};
   const totalSteps = 5;
+  const locationStepEnabled = tenant?.config?.locationStepEnabled !== false;
   const prefersReducedMotion = useReducedMotion();
   const previousStepRef = React.useRef(currentStep);
   const [stepDirection, setStepDirection] = React.useState<1 | -1>(1);
   // Set when we open the login modal to gate step 4 -> 5, so we can resume
   // the flow once the user logs in instead of stranding them on the time step.
   const awaitingLoginRef = React.useRef(false);
+
+  // URL step tracking so browser Back/Forward moves between wizard steps.
+  // localStorage (below) already covers refresh-recovery of selections; this
+  // only mirrors currentStep into ?step= so history entries exist per step.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const goToStep = React.useCallback(
+    (step: number, options?: { push?: boolean }) => {
+      const push = options?.push ?? true;
+      dispatch(setCurrentStep(step));
+      const params = new URLSearchParams(searchParams);
+      params.set("step", String(step));
+      setSearchParams(params, { replace: !push });
+    },
+    [dispatch, searchParams, setSearchParams],
+  );
+
+  // When the tenant disables the location step, skip it: default the
+  // location and jump straight to step 2 so canProceedNext()/booking
+  // submission (which requires selectedLocation) keep working unchanged.
+  useEffect(() => {
+    if (!locationStepEnabled && currentStep <= 1) {
+      if (selectedLocation === null) {
+        dispatch(
+          setUserSelections({
+            selectedLocation: "our_place",
+            selectedServices: userSelections?.selectedServices ?? [],
+            selectedProfessional: userSelections?.selectedProfessional ?? null,
+            selectedDate: userSelections?.selectedDate ?? "",
+            selectedSlot: userSelections?.selectedSlot ?? null,
+            serviceDuration: userSelections?.serviceDuration ?? 0,
+          }),
+        );
+      }
+      goToStep(2, { push: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationStepEnabled, currentStep]);
 
   useEffect(() => {
     if (currentStep !== previousStepRef.current) {
@@ -194,12 +250,46 @@ export default function UserPanel() {
         /* ignore malformed session */
       }
 
-      dispatch(setCurrentStep(resume && hasSession ? 5 : (s.currentStep ?? 1)));
+      const localStep = resume && hasSession ? 5 : (s.currentStep ?? 1);
+      // A ?step= in the URL (deep link, or a reload while parked mid-wizard)
+      // wins over the localStorage step, but only up to what's reachable.
+      const urlStepRaw = Number(searchParams.get("step"));
+      const finalStep =
+        urlStepRaw >= 1 && urlStepRaw <= totalSteps
+          ? Math.min(urlStepRaw, maxReachableStepFor(s))
+          : localStep;
+      goToStep(finalStep, { push: false });
     } catch {
       /* ignore malformed draft */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync currentStep FROM the URL — handles the browser's native Back/Forward,
+  // which changes ?step= without going through goToStep/dispatch.
+  useEffect(() => {
+    const raw = searchParams.get("step");
+    if (!raw) return;
+    const urlStep = Number(raw);
+    if (!Number.isFinite(urlStep) || urlStep === currentStep) return;
+    const maxReachable = maxReachableStepFor({
+      selectedLocation,
+      selectedServices,
+      selectedProfessional,
+      selectedDate,
+      selectedSlot,
+    });
+    const target = Math.min(Math.max(urlStep, 1), maxReachable);
+    if (target !== urlStep) {
+      const params = new URLSearchParams(searchParams);
+      params.set("step", String(target));
+      setSearchParams(params, { replace: true });
+    }
+    if (target !== currentStep) {
+      dispatch(setCurrentStep(target));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Load services from database once tenant is ready
   useEffect(() => {
@@ -306,7 +396,7 @@ export default function UserPanel() {
   }, [tenant?.id, dispatch, selectedProfessional]);
 
   const getProfessionalName = (code: string | null | undefined) =>
-    getProfessionalNameByCode(professionals, code);
+    code === null ? "Any professional" : getProfessionalNameByCode(professionals, code);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -467,7 +557,7 @@ export default function UserPanel() {
       return;
     }
     if (canProceedNext()) {
-      dispatch(setCurrentStep(currentStep + 1));
+      goToStep(currentStep + 1);
     }
   };
 
@@ -479,9 +569,10 @@ export default function UserPanel() {
       localStorage.removeItem("resumeBookingAfterLogin");
       setShowLoginModal(false);
       if (currentStep === 4 && canProceedNext()) {
-        dispatch(setCurrentStep(5));
+        goToStep(5);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, currentStep, dispatch]);
 
   // Check if user is logged in and handle auth changes
@@ -548,7 +639,7 @@ export default function UserPanel() {
     };
   }, []); // Only run once on mount
 
-  const handleProfessionalSelect = (professionalId: string) => {
+  const handleProfessionalSelect = (professionalId: string | null) => {
     dispatch(
       setUserSelections({
         selectedLocation: userSelections?.selectedLocation ?? null,
@@ -572,7 +663,7 @@ export default function UserPanel() {
         serviceDuration: userSelections?.serviceDuration ?? 0,
       }),
     );
-    dispatch(setCurrentStep(2));
+    goToStep(2);
   };
 
   const canProceedNext = () => {
@@ -582,7 +673,9 @@ export default function UserPanel() {
       case 2:
         return Array.isArray(selectedServices) && selectedServices.length > 0;
       case 3:
-        return selectedProfessional !== null;
+        // ponytail: null now means "any professional" (default), not "unset" —
+        // the step is always satisfiable.
+        return true;
       case 4:
         return (
           selectedDate !== "" &&
@@ -600,7 +693,6 @@ export default function UserPanel() {
     if (
       !selectedDate ||
       !selectedLocation ||
-      !selectedProfessional ||
       !Array.isArray(selectedServices) ||
       selectedServices.length === 0 ||
       !selectedSlot
@@ -638,10 +730,11 @@ export default function UserPanel() {
       Prefer: "return=representation",
     };
 
-    // Check for overlapping time slots using direct REST API
-    try {
+    // Check whether a given professional already has an overlapping booking
+    // for the selected date/slot, using direct REST API.
+    const hasConflict = async (professionalCode: string) => {
       const checkResponse = await fetch(
-        `${supabaseUrl}/rest/v1/bookings?professional_id=eq.${selectedProfessional}&date=eq.${selectedDate}&tenant_id=eq.${tenant.id}&select=id,start_time,end_time`,
+        `${supabaseUrl}/rest/v1/bookings?professional_id=eq.${professionalCode}&date=eq.${selectedDate}&tenant_id=eq.${tenant.id}&select=id,start_time,end_time`,
         {
           headers: {
             apikey: supabaseKey,
@@ -651,28 +744,42 @@ export default function UserPanel() {
       );
 
       if (!checkResponse.ok) {
-        console.error("Error checking booking:", checkResponse.statusText);
-        alert("Error checking availability");
-        return;
+        throw new Error(checkResponse.statusText);
       }
 
       const conflictingBookings = await checkResponse.json();
+      return (conflictingBookings || []).some((booking: any) => {
+        // Two time slots overlap if: new_start < existing_end AND new_end > existing_start
+        return (
+          selectedSlot.start_time < booking.end_time &&
+          selectedSlot.end_time > booking.start_time
+        );
+      });
+    };
 
-      // Check if any existing booking overlaps with the selected time slot
-      if (conflictingBookings && conflictingBookings.length > 0) {
-        const hasOverlap = conflictingBookings.some((booking: any) => {
-          const existingStart = booking.start_time;
-          const existingEnd = booking.end_time;
-          const newStart = selectedSlot.start_time;
-          const newEnd = selectedSlot.end_time;
+    let resolvedProfessional = selectedProfessional;
 
-          // Two time slots overlap if: new_start < existing_end AND new_end > existing_start
-          return newStart < existingEnd && newEnd > existingStart;
-        });
-
-        if (hasOverlap) {
+    try {
+      if (resolvedProfessional) {
+        if (await hasConflict(resolvedProfessional)) {
           alert(
             "This time slot is already booked. Please select a different time slot.",
+          );
+          return;
+        }
+      } else {
+        // ponytail: "Any professional" — pick the first tenant professional
+        // free for this slot. No load-balancing; upgrade to round-robin /
+        // least-booked if that matters later.
+        for (const p of professionals) {
+          if (!(await hasConflict(p.code))) {
+            resolvedProfessional = p.code;
+            break;
+          }
+        }
+        if (!resolvedProfessional) {
+          alert(
+            "No professionals are available for this time slot. Please pick a different time.",
           );
           return;
         }
@@ -689,7 +796,7 @@ export default function UserPanel() {
       date: selectedDate,
       location: selectedLocation,
       services: JSON.stringify(selectedServices),
-      professional_id: selectedProfessional,
+      professional_id: resolvedProfessional,
       start_time: selectedSlot.start_time,
       end_time: selectedSlot.end_time,
     };
@@ -752,7 +859,9 @@ export default function UserPanel() {
       const capturedDate = selectedDate;
       const capturedSlot = selectedSlot;
       const capturedLocation = selectedLocation;
-      const capturedProfessional = selectedProfessional;
+      // ponytail: use the resolved (concrete) professional, not the raw
+      // selection — "any professional" must show the actual assignee here.
+      const capturedProfessional = resolvedProfessional;
       const capturedServices = selectedServices;
       const serviceNames = selectedServices.map((id) => {
         const s = services.find((s) => s.id === id);
@@ -791,7 +900,7 @@ export default function UserPanel() {
       }, 0);
 
       // Clear booking state and localStorage
-      dispatch(setCurrentStep(1));
+      goToStep(1, { push: false });
       dispatch(
         setUserSelections({
           selectedLocation: null,
@@ -1081,9 +1190,11 @@ export default function UserPanel() {
         return (
           <div style={{ paddingTop: "8px" }}>
             <NavigationComponent
-              currentStep={currentStep}
-              totalSteps={totalSteps}
-              onPreviousStep={() => dispatch(setCurrentStep(currentStep - 1))}
+              currentStep={locationStepEnabled ? currentStep : currentStep - 1}
+              totalSteps={locationStepEnabled ? totalSteps : totalSteps - 1}
+              onPreviousStep={() =>
+                goToStep(Math.max(locationStepEnabled ? 1 : 2, currentStep - 1))
+              }
               onNextStep={handleNextStep}
               canProceedNext={canProceedNext()}
             />
@@ -1152,6 +1263,7 @@ export default function UserPanel() {
                     selectedProfessional={selectedProfessional}
                     onProfessionalSelect={handleProfessionalSelect}
                     professionals={professionals}
+                    serviceDuration={serviceDuration}
                   />
                 </motion.div>
               )}
@@ -1232,6 +1344,7 @@ export default function UserPanel() {
                         />
                         <TimeSlotsStep
                           professionalId={selectedProfessional}
+                          professionals={professionals}
                           tenantId={tenant?.id ?? null}
                           selectedDate={selectedDate}
                           serviceDuration={serviceDuration}
@@ -1415,7 +1528,7 @@ export default function UserPanel() {
       <Hero
         onBookingClick={() => {
           if (currentPage !== "booking") {
-            dispatch(setCurrentStep(1));
+            goToStep(1, { push: false });
           }
           setCurrentPage("booking");
         }}

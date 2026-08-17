@@ -19,6 +19,8 @@ import {
   Divider,
   IconButton,
   Drawer,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
@@ -244,7 +246,25 @@ export default function OwnerPanel() {
     await supabase.auth.signOut();
   };
 
-  const [activeView, setActiveView] = useState<"dashboard" | "calendar" | "statistics" | "products">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "calendar" | "statistics" | "products" | "settings">("dashboard");
+  const [locationStepEnabled, setLocationStepEnabled] = useState(true);
+
+  useEffect(() => {
+    setLocationStepEnabled(tenant?.config?.locationStepEnabled !== false);
+  }, [tenant?.config?.locationStepEnabled]);
+
+  const handleToggleLocationStep = async (checked: boolean) => {
+    setLocationStepEnabled(checked); // optimistic
+    if (!tenant?.id) return;
+    const { error } = await supabase
+      .from("tenants")
+      .update({ config: { ...tenant.config, locationStepEnabled: checked } })
+      .eq("id", tenant.id);
+    if (error) {
+      setLocationStepEnabled(!checked); // revert
+      alert("Failed to save setting: " + error.message);
+    }
+  };
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "confirmed" | "pending" | "cancelled">("all");
@@ -271,6 +291,7 @@ export default function OwnerPanel() {
     { key: "calendar",    icon: "calendar_month",  label: "Calendar" },
     { key: "statistics",  icon: "bar_chart",       label: "Statistics" },
     { key: "products",    icon: "inventory_2",     label: "Products" },
+    { key: "settings",    icon: "settings",        label: "Settings" },
   ] as const;
 
   const renderNavContent = (collapsed = false) => (
@@ -666,6 +687,22 @@ export default function OwnerPanel() {
                 </Box>
               </Box>
             </>
+          )}
+
+          {/* ── Settings view ── */}
+          {activeView === "settings" && (
+            <Box sx={{ background: colors.background.medium, borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.10)", p: 2.5, maxWidth: 480 }}>
+              <Box sx={{ fontSize: 16, fontWeight: 700, mb: 1.5 }}>Booking Wizard</Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={locationStepEnabled}
+                    onChange={(e) => handleToggleLocationStep(e.target.checked)}
+                  />
+                }
+                label="Show location step in booking"
+              />
+            </Box>
           )}
 
         </Box>

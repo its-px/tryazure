@@ -41,4 +41,20 @@ describe("ProfessionalStep", () => {
     await userEvent.click(screen.getByText("Anna Smith"));
     expect(onSelect).toHaveBeenCalledWith("anna");
   });
+
+  it("shows an Any professional option, selected by default (null)", () => {
+    render(
+      <ProfessionalStep selectedProfessional={null} onProfessionalSelect={() => {}} professionals={pros} />,
+    );
+    expect(screen.getByText("Any professional")).toBeInTheDocument();
+  });
+
+  it("fires onProfessionalSelect with null when Any professional is picked", async () => {
+    const onSelect = vi.fn();
+    render(
+      <ProfessionalStep selectedProfessional="anna" onProfessionalSelect={onSelect} professionals={pros} />,
+    );
+    await userEvent.click(screen.getByText("Any professional"));
+    expect(onSelect).toHaveBeenCalledWith(null);
+  });
 });
