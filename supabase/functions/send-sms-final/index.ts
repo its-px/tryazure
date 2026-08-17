@@ -119,6 +119,15 @@ Deno.serve(async (req) => {
         actionLinks = `\n\n✅ Επιβεβαίωση: ${confirmUrl}\n❌ Ακύρωση: ${cancelUrl}`;
       }
 
+      // One-tap "book again" link — separate token from action_token so an
+      // old confirm/cancel link can't also trigger a rebook.
+      let rebookLink = "";
+      if (templateData.rebook_token) {
+        const base = (templateData.app_url || "https://pxbs.site").replace(/\/$/, "");
+        const rebookUrl = `${base}/?autobook_token=${templateData.rebook_token}`;
+        rebookLink = `\n\n🔁 Κλείστε ξανά: ${rebookUrl}`;
+      }
+
       message = `✅ Επιβεβαίωση Ραντεβού!
 
 📅 Ημερομηνία: ${templateData.date || "TBD"}
@@ -130,7 +139,7 @@ Deno.serve(async (req) => {
           ? "Στο χώρο σας"
           : "Στο κατάστημά μας"
       }
-🆔 Κωδικός: ${templateData.bookingId || "N/A"}${actionLinks}
+🆔 Κωδικός: ${templateData.bookingId || "N/A"}${actionLinks}${rebookLink}
 
 Ευχαριστούμε που μας επιλέξατε! Σας περιμένουμε.`;
     }

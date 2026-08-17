@@ -23,6 +23,7 @@ export class BookingSMSService {
       location: "your_place" | "our_place";
       bookingId: string;
       actionToken?: string;
+      rebookToken?: string;
       appUrl?: string;
     }
   ) {
@@ -50,6 +51,7 @@ export class BookingSMSService {
           : "at our location",
       booking_id: bookingDetails.bookingId,
       action_token: bookingDetails.actionToken,
+      rebook_token: bookingDetails.rebookToken,
       app_url: bookingDetails.appUrl,
     };
 

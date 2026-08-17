@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "RENDEZVOUS Booking Assistant",
+  "name_for_model": "rendezvous_booking",
+  "description_for_human": "Browse services, professionals, and availability for this business, and get a pre-filled booking link to confirm in your browser.",
+  "description_for_model": "Plugin for browsing appointment booking data (services, availability) for a RENDEZVOUS tenant business and handing the end user a pre-filled booking link. This plugin is read-only: it does NOT create bookings directly. To book, direct the user to the returned deep link (e.g. https://{tenant-domain}/?service_ids={id}&worker_id={id}) so they can confirm details, log in, and pay in the human-facing UI.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "/openapi.yaml"
+  },
+  "logo_url": "/logo.png",
+  "contact_email": "giannisspeed18@gmail.com",
+  "legal_info_url": "/"
+}

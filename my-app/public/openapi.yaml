@@ -1,0 +1,92 @@
+openapi: 3.0.1
+info:
+  title: RENDEZVOUS Booking Read API
+  description: >
+    Read-only access to a RENDEZVOUS tenant's bookable services and
+    availability, backed by Supabase's auto-generated REST/RPC API.
+    Booking itself is NOT exposed here — hand the end user the deep link
+    from /book-link so they can confirm, log in, and pay in the app.
+    Use the public anon key (VITE_SUPABASE_ANON_KEY) as the apikey header — never a service-role key.
+  version: "1.0.0"
+servers:
+  - url: "{SUPABASE_URL}/rest/v1"
+    variables:
+      SUPABASE_URL:
+        default: "https://qrvxmqksekxbtipdnfru.supabase.co"
+security:
+  - ApiKeyAuth: []
+paths:
+  /services:
+    get:
+      operationId: listServices
+      summary: List bookable services for a tenant
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          description: "Filter, e.g. eq.<tenant-uuid>"
+          schema:
+            type: string
+        - name: select
+          in: query
+          schema:
+            type: string
+            default: "*"
+      responses:
+        "200":
+          description: Array of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    name: { type: string }
+                    description: { type: string }
+                    duration_minutes: { type: integer }
+                    price: { type: number }
+  /rpc/get_available_dates:
+    post:
+      operationId: getAvailableDates
+      summary: Get available booking dates for a professional + service duration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [p_professional_id, p_tenant_id, p_service_duration_minutes]
+              properties:
+                p_professional_id: { type: string }
+                p_tenant_id: { type: string }
+                p_service_duration_minutes: { type: integer }
+      responses:
+        "200":
+          description: Array of available dates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date: { type: string, format: date }
+  /book-link:
+    get:
+      operationId: getBookingHandoffLink
+      summary: >
+        Not a real endpoint — construct this URL directly to hand off to a human:
+        https://{tenant-domain}/?service_ids={id1,id2}&worker_id={professional-id}.
+        The human confirms details, logs in, and pays in the RENDEZVOUS booking wizard.
+        AI agents must not attempt to create bookings without human confirmation.
+      responses:
+        "200":
+          description: Deep link pattern only; do not call this path.
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: apikey

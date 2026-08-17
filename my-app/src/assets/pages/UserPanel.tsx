@@ -451,6 +451,74 @@ export default function UserPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [services, professionals]);
 
+  // One-tap rebooking: ?autobook_token=... from an SMS "book again" link.
+  // Looks up the ORIGINAL booking server-side (RLS blocks a plain client
+  // select by token), then pre-fills service/professional/location only —
+  // never date/time, which must be freshly checked for availability. Login
+  // is still required to actually complete the booking (unchanged gate at
+  // step 4→5). An invalid/expired token is ignored silently.
+  const appliedAutobookRef = React.useRef(false);
+  useEffect(() => {
+    if (appliedAutobookRef.current) return;
+    if (services.length === 0) return;
+    const autobookToken = searchParams.get("autobook_token");
+    if (!autobookToken) return;
+    appliedAutobookRef.current = true;
+
+    (async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/autobook-lookup`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ token: autobookToken }),
+          },
+        );
+        const result = await response.json();
+        if (!result.success) return;
+
+        const rawServiceIds: string[] = Array.isArray(result.booking?.services)
+          ? result.booking.services
+          : typeof result.booking?.services === "string"
+            ? JSON.parse(result.booking.services)
+            : [];
+        const validServiceIds = rawServiceIds.filter((id) =>
+          services.some((s) => s.id === id),
+        );
+        const validProfessional =
+          result.booking?.professional_id &&
+          professionals.some((p) => p.code === result.booking.professional_id)
+            ? result.booking.professional_id
+            : null;
+        if (validServiceIds.length === 0) return;
+
+        const totalDuration = validServiceIds.reduce((sum, id) => {
+          const service = services.find((s) => s.id === id);
+          return sum + (service?.duration_minutes || 0);
+        }, 0);
+
+        dispatch(
+          setUserSelections({
+            selectedLocation: result.booking?.location ?? null,
+            selectedServices: validServiceIds,
+            selectedProfessional: validProfessional,
+            selectedDate: "",
+            selectedSlot: null,
+            serviceDuration: totalDuration,
+          }),
+        );
+        goToStep(4, { push: false });
+      } catch (err) {
+        console.error("Autobook lookup failed:", err);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [services, professionals]);
+
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     const handler = (event: MessageEvent) => {
@@ -1047,6 +1115,7 @@ export default function UserPanel() {
           location: capturedLocation,
           bookingId: insertedBooking?.id?.toString() || "Unknown",
           actionToken: insertedBooking?.sms_action_token as string | undefined,
+          rebookToken: insertedBooking?.autobook_token as string | undefined,
           appUrl: window.location.origin,
         };
 
