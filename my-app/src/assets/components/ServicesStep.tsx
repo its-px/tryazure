@@ -1,5 +1,6 @@
-import { Box, CircularProgress } from "@mui/material";
+import { Avatar, Box, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { fetchServices, type Service } from "./servicesService";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { useTenantContext } from "../../context/useTenantContext";
@@ -12,6 +13,7 @@ interface ServicesStepProps {
 export default function ServicesStep({ selectedServices, onServiceToggle }: ServicesStepProps) {
   const colors = useResolvedColors();
   const { tenant } = useTenantContext();
+  const { i18n } = useTranslation();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -83,11 +85,22 @@ export default function ServicesStep({ selectedServices, onServiceToggle }: Serv
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <Box>
-                  <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary, mb: 0.25 }}>{service.name}</Box>
-                  <Box sx={{ fontSize: 12, color: colors.text.secondary }}>
-                    {service.duration_minutes} min
-                    {service.description ? ` · ${service.description}` : ""}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+                  {service.photo_icon_url && (
+                    <Avatar
+                      src={service.photo_icon_url}
+                      variant="circular"
+                      sx={{ width: 38, height: 38, flexShrink: 0 }}
+                    />
+                  )}
+                  <Box sx={{ minWidth: 0 }}>
+                    <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary, mb: 0.25 }}>
+                    {i18n.language?.startsWith("en") && service.name_en ? service.name_en : service.name}
+                  </Box>
+                    <Box sx={{ fontSize: 12, color: colors.text.secondary }}>
+                      {service.duration_minutes} min
+                      {service.description ? ` · ${service.description}` : ""}
+                    </Box>
                   </Box>
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>

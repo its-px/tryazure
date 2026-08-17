@@ -1,10 +1,12 @@
 export interface Service {
   id: string;
   name: string;
+  name_en?: string | null;
   description: string;
   duration_minutes: number;
   price: number;
   tenant_id?: string | null;
+  photo_icon_url?: string | null;
 }
 
 export const fetchServices = async (tenantId?: string): Promise<Service[]> => {
