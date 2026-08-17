@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useTenantContext } from "./context/useTenantContext";
-import AdminPanel from "./assets/pages/AdminPanel";
-import UserPanel from "./assets/pages/UserPanel";
-import OwnerPanel from "./assets/pages/OwnerPanel";
-import ProfessionalPanel from "./assets/pages/ProfessionalPanel.tsx";
-import LandingPage from "./assets/pages/LandingPage";
 import BookingActionPage from "./assets/pages/BookingActionPage";
 import { Box } from "@mui/material";
+
+const AdminPanel = lazy(() => import("./assets/pages/AdminPanel"));
+const UserPanel = lazy(() => import("./assets/pages/UserPanel"));
+const OwnerPanel = lazy(() => import("./assets/pages/OwnerPanel"));
+const ProfessionalPanel = lazy(() => import("./assets/pages/ProfessionalPanel.tsx"));
+const LandingPage = lazy(() => import("./assets/pages/LandingPage"));
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
 import LoadingScreen from "./assets/components/LoadingScreen";
@@ -203,6 +204,7 @@ function App() {
           </div>
         )}
 
+        <Suspense fallback={<LoadingScreen variant="full" />}>
         <Routes>
           {/* Public route — redirects to the right panel once role is known */}
           <Route
@@ -290,6 +292,7 @@ function App() {
           {/* Optional: fallback route */}
           {/* <Route path="*" element={<NotFoundPage />} /> */}
         </Routes>
+        </Suspense>
         <CompleteProfileModal
           open={showCompleteProfile}
           onClose={() => {
