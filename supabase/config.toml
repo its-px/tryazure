@@ -1,0 +1,33 @@
+# Read by `supabase functions deploy` (CI: .github/workflows/deploy-functions.yml).
+# Functions not listed keep the default verify_jwt = true (caller must send a JWT;
+# the app's anon key counts).
+#
+# verify_jwt = false is for endpoints called by something that can't send a
+# Supabase JWT (Stripe, mail clients, SMS links, cron). Each of these checks its
+# caller itself (webhook signature, unguessable token, or service-role key).
+# Values mirror production as of 2026-09-24.
+project_id = "qrvxmqksekxbtipdnfru"
+
+# Webhooks / public links
+[functions.stripe-webhook]
+verify_jwt = false
+[functions.unsubscribe]
+verify_jwt = false
+[functions.booking-sms-action]
+verify_jwt = false
+[functions.autobook-lookup]
+verify_jwt = false
+
+# Cron jobs and server-to-server calls
+[functions.send-review-requests]
+verify_jwt = false
+[functions.send-rebooking-nudges]
+verify_jwt = false
+[functions.send-replenishment-nudges]
+verify_jwt = false
+[functions.notify-waitlist]
+verify_jwt = false
+[functions.send-sms-final]
+verify_jwt = false
+[functions.sync-user-phone]
+verify_jwt = false
