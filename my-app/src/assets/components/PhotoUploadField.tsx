@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Avatar, Box, Button, CircularProgress } from "@mui/material";
 import imageCompression from "browser-image-compression";
 import { supabase } from "./supabaseClient";
+import { isRealImage } from "./imageUtils";
+import { useTranslation } from "react-i18next";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_RAW_BYTES = 8 * 1024 * 1024; // 8MB, before compression
@@ -20,8 +22,9 @@ export default function PhotoUploadField({
   storagePath,
   currentUrl,
   onUploaded,
-  label = "Upload photo",
+  label,
 }: PhotoUploadFieldProps) {
+  const { t } = useTranslation();
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,16 +34,23 @@ export default function PhotoUploadField({
     if (!file) return;
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError("Only JPEG, PNG, or WebP images are allowed.");
+      setError(t("photo.bad_type"));
       return;
     }
     if (file.size > MAX_RAW_BYTES) {
-      setError("Image is too large (max 8MB).");
+      setError(t("photo.too_large"));
+      return;
+    }
+
+    if (!(await isRealImage(file))) {
+      setError(t("photo.invalid"));
       return;
     }
 
     setBusy(true);
     try {
+      // Re-encoding through a canvas also strips EXIF (GPS etc.) and anything
+      // smuggled after the image data; the bucket enforces type/size server-side.
       const compressed = await imageCompression(file, {
         maxWidthOrHeight: 1280,
         maxSizeMB: 0.3,
@@ -51,7 +61,9 @@ export default function PhotoUploadField({
       const { error: uploadError } = await supabase.storage
         .from("tenant-assets")
         .upload(storagePath, compressed, {
-          contentType: "image/webp",
+          // Old Safari can't encode WebP and falls back to PNG; label what we actually send.
+          contentType: compressed.type || "image/webp",
+          cacheControl: "31536000", // URLs are cache-busted with ?t= on every upload
           upsert: true,
         });
       if (uploadError) throw uploadError;
@@ -63,7 +75,7 @@ export default function PhotoUploadField({
       onUploaded(url);
     } catch (err) {
       console.error("[PhotoUploadField] upload failed:", err);
-      setError("Upload failed. Please try again.");
+      setError(t("photo.failed"));
     } finally {
       setBusy(false);
     }
@@ -75,7 +87,7 @@ export default function PhotoUploadField({
       <Box>
         <Button size="small" component="label" disabled={busy}>
           {busy ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
-          {label}
+          {label ?? t("photo.upload")}
           <input
             type="file"
             hidden

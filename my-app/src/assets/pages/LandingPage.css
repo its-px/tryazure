@@ -626,6 +626,16 @@ html:has(.lp) {
   font-size: 1rem;
 }
 
+.lp-cta-core p.lp-cta-contact {
+  margin: 22px 0 0;
+  font-size: 0.875rem;
+}
+
+.lp-cta-contact a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 /* ── footer ──────────────────────────────────────────────────────── */
 
 .lp-footer {
@@ -638,6 +648,13 @@ html:has(.lp) {
   justify-content: space-between;
   color: var(--lp-text-dim);
   font-size: 0.82rem;
+}
+
+.lp-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: flex-end;
 }
 
 .lp-footer a {

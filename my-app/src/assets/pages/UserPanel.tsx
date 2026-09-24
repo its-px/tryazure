@@ -33,6 +33,9 @@ import {
   type ProfessionalOption,
 } from "../components/professionalsService";
 import BookingSMSService from "../components/BookingSMSService";
+import LegalFooter from "../../components/LegalFooter";
+import { QRCodeSVG } from "qrcode.react";
+import { useTranslation } from "react-i18next";
 
 // Furthest step reachable given selections made so far — used to stop
 // someone deep-linking (or hitting Back/Forward into) a step whose
@@ -54,6 +57,7 @@ function maxReachableStepFor(sel: {
 
 export default function UserPanel() {
   const colors = useResolvedColors();
+  const { t } = useTranslation();
   const { tenant } = useTenantContext();
   // Page navigation
   const [currentPage, setCurrentPage] = React.useState<
@@ -72,6 +76,32 @@ export default function UserPanel() {
   // userSelections since (unlike service/professional/time) they don't
   // gate step progression and don't need to survive the login redirect.
   const [products, setProducts] = React.useState<Product[]>([]);
+  // Card payments go straight to the tenant's own Stripe (see booking-payment fn).
+  const [cardEnabled, setCardEnabled] = React.useState(false);
+  const [paymentMethod, setPaymentMethod] = React.useState<"cash" | "card">("cash");
+
+  useEffect(() => {
+    if (!tenant?.id) return;
+    supabase
+      .rpc("tenant_accepts_card", { p_tenant_id: tenant.id })
+      .then(({ data }) => setCardEnabled(data === true));
+  }, [tenant?.id]);
+
+  // Back from Stripe Checkout for a booking payment.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("payment");
+    if (!result) return;
+    params.delete("payment");
+    const qs = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    alert(
+      result === "success"
+        ? t("booking.payment_received")
+        : t("booking.payment_not_completed"),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedProducts, setSelectedProducts] = React.useState<
     Record<string, number>
   >({});
@@ -396,7 +426,7 @@ export default function UserPanel() {
   }, [tenant?.id, dispatch, selectedProfessional]);
 
   const getProfessionalName = (code: string | null | undefined) =>
-    code === null ? "Any professional" : getProfessionalNameByCode(professionals, code);
+    code === null ? t("booking.any_professional") : getProfessionalNameByCode(professionals, code);
 
   // Deep-link pre-fill: ?service_ids=a,b&worker_id=c lets marketing links
   // (SMS/email/social) jump straight to a pre-selected service+professional
@@ -818,7 +848,7 @@ export default function UserPanel() {
       selectedServices.length === 0 ||
       !selectedSlot
     ) {
-      alert("Please complete all steps including selecting a time slot");
+      alert(t("booking.complete_all_steps"));
       return;
     }
     if (!isLoggedIn) {
@@ -837,7 +867,7 @@ export default function UserPanel() {
     }
 
     if (!tenant?.id) {
-      alert("Tenant not loaded yet. Please refresh and try again.");
+      alert(t("booking.tenant_not_loaded"));
       return;
     }
 
@@ -883,9 +913,7 @@ export default function UserPanel() {
     try {
       if (resolvedProfessional) {
         if (await hasConflict(resolvedProfessional)) {
-          alert(
-            "This time slot is already booked. Please select a different time slot.",
-          );
+          alert(t("booking.slot_taken"));
           return;
         }
       } else {
@@ -899,15 +927,13 @@ export default function UserPanel() {
           }
         }
         if (!resolvedProfessional) {
-          alert(
-            "No professionals are available for this time slot. Please pick a different time.",
-          );
+          alert(t("booking.no_professional_free"));
           return;
         }
       }
     } catch (checkError) {
       console.error("Error checking for conflicts:", checkError);
-      alert("Error checking availability. Please try again.");
+      alert(t("booking.availability_error"));
       return;
     }
 
@@ -920,7 +946,10 @@ export default function UserPanel() {
       professional_id: resolvedProfessional,
       start_time: selectedSlot.start_time,
       end_time: selectedSlot.end_time,
+      // Omitted for cash so bookings still work before the payments migration runs.
+      ...(paymentMethod === "card" && cardEnabled ? { payment_method: "card" } : {}),
     };
+    const payByCard = paymentMethod === "card" && cardEnabled;
 
     try {
       const response = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
@@ -938,9 +967,9 @@ export default function UserPanel() {
           errorText.includes("duplicate") ||
           errorText.includes("bookings_no_overlap")
         ) {
-          alert("This professional is already booked on this date!");
+          alert(t("booking.professional_booked"));
         } else {
-          alert("Error creating booking: " + errorText);
+          alert(t("booking.create_error_detail", { error: errorText }));
         }
         return;
       }
@@ -1003,7 +1032,7 @@ export default function UserPanel() {
         services: serviceNames,
       });
 
-      alert("Booking confirmed successfully!");
+      if (!payByCard) alert(t("booking.confirmed"));
 
       // Show notification with captured values - run in background, don't block email
       // Use setTimeout to make it non-blocking
@@ -1033,6 +1062,7 @@ export default function UserPanel() {
         }),
       );
       setSelectedProducts({});
+      setPaymentMethod("cash");
       localStorage.removeItem("bookingState");
 
       // If on account page, refresh it by toggling the key
@@ -1236,22 +1266,32 @@ export default function UserPanel() {
             );
           } else {
             console.error("Email API returned error:", result.error);
-            alert(
-              "Booking confirmed but email notification failed. Please check your email settings.",
-            );
+            alert(t("booking.email_failed"));
           }
         } catch (err) {
           console.error("Exception calling email Edge Function:", err);
-          alert(
-            "Booking confirmed but email notification failed. Please check your email settings."
-          );
+          alert(t("booking.email_failed"));
         }
       }
 
       console.log("Step 4: Email section complete. Booking flow finished!");
+
+      if (payByCard && insertedBooking?.id) {
+        const { data, error } = await supabase.functions.invoke("booking-payment", {
+          body: {
+            bookingId: insertedBooking.id,
+            returnUrl: `${window.location.origin}${window.location.pathname}${window.location.search}`,
+          },
+        });
+        if (error || !data?.url) {
+          alert(t("booking.card_start_failed"));
+          return;
+        }
+        window.location.assign(data.url);
+      }
     } catch (bookingError) {
       console.error("Overall booking error:", bookingError);
-      alert("Error creating booking. Please try again.");
+      alert(t("booking.create_error"));
     }
   };
 
@@ -1263,40 +1303,40 @@ export default function UserPanel() {
       case "info":
         return <InfoPage />;
 
-      case "qr":
+      case "qr": {
+        const tenantParam = searchParams.get("tenant");
         return (
           <Box sx={{ padding: 4, textAlign: "center" }}>
-            <h2>QR Code Page</h2>
+            <h2>{t("booking.scan_to_book")}</h2>
 
             <Box textAlign="center" mt={3}>
-              <Box
-                component="img"
-                src="/qr.png"
-                alt="qr"
-                sx={{
-                  width: "20%",
-                  maxHeight: 700,
-                  objectFit: "cover",
-                  borderRadius: 2,
-                }}
-              />
+              {/* Keep ?tenant= so dev/demo tenants resolve from the scanned link too. */}
+              <Box sx={{ display: "inline-block", p: 2, bgcolor: "#fff", borderRadius: 2 }}>
+                <QRCodeSVG
+                  value={`${window.location.origin}/${tenantParam ? `?tenant=${encodeURIComponent(tenantParam)}` : ""}`}
+                  size={220}
+                  marginSize={0}
+                  aria-label={t("booking.qr_aria")}
+                />
+              </Box>
             </Box>
           </Box>
         );
+      }
 
       case "account":
         return (
           <Box sx={{ padding: 4, textAlign: "center" }}>
             {!isLoggedIn ? (
               <>
-                <h2>User Account</h2>
-                <p>Please login to view your account</p>
+                <h2>{t("user_account")}</h2>
+                <p>{t("booking.login_to_view_account")}</p>
                 <Button
                   variant="contained"
                   onClick={() => setShowLoginModal(true)}
                   sx={{ mt: 2 }}
                 >
-                  Login
+                  {t("login.login")}
                 </Button>
               </>
             ) : (
@@ -1408,13 +1448,13 @@ export default function UserPanel() {
                   <div>
                     <Box sx={{ px: { xs: 2, md: 3 }, mb: 2 }}>
                       <Box sx={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: colors.accent.light, mb: 0.75 }}>
-                        Step 4 of 5
+                        {t("booking.step_of", { step: 4, total: 5 })}
                       </Box>
                       <Box sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 700, color: colors.text.primary }}>
-                        Pick a Date & Time
+                        {t("booking.pick_date_time")}
                       </Box>
                       <Box sx={{ fontSize: 14, color: colors.text.secondary, mt: 0.5 }}>
-                        For {getProfessionalName(selectedProfessional)}
+                        {t("booking.for_professional", { name: getProfessionalName(selectedProfessional) })}
                       </Box>
                     </Box>
 
@@ -1429,20 +1469,18 @@ export default function UserPanel() {
                         }}
                       >
                         <h4 style={{ color: colors.text.primary }}>
-                          No Available Dates
+                          {t("booking.no_dates_title")}
                         </h4>
                         <p style={{ color: colors.text.secondary }}>
-                          This professional has no available dates. Either all
-                          dates are booked or the admin hasn't set any
-                          availability yet.
+                          {t("booking.no_dates_text")}
                         </p>
                         <p style={{ color: colors.text.secondary }}>
-                          Please go back and select a different professional.
+                          {t("booking.no_dates_back")}
                         </p>
                       </Box>
                     ) : (
                       <>
-                        <p>Choose an available date for your appointment:</p>
+                        <p>{t("booking.choose_date")}</p>
                         <BigCalendar
                           selectedDates={[selectedDate]}
                           setSelectedDates={(dates: string[]) =>
@@ -1517,7 +1555,7 @@ export default function UserPanel() {
                                 color: colors.text.primary,
                               }}
                             >
-                              Selected Date: {selectedDate}
+                              {t("booking.selected_date", { date: selectedDate })}
                             </p>
                           </Box>
                         )}
@@ -1543,27 +1581,27 @@ export default function UserPanel() {
                   }}
                 >
                   <div style={{ padding: "40px" }}>
-                    <h3>Booking Summary</h3>
+                    <h3>{t("booking.summary")}</h3>
                     <p>
-                      Location:{" "}
+                      {t("booking.location_label")}{" "}
                       {selectedLocation === "your_place"
-                        ? "At Your Place"
-                        : "At Our Place"}
+                        ? t("booking.at_your_place")
+                        : t("booking.at_our_place")}
                     </p>
-                    <p>Services: {selectedServices.length} selected</p>
+                    <p>{t("booking.services_selected", { count: selectedServices.length })}</p>
                     <p>
-                      Professional: {getProfessionalName(selectedProfessional)}
+                      {t("booking.professional_label")} {getProfessionalName(selectedProfessional)}
                     </p>
-                    <p>Date: {selectedDate}</p>
+                    <p>{t("booking.date_label")} {selectedDate}</p>
                     {selectedSlot && (
                       <p>
-                        Time: {selectedSlot.start_time.substring(0, 5)} -{" "}
+                        {t("booking.time_label")} {selectedSlot.start_time.substring(0, 5)} -{" "}
                         {selectedSlot.end_time.substring(0, 5)}
                       </p>
                     )}
                     {products.length > 0 && (
                       <Box sx={{ mt: 2 }}>
-                        <h4 style={{ marginBottom: 8 }}>Add products</h4>
+                        <h4 style={{ marginBottom: 8 }}>{t("booking.add_products")}</h4>
                         {products.map((product) => {
                           const qty = selectedProducts[product.id] ?? 0;
                           return (
@@ -1609,6 +1647,38 @@ export default function UserPanel() {
                         })}
                       </Box>
                     )}
+                    {(() => {
+                      const total =
+                        selectedServices.reduce<number>(
+                          (sum, id) => sum + Number(services.find((s) => s.id === id)?.price ?? 0),
+                          0,
+                        ) +
+                        Object.entries(selectedProducts).reduce(
+                          (sum, [id, qty]) => sum + qty * Number(products.find((p) => p.id === id)?.price ?? 0),
+                          0,
+                        );
+                      return (
+                        <Box sx={{ mt: 2 }}>
+                          {total > 0 && <p><strong>{t("booking.total", { amount: total.toFixed(2) })}</strong></p>}
+                          {cardEnabled && total > 0 && (
+                            <Box sx={{ display: "flex", gap: 1, mt: 1 }} role="radiogroup" aria-label={t("booking.payment_method")}>
+                              {(["cash", "card"] as const).map((m) => (
+                                <Button
+                                  key={m}
+                                  role="radio"
+                                  aria-checked={paymentMethod === m}
+                                  variant={paymentMethod === m ? "contained" : "outlined"}
+                                  onClick={() => setPaymentMethod(m)}
+                                  sx={paymentMethod === m ? { backgroundColor: colors.accent.main } : { borderColor: colors.accent.main, color: colors.accent.main }}
+                                >
+                                  {m === "cash" ? t("booking.pay_at_venue") : t("booking.pay_by_card")}
+                                </Button>
+                              ))}
+                            </Box>
+                          )}
+                        </Box>
+                      );
+                    })()}
                     <Button
                       onClick={handleCompleteBooking}
                       variant="contained"
@@ -1619,7 +1689,7 @@ export default function UserPanel() {
                         "&:hover": { backgroundColor: colors.accent.hover },
                       }}
                     >
-                      Confirm Booking
+                      {paymentMethod === "card" && cardEnabled ? t("booking.confirm_and_pay") : t("booking.confirm_booking")}
                     </Button>
                   </div>
                 </motion.div>
@@ -1679,6 +1749,10 @@ export default function UserPanel() {
             {renderPage()}
           </motion.div>
         </AnimatePresence>
+        {/* pb clears the fixed mobile bottom nav in Hero */}
+        <Box sx={{ pb: { xs: 9, md: 0 }, color: colors.text.secondary }}>
+          <LegalFooter />
+        </Box>
         <Link to="/"></Link>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Box } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 interface NavigationComponentProps {
@@ -17,6 +18,7 @@ export default function NavigationComponent({
   canProceedNext,
 }: NavigationComponentProps) {
   const colors = useResolvedColors();
+  const { t } = useTranslation();
   const progress = Math.round((currentStep / totalSteps) * 100);
 
   return (
@@ -64,7 +66,7 @@ export default function NavigationComponent({
           }}
         >
           <span className="material-icons" style={{ fontSize: 16 }}>arrow_back</span>
-          Back
+          {t("common.back")}
         </Box>
 
         <Box
@@ -98,7 +100,7 @@ export default function NavigationComponent({
             },
           }}
         >
-          {currentStep === totalSteps - 1 ? "Confirm" : "Next"}
+          {currentStep === totalSteps - 1 ? t("common.confirm") : t("common.next")}
           <span className="material-icons" style={{ fontSize: 16 }}>arrow_forward</span>
         </Box>
       </Box>

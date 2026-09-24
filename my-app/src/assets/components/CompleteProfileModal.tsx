@@ -5,7 +5,11 @@ import {
   Button,
   TextField,
   Typography,
+  Checkbox,
+  FormControlLabel,
+  Link,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { getCommonStyles } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { supabase } from "./supabaseClient";
@@ -23,14 +27,19 @@ export default function CompleteProfileModal({
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  // Soft opt-in (Law 3471/2006 art. 11§3): existing clients may get rebooking
+  // and review messages unless they object here or via any message's link.
+  const [noMarketing, setNoMarketing] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async () => {
     if (!fullName.trim()) {
-      alert("Full name is required");
+      alert(t("login.name_required"));
       return;
     }
     if (!phone.trim()) {
-      alert("Phone number is required");
+      alert(t("login.phone_required"));
       return;
     }
 
@@ -99,6 +108,8 @@ export default function CompleteProfileModal({
           email: user.email || userEmail || "",
           full_name: fullName.trim(),
           phone: phone.trim(),
+          terms_accepted_at: new Date().toISOString(),
+          marketing_opt_out: noMarketing,
           ...(referredBy ? { referred_by: referredBy } : {}),
         },
         {
@@ -136,7 +147,7 @@ export default function CompleteProfileModal({
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
       console.error("[CompleteProfileModal] Error:", msg);
-      alert("Error saving profile: " + msg);
+      alert(t("profile.save_error", { error: msg }));
     } finally {
       setLoading(false);
     }
@@ -168,7 +179,7 @@ export default function CompleteProfileModal({
         {/* Close button removed - profile completion is mandatory */}
 
         <Typography variant="h5" textAlign="center" mb={2}>
-          Complete Your Profile
+          {t("profile.title")}
         </Typography>
         <Typography
           variant="body2"
@@ -176,8 +187,7 @@ export default function CompleteProfileModal({
           mb={1}
           color={colors.text.secondary}
         >
-          Please provide your name and phone number to complete your account
-          setup.
+          {t("profile.subtitle")}
         </Typography>
         <Typography
           variant="body2"
@@ -186,12 +196,12 @@ export default function CompleteProfileModal({
           color={colors.accent.main}
           fontWeight="medium"
         >
-          This information is required to continue using the app.
+          {t("profile.required")}
         </Typography>
 
         <TextField
           fullWidth
-          label="Full Name *"
+          label={`${t("account.full_name")} *`}
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           required
@@ -199,18 +209,35 @@ export default function CompleteProfileModal({
         />
         <TextField
           fullWidth
-          label="Phone Number *"
+          label={`${t("account.phone")} *`}
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           required
           sx={textFieldStyle}
         />
 
+        <FormControlLabel
+          control={<Checkbox checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />}
+          label={
+            <Typography variant="body2">
+              {t("signup.accept_terms_pre")}
+              <Link href="/terms" target="_blank" rel="noopener">{t("legal.terms")}</Link>
+              {t("signup.accept_terms_and")}
+              <Link href="/privacy" target="_blank" rel="noopener">{t("legal.privacy")}</Link> *
+            </Typography>
+          }
+        />
+        <FormControlLabel
+          sx={{ mb: 2 }}
+          control={<Checkbox checked={noMarketing} onChange={(e) => setNoMarketing(e.target.checked)} />}
+          label={<Typography variant="body2">{t("signup.no_marketing")}</Typography>}
+        />
+
         <Button
           fullWidth
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading || !fullName.trim() || !phone.trim()}
+          disabled={loading || !fullName.trim() || !phone.trim() || !acceptTerms}
           sx={{
             padding: "12px",
             backgroundColor: colors.accent.main,
@@ -221,7 +248,7 @@ export default function CompleteProfileModal({
             },
           }}
         >
-          {loading ? "Saving..." : "Complete Profile"}
+          {loading ? t("common.saving") : t("profile.submit")}
         </Button>
       </DialogContent>
     </Dialog>

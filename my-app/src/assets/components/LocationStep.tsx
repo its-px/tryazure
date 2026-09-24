@@ -1,4 +1,5 @@
 import { Box } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 
 interface LocationStepProps {
@@ -10,30 +11,31 @@ const LOCATIONS = [
   {
     key: "our_place" as const,
     icon: "store",
-    label: "At Our Place",
-    sub: "Visit our location",
+    label: "booking.at_our_place",
+    sub: "location.visit_us",
   },
   {
     key: "your_place" as const,
     icon: "home",
-    label: "At Your Place",
-    sub: "We come to you",
+    label: "booking.at_your_place",
+    sub: "location.we_come",
   },
 ];
 
 export default function LocationStep({ selectedLocation, onLocationSelect }: LocationStepProps) {
   const colors = useResolvedColors();
+  const { t } = useTranslation();
 
   return (
     <Box sx={{ px: { xs: 2, md: 3 }, pb: 3 }}>
       <Box sx={{ mb: 3 }}>
         <Box sx={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: colors.accent.light, mb: 0.75 }}>
-          Step 1 of 5
+          {t("booking.step_of", { step: 1, total: 5 })}
         </Box>
         <Box sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 300, color: colors.text.primary, lineHeight: 1.2 }}>
-          <strong style={{ fontWeight: 700 }}>Choose Location</strong>
+          <strong style={{ fontWeight: 700 }}>{t("location.title")}</strong>
           <br />
-          <span style={{ fontSize: 14, color: colors.text.secondary }}>Where would you like your appointment?</span>
+          <span style={{ fontSize: 14, color: colors.text.secondary }}>{t("location.subtitle")}</span>
         </Box>
       </Box>
 
@@ -84,8 +86,8 @@ export default function LocationStep({ selectedLocation, onLocationSelect }: Loc
                 </span>
               </Box>
               <Box sx={{ flex: 1 }}>
-                <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary, mb: 0.25 }}>{label}</Box>
-                <Box sx={{ fontSize: 12, color: colors.text.secondary }}>{sub}</Box>
+                <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary, mb: 0.25 }}>{t(label)}</Box>
+                <Box sx={{ fontSize: 12, color: colors.text.secondary }}>{t(sub)}</Box>
               </Box>
               {/* Check indicator */}
               <Box

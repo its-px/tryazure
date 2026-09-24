@@ -3,10 +3,12 @@ import { useSearchParams } from "react-router-dom";
 import { Box, Typography } from "@mui/material";
 import { supabase } from "../components/supabaseClient";
 import LoadingScreen from "../components/LoadingScreen";
+import { useTranslation } from "react-i18next";
 
 // Public, unauthenticated landing page for the one-tap confirm/cancel links
 // sent in booking SMS. No login required by design.
 export default function BookingActionPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const action = searchParams.get("action");
@@ -20,7 +22,7 @@ export default function BookingActionPage() {
   useEffect(() => {
     if (!token || (action !== "confirm" && action !== "cancel")) {
       setState("error");
-      setMessage("This link is invalid.");
+      setMessage(t("booking_action.invalid"));
       return;
     }
 
@@ -29,7 +31,7 @@ export default function BookingActionPage() {
       .then(({ data, error }) => {
         if (error || !data?.success) {
           setState("error");
-          setMessage(data?.error || error?.message || "Something went wrong.");
+          setMessage(data?.error || error?.message || t("common.something_wrong"));
           return;
         }
         setState("success");
@@ -59,8 +61,8 @@ export default function BookingActionPage() {
       {state === "success" && (
         <Typography variant="h6" color="success.main">
           {status === "confirmed"
-            ? "Your booking is confirmed. See you then!"
-            : "Your booking has been cancelled."}
+            ? t("booking_action.confirmed")
+            : t("booking_action.cancelled")}
         </Typography>
       )}
       {state === "error" && (

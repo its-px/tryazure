@@ -22,6 +22,8 @@ import PersonIcon from "@mui/icons-material/Person";
 import { getCommonStyles, getStatusColor } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { useTenantContext } from "../../context/useTenantContext";
+import PrivacyCard from "../../components/PrivacyCard";
+import { useTranslation } from "react-i18next";
 import {
   fetchProfessionals,
   getProfessionalNameByCode,
@@ -52,6 +54,8 @@ interface UserProfile {
 
 export default function UserAccountPage() {
   const colors = useResolvedColors();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === "gr" ? "el-GR" : "en-GB";
   const { tenant } = useTenantContext();
   const commonStyles = getCommonStyles(colors);
   const [user, setUser] = useState<User | null>(null);
@@ -395,13 +399,13 @@ export default function UserAccountPage() {
       // Get session from localStorage instead of hanging Supabase client
       const storedSession = localStorage.getItem("sb-auth-token");
       if (!storedSession) {
-        alert("Session expired - please log in again");
+        alert(t("account.session_expired"));
         return;
       }
 
       const session = JSON.parse(storedSession);
       if (!session.access_token) {
-        alert("Invalid session - please log in again");
+        alert(t("account.session_invalid"));
         return;
       }
 
@@ -435,11 +439,11 @@ export default function UserAccountPage() {
 
       setProfile(editedProfile);
       setShowEditProfile(false);
-      alert("Profile updated successfully!");
+      alert(t("account.profile_updated"));
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
       console.error("[UserAccountPage] Error updating profile:", msg);
-      alert("Error updating profile: " + msg);
+      alert(t("account.profile_update_error", { error: msg }));
     }
   };
 
@@ -467,26 +471,26 @@ export default function UserAccountPage() {
         },
       );
       if (!res.ok) {
-        alert("Error confirming booking: " + (await res.text()));
+        alert(t("account.confirm_error", { error: await res.text() }));
         return;
       }
-      alert("✅ Booking confirmed! See you there.");
+      alert(t("account.booking_confirmed"));
       if (user) loadUserBookings(user.id);
     } catch (err) {
-      alert("Error confirming booking: " + String(err));
+      alert(t("account.confirm_error", { error: String(err) }));
     }
   };
 
   const getDeadlineCountdown = (deadline: string | null): string | null => {
     if (!deadline) return null;
     const diff = new Date(deadline).getTime() - Date.now();
-    if (diff <= 0) return "Deadline passed";
+    if (diff <= 0) return t("account.deadline_passed");
     const hours = Math.floor(diff / 3600000);
     const minutes = Math.floor((diff % 3600000) / 60000);
     if (hours > 24)
-      return `${Math.floor(hours / 24)}d ${hours % 24}h left to confirm`;
-    if (hours > 0) return `${hours}h ${minutes}m left to confirm`;
-    return `${minutes}m left to confirm`;
+      return t("account.left_days", { d: Math.floor(hours / 24), h: hours % 24 });
+    if (hours > 0) return t("account.left_hours", { h: hours, m: minutes });
+    return t("account.left_minutes", { m: minutes });
   };
 
   const handleCancelBooking = async () => {
@@ -495,7 +499,7 @@ export default function UserAccountPage() {
     try {
       const storedSession = localStorage.getItem("sb-auth-token");
       if (!storedSession) {
-        alert("Session expired - please log in again");
+        alert(t("account.session_expired"));
         return;
       }
 
@@ -519,15 +523,13 @@ export default function UserAccountPage() {
         throw new Error(errorText);
       }
 
-      alert(
-        "Booking cancelled successfully! The time slot is now available for booking again.",
-      );
+      alert(t("account.booking_cancelled"));
       if (user) loadUserBookings(user.id);
       setShowCancelDialog(false);
       setBookingToCancel(null);
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
-      alert("Error cancelling booking: " + msg);
+      alert(t("account.cancel_error", { error: msg }));
     }
   };
 
@@ -548,9 +550,9 @@ export default function UserAccountPage() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return {
-      month: date.toLocaleDateString("en-US", { month: "short" }),
+      month: date.toLocaleDateString(locale, { month: "short" }),
       day: date.getDate(),
-      fullDate: date.toLocaleDateString("en-US", {
+      fullDate: date.toLocaleDateString(locale, {
         month: "long",
         day: "numeric",
         year: "numeric",
@@ -647,10 +649,10 @@ export default function UserAccountPage() {
                 color="text.secondary"
                 sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}
               >
-                Location:{" "}
+                {t("booking.location_label")}{" "}
                 {booking.location === "your_place"
-                  ? "At Your Place"
-                  : "At Our Place"}
+                  ? t("booking.at_your_place")
+                  : t("booking.at_our_place")}
               </Typography>
               <Box
                 sx={{
@@ -664,7 +666,7 @@ export default function UserAccountPage() {
                   fontWeight: "bold",
                 }}
               >
-                {booking.status.toUpperCase()}
+                {t(`status.${booking.status}`, { defaultValue: booking.status }).toUpperCase()}
               </Box>
             </Box>
 
@@ -687,7 +689,7 @@ export default function UserAccountPage() {
                       onClick={() => handleConfirmBooking(booking.id)}
                       sx={{ fontWeight: "bold", mb: 0.5 }}
                     >
-                      ✓ Confirm Booking
+                      ✓ {t("booking.confirm_booking")}
                     </Button>
                     {booking.confirmation_deadline && (
                       <Typography
@@ -749,10 +751,10 @@ export default function UserAccountPage() {
           gutterBottom
           sx={{ fontSize: { xs: "1.5rem", sm: "2rem", md: "2.125rem" } }}
         >
-          User Account
+          {t("user_account")}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Please login to view your account and booking history
+          {t("account.login_prompt")}
         </Typography>
       </Box>
     );
@@ -801,7 +803,7 @@ export default function UserAccountPage() {
                   variant="h6"
                   sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}
                 >
-                  {profile.full_name || "User"}
+                  {profile.full_name || t("account.user")}
                 </Typography>
                 <Typography
                   variant="body2"
@@ -840,7 +842,7 @@ export default function UserAccountPage() {
                 size={window.innerWidth < 600 ? "small" : "medium"}
                 sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
               >
-                Sign Out
+                {t("account.sign_out")}
               </Button>
             </Box>
           </Box>
@@ -852,10 +854,10 @@ export default function UserAccountPage() {
         <Card sx={{ mb: 3, ...commonStyles.card }}>
           <CardContent sx={{ padding: { xs: 2, sm: 3 } }}>
             <Typography variant="h6" sx={{ fontSize: { xs: "1rem", sm: "1.1rem" }, mb: 0.5 }}>
-              Refer a friend
+              {t("account.refer_title")}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Share your link — friends who book get you noticed by the owner.
+              {t("account.refer_text")}
             </Typography>
             <Box
               sx={{
@@ -877,11 +879,11 @@ export default function UserAccountPage() {
                   navigator.clipboard.writeText(
                     `${window.location.origin}?ref=${profile.referral_code}`,
                   );
-                  alert("Referral link copied!");
+                  alert(t("account.referral_copied"));
                 }}
                 sx={{ whiteSpace: "nowrap" }}
               >
-                Copy Link
+                {t("account.copy_link")}
               </Button>
             </Box>
           </CardContent>
@@ -901,8 +903,8 @@ export default function UserAccountPage() {
             },
           }}
         >
-          <Tab label={`Upcoming (${upcomingBookings.length})`} />
-          <Tab label={`History (${pastBookings.length})`} />
+          <Tab label={t("account.upcoming_tab", { count: upcomingBookings.length })} />
+          <Tab label={t("account.history_tab", { count: pastBookings.length })} />
         </Tabs>
       </Box>
 
@@ -917,14 +919,14 @@ export default function UserAccountPage() {
                 gutterBottom
                 sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}
               >
-                No upcoming appointments
+                {t("account.no_upcoming")}
               </Typography>
               <Typography
                 variant="body2"
                 color="text.secondary"
                 sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}
               >
-                Book your first appointment to get started!
+                {t("account.book_first")}
               </Typography>
             </Box>
           ) : (
@@ -942,7 +944,7 @@ export default function UserAccountPage() {
                 color="text.secondary"
                 sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}
               >
-                No booking history yet
+                {t("account.no_history")}
               </Typography>
             </Box>
           ) : (
@@ -950,6 +952,8 @@ export default function UserAccountPage() {
           )}
         </Box>
       )}
+
+      {user && <PrivacyCard userId={user.id} />}
 
       {/* Edit Profile Dialog */}
       <Dialog
@@ -960,12 +964,12 @@ export default function UserAccountPage() {
         fullScreen={window.innerWidth < 600}
       >
         <DialogTitle sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}>
-          Edit Profile
+          {t("account.edit_profile")}
         </DialogTitle>
         <DialogContent>
           <Box display="flex" flexDirection="column" gap={2} mt={2}>
             <TextField
-              label="Full Name"
+              label={t("account.full_name")}
               value={editedProfile.full_name}
               onChange={(e) =>
                 setEditedProfile({
@@ -977,7 +981,7 @@ export default function UserAccountPage() {
               size={window.innerWidth < 600 ? "small" : "medium"}
             />
             <TextField
-              label="Phone Number"
+              label={t("account.phone")}
               value={editedProfile.phone}
               onChange={(e) =>
                 setEditedProfile({ ...editedProfile, phone: e.target.value })
@@ -992,7 +996,7 @@ export default function UserAccountPage() {
             onClick={() => setShowEditProfile(false)}
             size={window.innerWidth < 600 ? "small" : "medium"}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleUpdateProfile}
@@ -1000,7 +1004,7 @@ export default function UserAccountPage() {
             sx={{ backgroundColor: colors.accent.main }}
             size={window.innerWidth < 600 ? "small" : "medium"}
           >
-            Save Changes
+            {t("common.save_changes")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1012,11 +1016,11 @@ export default function UserAccountPage() {
         fullScreen={window.innerWidth < 600}
       >
         <DialogTitle sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}>
-          Cancel Booking
+          {t("account.cancel_booking")}
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
-            Are you sure you want to cancel this booking?
+            {t("account.cancel_confirm")}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ padding: { xs: 2, sm: 3 } }}>
@@ -1024,7 +1028,7 @@ export default function UserAccountPage() {
             onClick={() => setShowCancelDialog(false)}
             size={window.innerWidth < 600 ? "small" : "medium"}
           >
-            No, Keep It
+            {t("account.keep_it")}
           </Button>
           <Button
             onClick={handleCancelBooking}
@@ -1032,7 +1036,7 @@ export default function UserAccountPage() {
             variant="contained"
             size={window.innerWidth < 600 ? "small" : "medium"}
           >
-            Yes, Cancel Booking
+            {t("account.yes_cancel")}
           </Button>
         </DialogActions>
       </Dialog>

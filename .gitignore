@@ -38,6 +38,9 @@ node_modules/
 dist/
 build/
 
+# graphify output
+graphify-out/
+
 # Logs
 logs
 *.log
@@ -91,3 +94,5 @@ $RECYCLE.BIN/
 
 # Local Netlify folder
 .netlify
+
+export

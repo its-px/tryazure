@@ -1,6 +1,10 @@
 import { motion, type Variants } from "framer-motion";
-import { useState } from "react";
+import { lazy, Suspense, useState, type MouseEvent } from "react";
 import "./LandingPage.css";
+import { openCookieSettings } from "../../components/consent";
+
+// MUI-heavy, so only fetched when an owner actually clicks "Sign in".
+const LoginModal = lazy(() => import("../components/LoginModal"));
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 64, filter: "blur(8px)" },
@@ -81,9 +85,21 @@ const STEPS = [
 
 export default function LandingPage() {
   const [navOpen, setNavOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+
+  // Owners sign in here; App.tsx then resolves their tenant and routes them to /owner.
+  const openSignIn = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setSignInOpen(true);
+  };
 
   return (
     <div className="lp">
+      {signInOpen && (
+        <Suspense fallback={null}>
+          <LoginModal open onClose={() => setSignInOpen(false)} />
+        </Suspense>
+      )}
       <div className="lp-grain" aria-hidden="true" />
       <div className="lp-glow lp-glow-a" aria-hidden="true" />
       <div className="lp-glow lp-glow-b" aria-hidden="true" />
@@ -98,9 +114,10 @@ export default function LandingPage() {
             <a href="#features">Features</a>
             <a href="#how">How it works</a>
             <a href="#pricing">Pricing</a>
+            <a href="#signin" onClick={openSignIn}>Sign in</a>
           </div>
-          <a className="lp-btn lp-btn-primary lp-btn-sm" href="#pricing">
-            Get started
+          <a className="lp-btn lp-btn-primary lp-btn-sm" href="/signup">
+            Start free trial
             <span className="lp-btn-icon">↗</span>
           </a>
           <button
@@ -119,13 +136,17 @@ export default function LandingPage() {
           { label: "Features", href: "#features" },
           { label: "How it works", href: "#how" },
           { label: "Pricing", href: "#pricing" },
-          { label: "Get started", href: "#pricing" },
+          { label: "Start free trial", href: "/signup" },
+          { label: "Sign in", href: "#signin" },
         ].map(({ label, href }, i) => (
           <a
             key={label}
             href={href}
             style={{ transitionDelay: `${i * 60 + 80}ms` }}
-            onClick={() => setNavOpen(false)}
+            onClick={(e) => {
+              setNavOpen(false);
+              if (href === "#signin") openSignIn(e);
+            }}
           >
             {label}
           </a>
@@ -173,8 +194,8 @@ export default function LandingPage() {
           variants={fadeUp}
           transition={{ delay: 0.24 }}
         >
-          <a className="lp-btn lp-btn-primary" href="mailto:hello@rendezvous.app?subject=Book%20a%20demo">
-            Book a demo
+          <a className="lp-btn lp-btn-primary" href="/signup">
+            Start free trial
             <span className="lp-btn-icon">↗</span>
           </a>
           <a className="lp-btn lp-btn-ghost" href="#how">
@@ -304,18 +325,28 @@ export default function LandingPage() {
         >
           <div className="lp-cta-core">
             <h2 className="lp-h2">Ready to stop taking bookings by phone?</h2>
-            <p>Tell us about your business and we'll set up your branded tenant.</p>
-            <a className="lp-btn lp-btn-primary" href="mailto:hello@rendezvous.app?subject=Book%20a%20demo">
-              Book a demo
+            <p>30 days free, no card needed. Your booking page is live in minutes.</p>
+            <a className="lp-btn lp-btn-primary" href="/signup">
+              Start free trial
               <span className="lp-btn-icon">↗</span>
             </a>
+            <p className="lp-cta-contact">
+              Questions? <a href="mailto:hello@pxbs.site">hello@pxbs.site</a>
+            </p>
           </div>
         </motion.div>
       </section>
 
       <footer className="lp-footer">
         <span>© {new Date().getFullYear()} RENDEZVOUS</span>
-        <a href="mailto:hello@rendezvous.app?subject=Book%20a%20demo">Book a demo</a>
+        <span className="lp-footer-links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/cookies">Cookies</a>
+          <a href="/imprint">Company</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); openCookieSettings(); }}>Cookie settings</a>
+          <a href="mailto:hello@pxbs.site">Contact</a>
+        </span>
       </footer>
     </div>
   );

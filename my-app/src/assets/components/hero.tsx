@@ -32,7 +32,7 @@ export default function Hero({
   currentPage,
 }: HeroProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedLanguage, setSelectedLanguage] = useState(
     i18n.language?.toUpperCase() || "EN",
   );
@@ -106,7 +106,7 @@ export default function Hero({
             sx: { backgroundColor: colors.background.medium, color: colors.text.primary },
           }}
         >
-          {[["EN","English"],["GR","Ελληνικά"],["ES","Español"],["FR","Français"]].map(([code, label]) => (
+          {[["EN","English"],["GR","Ελληνικά"]].map(([code, label]) => (
             <MenuItem key={code} onClick={() => handleLanguageSelect(code)}>{label}</MenuItem>
           ))}
         </Menu>
@@ -142,7 +142,7 @@ export default function Hero({
         <Box
           component="button"
           onClick={() => dispatch(toggleTheme())}
-          aria-label="toggle theme"
+          aria-label={t("common.toggle_theme")}
           sx={{
             display: "flex", alignItems: "center", justifyContent: "center",
             background: "none", border: "none", cursor: "pointer",

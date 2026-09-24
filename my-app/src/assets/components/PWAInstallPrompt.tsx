@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Box, Button, Typography, IconButton, Paper, Avatar } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 const COOKIE_CONSENT_KEY = "cookieConsent";
 const VISIT_KEY = "pwa_install_visits";
@@ -16,6 +17,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function PWAInstallPrompt() {
+  const { t } = useTranslation();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
@@ -104,9 +106,9 @@ export default function PWAInstallPrompt() {
           >
             <Box display="flex" justifyContent="space-between" width="100%" alignItems="center">
               <Box display="flex" alignItems="center" gap={1}>
-                <Avatar src={logoPath} alt="App Logo" sx={{ width: 32, height: 32 }} />
+                <Avatar src={logoPath} alt={t("pwa.logo_alt")} sx={{ width: 32, height: 32 }} />
                 <Typography variant="subtitle1" fontWeight="bold">
-                  Install Our App
+                  {t("pwa.title")}
                 </Typography>
               </Box>
               <IconButton size="small" onClick={snooze} sx={{ color: "#fff" }}>
@@ -115,7 +117,7 @@ export default function PWAInstallPrompt() {
             </Box>
 
             <Typography variant="body2" mt={1} sx={{ color: "#f0f0f0" }}>
-              Get faster access by installing this app on your home screen.
+              {t("pwa.text")}
             </Typography>
 
             <Button
@@ -124,7 +126,7 @@ export default function PWAInstallPrompt() {
               sx={{ mt: 1, alignSelf: "flex-end", backgroundColor: "#1b5e20", color: "#ffffffff", fontWeight: "bold" }}
               onClick={handleInstall}
             >
-              Install
+              {t("pwa.install")}
             </Button>
           </Paper>
         </motion.div>

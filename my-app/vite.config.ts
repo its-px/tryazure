@@ -6,6 +6,8 @@ export default defineConfig({
   // Use relative asset paths so `dist` can be served from any static host
   // and local previews (file-based or static servers) will resolve assets.
   base: "./",
+  // Strip debug logging from production bundles; console.error/warn stay.
+  esbuild: { pure: ["console.log", "console.debug"] },
   plugins: [
     react(),
     VitePWA({

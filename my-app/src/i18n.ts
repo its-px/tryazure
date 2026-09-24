@@ -20,6 +20,8 @@ i18n
     detection: {
       order: ["localStorage", "navigator"],
       caches: ["localStorage"],
+      // Browsers report Greek as "el"/"el-GR"; the app's Greek locale is "gr".
+      convertDetectedLanguage: (lng: string) => (lng.toLowerCase().startsWith("el") ? "gr" : lng),
     },
   });
 

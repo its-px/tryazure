@@ -16,7 +16,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import dayjs from "dayjs";
+import "dayjs/locale/el";
+import i18n from "../../i18n";
+
+const dayjsLocale = () => (i18n.language?.startsWith("gr") ? "el" : "en");
 import { useResolvedColors } from "../../hooks/useResolvedColors";
+import { useTranslation } from "react-i18next";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -102,6 +107,7 @@ export default function BookingStatistics({
   tenantId,
 }: BookingStatisticsProps) {
   const colors = useResolvedColors();
+  const { t } = useTranslation();
 
   const [dailyBookings, setDailyBookings] = useState<DailyBooking[]>([]);
   const [statusData, setStatusData] = useState<StatusData[]>([]);
@@ -223,7 +229,7 @@ export default function BookingStatistics({
       ([date, count]) => ({
         date,
         count,
-        displayDate: dayjs(date).format("MMM DD"),
+        displayDate: dayjs(date).locale(dayjsLocale()).format("MMM DD"),
       }),
     );
 
@@ -371,7 +377,7 @@ export default function BookingStatistics({
 
       projectedData.push({
         date: dateStr,
-        displayDate: futureDate.format("MMM DD"),
+        displayDate: futureDate.locale(dayjsLocale()).format("MMM DD"),
         revenue: Math.round(projectedRevenue * 100) / 100,
         bookings: projectedBookings,
       });
@@ -421,7 +427,7 @@ export default function BookingStatistics({
     const monthlyArray: MonthlyPerformance[] = Object.entries(monthlyData)
       .map(([month, data]) => ({
         month,
-        displayMonth: dayjs(month).format("MMM YYYY"),
+        displayMonth: dayjs(month).locale(dayjsLocale()).format("MMM YYYY"),
         bookings: data.bookings,
         revenue: Math.round(data.revenue * 100) / 100,
       }))
@@ -857,7 +863,7 @@ export default function BookingStatistics({
             {payload[0].payload.displayDate}
           </Typography>
           <Typography variant="body2" sx={{ color: colors.accent.main }}>
-            Bookings: {payload[0].value}
+            {t("stats.bookings_label", { count: payload[0].value })}
           </Typography>
         </Box>
       );
@@ -876,7 +882,7 @@ export default function BookingStatistics({
           textAlign: "center",
         }}
       >
-        📊 Booking Statistics (Last 30 Days)
+        {t("stats.title")}
       </Typography>
 
       {/* KPI Cards */}
@@ -893,49 +899,49 @@ export default function BookingStatistics({
         }}
       >
         <StatCard
-          title="Total Bookings"
+          title={t("owner.total_bookings")}
           value={stats.total}
           icon={<CalendarMonthIcon sx={{ fontSize: 20, color: colors.accent.main }} />}
           color={colors.accent.main}
         />
         <StatCard
-          title="Confirmed"
+          title={t("status.confirmed")}
           value={stats.confirmed}
           icon={<CheckCircleIcon sx={{ fontSize: 20, color: colors.status.confirmed }} />}
           color={colors.status.confirmed}
         />
         <StatCard
-          title="Pending"
+          title={t("status.pending")}
           value={stats.pending}
           icon={<PendingIcon sx={{ fontSize: 20, color: colors.accent.main }} />}
           color={colors.accent.main}
         />
         <StatCard
-          title="Cancelled"
+          title={t("status.cancelled")}
           value={stats.cancelled}
           icon={<TrendingUpIcon sx={{ fontSize: 20, color: colors.error.main }} />}
           color={colors.error.main}
         />
         <StatCard
-          title="Revenue (30d)"
+          title={t("stats.revenue_30d")}
           value={`$${revenueStats.past30Days.toLocaleString()}`}
           icon={<AttachMoneyIcon sx={{ fontSize: 20, color: colors.status.confirmed }} />}
           color={colors.status.confirmed}
         />
         <StatCard
-          title="Projected (30d)"
+          title={t("stats.projected_30d")}
           value={`$${revenueStats.projected30Days.toLocaleString()}`}
           icon={<TrendingUpIcon sx={{ fontSize: 20, color: colors.accent.main }} />}
           color={colors.accent.main}
         />
         <StatCard
-          title="Avg / Booking"
+          title={t("stats.avg_booking")}
           value={`$${revenueStats.averagePerBooking.toLocaleString()}`}
           icon={<AttachMoneyIcon sx={{ fontSize: 20, color: colors.text.secondary }} />}
           color={colors.text.secondary}
         />
         <StatCard
-          title="Confirmations Recovered (30d)"
+          title={t("stats.recovered_30d")}
           value={confirmationsRecovered}
           icon={<CheckCircleIcon sx={{ fontSize: 20, color: colors.status.confirmed }} />}
           color={colors.status.confirmed}
@@ -957,7 +963,7 @@ export default function BookingStatistics({
               variant="h6"
               sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
             >
-              💵 What The App Captured (Last 30 Days)
+              {t("stats.captured_title")}
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
               <Box>
@@ -965,7 +971,7 @@ export default function BookingStatistics({
                   ${completedRevenue30d.toLocaleString()}
                 </Typography>
                 <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                  Revenue from Completed Bookings
+                  {t("stats.completed_revenue")}
                 </Typography>
               </Box>
               <Box>
@@ -973,7 +979,7 @@ export default function BookingStatistics({
                   {bookedWhileClosedCount}
                 </Typography>
                 <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                  Bookings Made While Closed
+                  {t("stats.booked_while_closed")}
                 </Typography>
               </Box>
               <Box>
@@ -981,7 +987,7 @@ export default function BookingStatistics({
                   {confirmationsRecovered}
                 </Typography>
                 <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                  Confirmations Recovered
+                  {t("stats.recovered")}
                 </Typography>
               </Box>
             </Box>
@@ -1004,10 +1010,10 @@ export default function BookingStatistics({
               variant="h6"
               sx={{ color: colors.text.primary, mb: 0.5, fontWeight: "bold" }}
             >
-              👋 Lapsed Clients ({lapsedClients.length})
+              {t("stats.lapsed_title", { count: lapsedClients.length })}
             </Typography>
             <Typography variant="body2" sx={{ color: colors.text.secondary, mb: 1.5 }}>
-              No completed booking or new booking in the last {rebookingNudgeDays}+ days
+              {t("stats.lapsed_text", { days: rebookingNudgeDays })}
             </Typography>
             {lapsedClients.slice(0, 15).map((client) => (
               <Box
@@ -1026,7 +1032,7 @@ export default function BookingStatistics({
                     {client.name}
                   </Typography>
                   <Typography variant="caption" sx={{ color: colors.text.secondary }}>
-                    Last visit {client.daysSince} days ago
+                    {t("stats.last_visit", { count: client.daysSince })}
                     {client.email ? ` · ${client.email}` : ""}
                   </Typography>
                 </Box>
@@ -1041,10 +1047,10 @@ export default function BookingStatistics({
                   onClick={() => sendWinBack(client)}
                 >
                   {winBackSent[client.userId]
-                    ? "Sent"
+                    ? t("stats.sent")
                     : winBackSending[client.userId]
-                      ? "Sending…"
-                      : "Send Win-Back"}
+                      ? t("login.sending")
+                      : t("stats.send_winback")}
                 </Button>
               </Box>
             ))}
@@ -1086,7 +1092,7 @@ export default function BookingStatistics({
                       gap: 1,
                     }}
                   >
-                    🏆 Best Month by Bookings
+                    {t("stats.best_month_bookings")}
                   </Typography>
                   <Box
                     display="flex"
@@ -1104,14 +1110,13 @@ export default function BookingStatistics({
                         variant="body1"
                         sx={{ color: colors.text.secondary, mt: 1 }}
                       >
-                        {bestMonths.byBookings.bookings} bookings
+                        {t("stats.n_bookings", { count: bestMonths.byBookings.bookings })}
                       </Typography>
                       <Typography
                         variant="body2"
                         sx={{ color: colors.text.secondary, mt: 0.5 }}
                       >
-                        ${bestMonths.byBookings.revenue.toLocaleString()}{" "}
-                        revenue
+                        {t("stats.revenue_amount", { amount: `$${bestMonths.byBookings.revenue.toLocaleString()}` })}
                       </Typography>
                     </Box>
                     <Box
@@ -1157,7 +1162,7 @@ export default function BookingStatistics({
                       gap: 1,
                     }}
                   >
-                    💰 Best Month by Revenue
+                    {t("stats.best_month_revenue")}
                   </Typography>
                   <Box
                     display="flex"
@@ -1178,13 +1183,13 @@ export default function BookingStatistics({
                         variant="body1"
                         sx={{ color: colors.text.secondary, mt: 1 }}
                       >
-                        ${bestMonths.byRevenue.revenue.toLocaleString()} revenue
+                        {t("stats.revenue_amount", { amount: `$${bestMonths.byRevenue.revenue.toLocaleString()}` })}
                       </Typography>
                       <Typography
                         variant="body2"
                         sx={{ color: colors.text.secondary, mt: 0.5 }}
                       >
-                        {bestMonths.byRevenue.bookings} bookings
+                        {t("stats.n_bookings", { count: bestMonths.byRevenue.bookings })}
                       </Typography>
                     </Box>
                     <Box
@@ -1224,7 +1229,7 @@ export default function BookingStatistics({
               variant="h6"
               sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
             >
-              📈 Monthly Performance Overview
+              {t("stats.monthly_title")}
             </Typography>
             <ResponsiveContainer width="100%" height={230}>
               <BarChart data={monthlyPerformance}>
@@ -1246,7 +1251,7 @@ export default function BookingStatistics({
                   stroke={colors.text.secondary}
                   tick={{ fill: colors.text.secondary }}
                   label={{
-                    value: "Bookings",
+                    value: t("stats.bookings"),
                     angle: -90,
                     position: "insideLeft",
                     style: { fill: colors.text.secondary },
@@ -1258,7 +1263,7 @@ export default function BookingStatistics({
                   stroke={colors.text.secondary}
                   tick={{ fill: colors.text.secondary }}
                   label={{
-                    value: "Revenue ($)",
+                    value: t("stats.revenue_usd"),
                     angle: 90,
                     position: "insideRight",
                     style: { fill: colors.text.secondary },
@@ -1273,8 +1278,8 @@ export default function BookingStatistics({
                   }}
                   formatter={(value: number | string, name: string) => {
                     if (name === "revenue")
-                      return [`$${Number(value).toLocaleString()}`, "Revenue"];
-                    if (name === "bookings") return [Number(value), "Bookings"];
+                      return [`$${Number(value).toLocaleString()}`, t("stats.revenue")];
+                    if (name === "bookings") return [Number(value), t("stats.bookings")];
                     return [value, name];
                   }}
                 />
@@ -1284,14 +1289,14 @@ export default function BookingStatistics({
                   dataKey="bookings"
                   fill={colors.accent.main}
                   radius={[8, 8, 0, 0]}
-                  name="Bookings"
+                  name={t("stats.bookings")}
                 />
                 <Bar
                   yAxisId="right"
                   dataKey="revenue"
                   fill={colors.status.confirmed}
                   radius={[8, 8, 0, 0]}
-                  name="Revenue"
+                  name={t("stats.revenue")}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -1332,7 +1337,7 @@ export default function BookingStatistics({
                     gap: 1,
                   }}
                 >
-                  ⚠️ Overall Cancellation Rate
+                  {t("stats.cancel_rate_title")}
                 </Typography>
                 <Box
                   display="flex"
@@ -1350,11 +1355,10 @@ export default function BookingStatistics({
                       variant="body1"
                       sx={{ color: colors.text.secondary, mt: 1 }}
                     >
-                      {
-                        allBookings.filter((b) => b.status === "cancelled")
-                          .length
-                      }{" "}
-                      cancelled out of {allBookings.length} total bookings
+                      {t("stats.cancelled_out_of", {
+                        cancelled: allBookings.filter((b) => b.status === "cancelled").length,
+                        total: allBookings.length,
+                      })}
                     </Typography>
                   </Box>
                   <Box
@@ -1397,7 +1401,7 @@ export default function BookingStatistics({
                 variant="h6"
                 sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
               >
-                🎯 Cancellation Rate by Service
+                {t("stats.cancel_by_service")}
               </Typography>
               <ResponsiveContainer width="100%" height={230}>
                 <BarChart data={serviceCancellations}>
@@ -1418,7 +1422,7 @@ export default function BookingStatistics({
                     stroke={colors.text.secondary}
                     tick={{ fill: colors.text.secondary }}
                     label={{
-                      value: "Cancellation Rate (%)",
+                      value: t("stats.cancel_rate_pct"),
                       angle: -90,
                       position: "insideLeft",
                       style: { fill: colors.text.secondary },
@@ -1461,15 +1465,13 @@ export default function BookingStatistics({
                               variant="body2"
                               sx={{ color: colors.error.main }}
                             >
-                              Cancellation Rate:{" "}
-                              {data.cancellationRate.toFixed(2)}%
+                              {t("stats.cancel_rate_value", { rate: data.cancellationRate.toFixed(2) })}
                             </Typography>
                             <Typography
                               variant="body2"
                               sx={{ color: colors.text.secondary }}
                             >
-                              Cancelled: {data.cancelledBookings} /{" "}
-                              {data.totalBookings}
+                              {t("stats.cancelled_ratio", { cancelled: data.cancelledBookings, total: data.totalBookings })}
                             </Typography>
                           </Box>
                         );
@@ -1482,7 +1484,7 @@ export default function BookingStatistics({
                     dataKey="cancellationRate"
                     fill={colors.error.main}
                     radius={[8, 8, 0, 0]}
-                    name="Cancellation Rate (%)"
+                    name={t("stats.cancel_rate_pct")}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -1525,7 +1527,7 @@ export default function BookingStatistics({
                       gap: 1,
                     }}
                   >
-                    👤 Most Booked Professional
+                    {t("stats.most_booked_pro")}
                   </Typography>
                   <Box
                     display="flex"
@@ -1543,14 +1545,13 @@ export default function BookingStatistics({
                         variant="body1"
                         sx={{ color: colors.text.secondary, mt: 1 }}
                       >
-                        {topProfessionals.byBookings.bookings} total bookings
+                        {t("stats.n_total_bookings", { count: topProfessionals.byBookings.bookings })}
                       </Typography>
                       <Typography
                         variant="body2"
                         sx={{ color: colors.text.secondary, mt: 0.5 }}
                       >
-                        ${topProfessionals.byBookings.revenue.toLocaleString()}{" "}
-                        revenue
+                        {t("stats.revenue_amount", { amount: `$${topProfessionals.byBookings.revenue.toLocaleString()}` })}
                       </Typography>
                     </Box>
                     <Box
@@ -1575,7 +1576,7 @@ export default function BookingStatistics({
                         variant="caption"
                         sx={{ color: colors.text.secondary }}
                       >
-                        bookings
+                        {t("stats.bookings_lower")}
                       </Typography>
                     </Box>
                   </Box>
@@ -1608,7 +1609,7 @@ export default function BookingStatistics({
                       gap: 1,
                     }}
                   >
-                    💵 Highest Revenue Professional
+                    {t("stats.top_revenue_pro")}
                   </Typography>
                   <Box
                     display="flex"
@@ -1629,14 +1630,13 @@ export default function BookingStatistics({
                         variant="body1"
                         sx={{ color: colors.text.secondary, mt: 1 }}
                       >
-                        ${topProfessionals.byRevenue.revenue.toLocaleString()}{" "}
-                        revenue
+                        {t("stats.revenue_amount", { amount: `$${topProfessionals.byRevenue.revenue.toLocaleString()}` })}
                       </Typography>
                       <Typography
                         variant="body2"
                         sx={{ color: colors.text.secondary, mt: 0.5 }}
                       >
-                        {topProfessionals.byRevenue.bookings} bookings
+                        {t("stats.n_bookings", { count: topProfessionals.byRevenue.bookings })}
                       </Typography>
                     </Box>
                     <Box
@@ -1678,7 +1678,7 @@ export default function BookingStatistics({
               variant="h6"
               sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
             >
-              👥 Professional Performance (All Time)
+              {t("stats.pro_performance_all")}
             </Typography>
             <ResponsiveContainer width="100%" height={230}>
               <BarChart data={professionalPerformance}>
@@ -1697,7 +1697,7 @@ export default function BookingStatistics({
                   stroke={colors.text.secondary}
                   tick={{ fill: colors.text.secondary }}
                   label={{
-                    value: "Bookings",
+                    value: t("stats.bookings"),
                     angle: -90,
                     position: "insideLeft",
                     style: { fill: colors.text.secondary },
@@ -1709,7 +1709,7 @@ export default function BookingStatistics({
                   stroke={colors.text.secondary}
                   tick={{ fill: colors.text.secondary }}
                   label={{
-                    value: "Revenue ($)",
+                    value: t("stats.revenue_usd"),
                     angle: 90,
                     position: "insideRight",
                     style: { fill: colors.text.secondary },
@@ -1723,9 +1723,9 @@ export default function BookingStatistics({
                     color: colors.text.primary,
                   }}
                   formatter={(value: number | string, name: string) => {
-                    if (name === "Revenue")
-                      return [`$${Number(value).toLocaleString()}`, "Revenue"];
-                    if (name === "Bookings") return [Number(value), "Bookings"];
+                    if (name === t("stats.revenue"))
+                      return [`$${Number(value).toLocaleString()}`, t("stats.revenue")];
+                    if (name === t("stats.bookings")) return [Number(value), t("stats.bookings")];
                     return [value, name];
                   }}
                 />
@@ -1735,14 +1735,14 @@ export default function BookingStatistics({
                   dataKey="bookings"
                   fill={colors.accent.main}
                   radius={[8, 8, 0, 0]}
-                  name="Bookings"
+                  name={t("stats.bookings")}
                 />
                 <Bar
                   yAxisId="right"
                   dataKey="revenue"
                   fill={colors.status.confirmed}
                   radius={[8, 8, 0, 0]}
-                  name="Revenue"
+                  name={t("stats.revenue")}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -1772,7 +1772,7 @@ export default function BookingStatistics({
               variant="h6"
               sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
             >
-              📈 Daily Bookings Trend
+              {t("stats.daily_trend")}
             </Typography>
             <ResponsiveContainer width="100%" height={210}>
               <AreaChart data={dailyBookings}>
@@ -1841,13 +1841,13 @@ export default function BookingStatistics({
               variant="h6"
               sx={{ color: colors.text.primary, mb: 2, fontWeight: "bold" }}
             >
-              📊 Status Distribution
+              {t("stats.status_distribution")}
             </Typography>
             {statusData.length > 0 ? (
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
-                    data={statusData}
+                    data={statusData.map((d) => ({ ...d, name: t(`status.${d.name.toLowerCase()}`, { defaultValue: d.name }) }))}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -1873,7 +1873,7 @@ export default function BookingStatistics({
                 height={180}
               >
                 <Typography sx={{ color: colors.text.secondary }}>
-                  No data available
+                  {t("stats.no_data")}
                 </Typography>
               </Box>
             )}
@@ -1895,13 +1895,13 @@ export default function BookingStatistics({
                 variant="h6"
                 sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
               >
-                💰 Projected Income (Next 30 Days)
+                {t("stats.projected_title")}
               </Typography>
               <Typography
                 variant="body2"
                 sx={{ color: colors.text.secondary, mb: 2 }}
               >
-                Based on historical booking trends and average service prices
+                {t("stats.projected_note")}
               </Typography>
               <ResponsiveContainer width="100%" height={210}>
                 <AreaChart data={projectedIncome}>
@@ -1940,7 +1940,7 @@ export default function BookingStatistics({
                     stroke={colors.text.secondary}
                     tick={{ fill: colors.text.secondary }}
                     label={{
-                      value: "Revenue ($)",
+                      value: t("stats.revenue_usd"),
                       angle: -90,
                       position: "insideLeft",
                       style: { fill: colors.text.secondary },
@@ -1957,7 +1957,7 @@ export default function BookingStatistics({
                       if (name === "revenue")
                         return [
                           `$${Number(value).toFixed(2)}`,
-                          "Projected Revenue",
+                          t("stats.projected_revenue"),
                         ];
                       return [value, name];
                     }}
@@ -1970,7 +1970,7 @@ export default function BookingStatistics({
                     strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#colorRevenue)"
-                    name="Projected Revenue"
+                    name={t("stats.projected_revenue")}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -1993,7 +1993,7 @@ export default function BookingStatistics({
                 variant="h6"
                 sx={{ color: colors.text.primary, mb: 1.5, fontWeight: "bold" }}
               >
-                👥 Professional Performance (Last 30 Days)
+                {t("stats.pro_performance_30d")}
               </Typography>
               <ResponsiveContainer width="100%" height={210}>
                 <BarChart data={professionalData}>
@@ -2013,7 +2013,7 @@ export default function BookingStatistics({
                     tick={{ fill: colors.text.secondary }}
                     allowDecimals={false}
                     label={{
-                      value: "Bookings",
+                      value: t("stats.bookings"),
                       angle: -90,
                       position: "insideLeft",
                       style: { fill: colors.text.secondary },
@@ -2025,7 +2025,7 @@ export default function BookingStatistics({
                     stroke={colors.text.secondary}
                     tick={{ fill: colors.text.secondary }}
                     label={{
-                      value: "Revenue ($)",
+                      value: t("stats.revenue_usd"),
                       angle: 90,
                       position: "insideRight",
                       style: { fill: colors.text.secondary },
@@ -2039,13 +2039,13 @@ export default function BookingStatistics({
                       color: colors.text.primary,
                     }}
                     formatter={(value: number | string, name: string) => {
-                      if (name === "Revenue")
+                      if (name === t("stats.revenue"))
                         return [
                           `$${Number(value).toLocaleString()}`,
-                          "Revenue",
+                          t("stats.revenue"),
                         ];
-                      if (name === "Bookings")
-                        return [Number(value), "Bookings"];
+                      if (name === t("stats.bookings"))
+                        return [Number(value), t("stats.bookings")];
                       return [value, name];
                     }}
                   />
@@ -2055,14 +2055,14 @@ export default function BookingStatistics({
                     dataKey="bookings"
                     fill={colors.accent.main}
                     radius={[8, 8, 0, 0]}
-                    name="Bookings"
+                    name={t("stats.bookings")}
                   />
                   <Bar
                     yAxisId="right"
                     dataKey="revenue"
                     fill={colors.status.confirmed}
                     radius={[8, 8, 0, 0]}
-                    name="Revenue"
+                    name={t("stats.revenue")}
                   />
                 </BarChart>
               </ResponsiveContainer>

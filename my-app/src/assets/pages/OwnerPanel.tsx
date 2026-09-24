@@ -7,7 +7,12 @@ import OwnerCalendar from "../components/OwnerCalendar";
 import BookingStatistics from "../components/BookingStatistics";
 import ReferralStats from "../components/ReferralStats";
 import ProductCatalog from "../components/ProductCatalog";
-import PhotoUploadField from "../components/PhotoUploadField";
+import BusinessSettings from "../components/BusinessSettings";
+import StaffManager from "../components/StaffManager";
+import BillingPanel from "../components/BillingPanel";
+import ServicesManager from "../components/ServicesManager";
+import OnboardingChecklist from "../../components/OnboardingChecklist";
+import { daysLeft, isTenantActive, type TenantBilling } from "../components/billing";
 import {
   Box,
   Dialog,
@@ -19,8 +24,6 @@ import {
   Divider,
   IconButton,
   Drawer,
-  Switch,
-  FormControlLabel,
 } from "@mui/material";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
@@ -28,6 +31,8 @@ import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import dayjs from "dayjs";
+import "dayjs/locale/el";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../components/supabaseClient";
 import { useTenantContext } from "../../context/useTenantContext";
 import {
@@ -45,6 +50,8 @@ interface Booking {
   services: string;
   status: string;
   created_at: string;
+  payment_method?: "cash" | "card";
+  payment_status?: "unpaid" | "paid" | "refunded";
 }
 
 interface UserProfile {
@@ -57,6 +64,8 @@ export default function OwnerPanel() {
   const dispatch = useDispatch();
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
   const colors = useResolvedColors();
+  const { t, i18n } = useTranslation();
+  const dayLocale = i18n.language === "gr" ? "el" : "en";
   const { tenant } = useTenantContext();
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [selectedProfessional] = useState<string>("all");
@@ -246,25 +255,48 @@ export default function OwnerPanel() {
     await supabase.auth.signOut();
   };
 
-  const [activeView, setActiveView] = useState<"dashboard" | "calendar" | "statistics" | "products" | "settings">("dashboard");
-  const [locationStepEnabled, setLocationStepEnabled] = useState(true);
+  const [activeView, setActiveView] = useState<"dashboard" | "calendar" | "statistics" | "services" | "products" | "staff" | "settings" | "billing">("dashboard");
+  const [billing, setBilling] = useState<TenantBilling | null>(null);
+  const [billingNotice, setBillingNotice] = useState<string | null>(null);
+
+  const loadBilling = async () => {
+    if (!tenant?.id) return;
+    const { data } = await supabase
+      .from("tenant_billing")
+      .select("plan, status, trial_ends_at, current_period_end, past_due_since, stripe_customer_id, stripe_connect_account_id, connect_charges_enabled")
+      .eq("tenant_id", tenant.id)
+      .maybeSingle();
+    if (isMountedRef.current) setBilling(data);
+  };
 
   useEffect(() => {
-    setLocationStepEnabled(tenant?.config?.locationStepEnabled !== false);
-  }, [tenant?.config?.locationStepEnabled]);
-
-  const handleToggleLocationStep = async (checked: boolean) => {
-    setLocationStepEnabled(checked); // optimistic
-    if (!tenant?.id) return;
-    const { error } = await supabase
-      .from("tenants")
-      .update({ config: { ...tenant.config, locationStepEnabled: checked } })
-      .eq("id", tenant.id);
-    if (error) {
-      setLocationStepEnabled(!checked); // revert
-      alert("Failed to save setting: " + error.message);
+    loadBilling();
+    // Back from Stripe Checkout/Portal: the webhook may land a moment after the redirect.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("connect") === "done") {
+      // Back from Stripe Connect onboarding: pull the account's status now rather than wait for the webhook.
+      params.delete("connect");
+      const qs = params.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+      setActiveView("settings");
+      supabase.functions.invoke("billing", { body: { action: "connect_status" } }).then(loadBilling);
+      return;
     }
-  };
+    const result = params.get("billing");
+    if (!result) return;
+    setActiveView("billing");
+    setBillingNotice(result === "success" ? t("owner.billing_success") : t("owner.billing_canceled"));
+    params.delete("billing");
+    const qs = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    const timer = setTimeout(loadBilling, 4000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.id]);
+
+  const billingActive = isTenantActive(billing);
+  const trialDaysLeft = billing?.status === "trialing" ? daysLeft(billing.trial_ends_at) : null;
+  const view = billingActive ? activeView : "billing";
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "confirmed" | "pending" | "cancelled">("all");
@@ -287,22 +319,27 @@ export default function OwnerPanel() {
   };
 
   const sidebarItems = [
-    { key: "dashboard",   icon: "dashboard",       label: "Dashboard" },
-    { key: "calendar",    icon: "calendar_month",  label: "Calendar" },
-    { key: "statistics",  icon: "bar_chart",       label: "Statistics" },
-    { key: "products",    icon: "inventory_2",     label: "Products" },
-    { key: "settings",    icon: "settings",        label: "Settings" },
+    { key: "dashboard",   icon: "dashboard",       label: t("owner.nav_dashboard") },
+    { key: "calendar",    icon: "calendar_month",  label: t("owner.nav_calendar") },
+    { key: "statistics",  icon: "bar_chart",       label: t("owner.nav_statistics") },
+    { key: "services",    icon: "content_cut",     label: t("owner.nav_services") },
+    { key: "products",    icon: "inventory_2",     label: t("owner.nav_products") },
+    { key: "staff",       icon: "groups",          label: t("owner.nav_staff") },
+    { key: "settings",    icon: "settings",        label: t("owner.nav_settings") },
+    { key: "billing",     icon: "credit_card",     label: t("owner.nav_billing") },
   ] as const;
+  // Locked out of everything but Billing until the subscription is sorted.
+  const visibleNavItems = billingActive ? sidebarItems : sidebarItems.filter((i) => i.key === "billing");
 
   const renderNavContent = (collapsed = false) => (
     <>
       {!collapsed && (
         <Box sx={{ px: 2, mb: 0.5, fontSize: 10, fontWeight: 700, color: colors.text.tertiary, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          Management
+          {t("owner.management")}
         </Box>
       )}
-      {sidebarItems.map((item) => {
-        const active = activeView === item.key;
+      {visibleNavItems.map((item) => {
+        const active = view === item.key;
         return (
           <Box
             key={item.key}
@@ -332,7 +369,7 @@ export default function OwnerPanel() {
       <Box sx={{ mt: "auto" }}>
         <Box
           onClick={handleLogout}
-          title={collapsed ? "Sign Out" : undefined}
+          title={collapsed ? t("account.sign_out") : undefined}
           sx={{
             display: "flex", alignItems: "center", gap: 1.25,
             justifyContent: collapsed ? "center" : "flex-start",
@@ -344,7 +381,7 @@ export default function OwnerPanel() {
           }}
         >
           <span className="material-icons" style={{ fontSize: 18 }}>exit_to_app</span>
-          {!collapsed && "Sign Out"}
+          {!collapsed && t("account.sign_out")}
         </Box>
       </Box>
     </>
@@ -379,7 +416,7 @@ export default function OwnerPanel() {
             onClick={() => setMobileNavOpen(true)}
             size="small"
             sx={{ color: colors.text.secondary, display: { xs: "flex", sm: "none" } }}
-            aria-label="open navigation"
+            aria-label={t("owner.open_nav")}
           >
             <MenuIcon fontSize="small" />
           </IconButton>
@@ -392,8 +429,8 @@ export default function OwnerPanel() {
             }}
           />
           <Box>
-            <Box sx={{ fontSize: 15, fontWeight: 700 }}>{tenant?.name ?? "Owner Panel"}</Box>
-            <Box sx={{ fontSize: 11, color: colors.text.secondary }}>Owner Dashboard</Box>
+            <Box sx={{ fontSize: 15, fontWeight: 700 }}>{tenant?.name ?? t("owner.panel")}</Box>
+            <Box sx={{ fontSize: 11, color: colors.text.secondary }}>{t("owner.dashboard")}</Box>
           </Box>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -401,7 +438,7 @@ export default function OwnerPanel() {
             onClick={() => dispatch(toggleTheme())}
             size="small"
             sx={{ color: colors.text.secondary }}
-            aria-label="toggle theme"
+            aria-label={t("common.toggle_theme")}
           >
             {mode === "dark" ? <Brightness7Icon fontSize="small" /> : <Brightness4Icon fontSize="small" />}
           </IconButton>
@@ -415,7 +452,7 @@ export default function OwnerPanel() {
               background: colors.background.overlay,
             }}
           >
-            Owner
+            {t("owner.badge")}
           </Box>
           <Box
             sx={{
@@ -447,7 +484,7 @@ export default function OwnerPanel() {
           <IconButton
             onClick={() => setSidebarCollapsed((v) => !v)}
             size="small"
-            aria-label={sidebarCollapsed ? "expand sidebar" : "collapse sidebar"}
+            aria-label={sidebarCollapsed ? t("owner.expand_sidebar") : t("owner.collapse_sidebar")}
             sx={{
               position: "absolute", top: 4, right: -12,
               width: 24, height: 24,
@@ -482,16 +519,34 @@ export default function OwnerPanel() {
         {/* Main content */}
         <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 1.5, sm: 3 } }}>
 
+          {billingNotice && (
+            <Box
+              onClick={() => setBillingNotice(null)}
+              sx={{ mb: 2, p: 1.5, borderRadius: "8px", fontSize: 13, cursor: "pointer", background: colors.background.overlay, border: `1px solid ${colors.accent.main}` }}
+            >
+              {billingNotice}
+            </Box>
+          )}
+          {billingActive && trialDaysLeft !== null && trialDaysLeft <= 7 && view !== "billing" && (
+            <Box
+              onClick={() => setActiveView("billing")}
+              sx={{ mb: 2, p: 1.5, borderRadius: "8px", fontSize: 13, cursor: "pointer", background: colors.background.overlay, border: `1px solid ${colors.status.pending}` }}
+            >
+              {t("owner.trial_ends", { count: trialDaysLeft })}
+            </Box>
+          )}
+
           {/* ── Dashboard view ── */}
-          {activeView === "dashboard" && (
+          {view === "dashboard" && (
             <>
+              <OnboardingChecklist billing={billing} onNavigate={setActiveView} />
               {/* Stat cards */}
               <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2,1fr)", md: "repeat(4,1fr)" }, gap: 1.75, mb: 3 }}>
                 {[
-                  { val: allBookings.length, label: "Total Bookings", icon: "calendar_month", color: colors.accent.main },
-                  { val: confirmedCount,     label: "Confirmed",       icon: "check_circle",  color: colors.status.confirmed },
-                  { val: pendingCount,       label: "Pending",          icon: "pending",       color: colors.status.pending },
-                  { val: upcomingBookings.length, label: "Upcoming",   icon: "event",         color: colors.accent.light },
+                  { val: allBookings.length, label: t("owner.total_bookings"), icon: "calendar_month", color: colors.accent.main },
+                  { val: confirmedCount,     label: t("status.confirmed"),       icon: "check_circle",  color: colors.status.confirmed },
+                  { val: pendingCount,       label: t("status.pending"),          icon: "pending",       color: colors.status.pending },
+                  { val: upcomingBookings.length, label: t("owner.upcoming"),   icon: "event",         color: colors.accent.light },
                 ].map(({ val, label, icon, color }) => (
                   <Box
                     key={label}
@@ -516,7 +571,7 @@ export default function OwnerPanel() {
 
               {/* Bookings table */}
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.75 }}>
-                <Box sx={{ fontSize: 16, fontWeight: 700 }}>Recent Bookings</Box>
+                <Box sx={{ fontSize: 16, fontWeight: 700 }}>{t("owner.recent_bookings")}</Box>
                 <Box sx={{ display: "flex", gap: 0.75 }}>
                   {(["all","confirmed","pending","cancelled"] as const).map((f) => (
                     <Box
@@ -532,7 +587,7 @@ export default function OwnerPanel() {
                         fontFamily: "inherit", transition: "all 0.15s",
                       }}
                     >
-                      {f.charAt(0).toUpperCase() + f.slice(1)}
+                      {f === "all" ? t("owner.filter_all") : t(`status.${f}`)}
                     </Box>
                   ))}
                 </Box>
@@ -550,15 +605,15 @@ export default function OwnerPanel() {
                     textTransform: "uppercase", letterSpacing: "0.06em",
                   }}
                 >
-                  <span>Client / ID</span><span>Services</span>
-                  <Box component="span" sx={{ display: { xs: "none", sm: "block" } }}>Professional</Box>
-                  <Box component="span" sx={{ display: { xs: "none", sm: "block" } }}>Date</Box>
-                  <span>Status</span>
+                  <span>{t("owner.col_client")}</span><span>{t("owner.col_services")}</span>
+                  <Box component="span" sx={{ display: { xs: "none", sm: "block" } }}>{t("owner.col_professional")}</Box>
+                  <Box component="span" sx={{ display: { xs: "none", sm: "block" } }}>{t("owner.col_date")}</Box>
+                  <span>{t("owner.col_status")}</span>
                 </Box>
 
                 {visibleBookings.length === 0 && (
                   <Box sx={{ p: 3, textAlign: "center", color: colors.text.tertiary, fontSize: 13 }}>
-                    No bookings found
+                    {t("owner.no_bookings")}
                   </Box>
                 )}
 
@@ -600,13 +655,13 @@ export default function OwnerPanel() {
                             {userNameMap[booking.user_id] ?? booking.user_id.slice(0, 8) + "…"}
                           </Box>
                           <Box sx={{ display: { xs: "block", sm: "none" }, fontSize: 11, color: colors.text.tertiary }}>
-                            {dayjs(booking.date).format("ddd MMM D")}
+                            {dayjs(booking.date).locale(dayLocale).format("ddd MMM D")}
                           </Box>
                         </Box>
                       </Box>
                       <Box sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{getServiceNames(booking.services)}</Box>
                       <Box sx={{ display: { xs: "none", sm: "block" } }}>{getProfessionalName(booking.professional_id)}</Box>
-                      <Box sx={{ display: { xs: "none", sm: "block" } }}>{dayjs(booking.date).format("ddd MMM D")}</Box>
+                      <Box sx={{ display: { xs: "none", sm: "block" } }}>{dayjs(booking.date).locale(dayLocale).format("ddd MMM D")}</Box>
                       <Box
                         component="span"
                         sx={{
@@ -616,7 +671,7 @@ export default function OwnerPanel() {
                           textTransform: "capitalize",
                         }}
                       >
-                        {booking.status}
+                        {t(`status.${booking.status}`, { defaultValue: booking.status })}
                       </Box>
                     </Box>
                   );
@@ -626,7 +681,7 @@ export default function OwnerPanel() {
           )}
 
           {/* ── Calendar view ── */}
-          {activeView === "calendar" && (
+          {view === "calendar" && (
             <Box sx={{ height: "calc(100vh - 64px)", overflow: "hidden" }}>
               <OwnerCalendar
                 bookings={allBookings}
@@ -649,7 +704,7 @@ export default function OwnerPanel() {
           )}
 
           {/* ── Statistics view ── */}
-          {activeView === "statistics" && (
+          {view === "statistics" && (
             <>
               <BookingStatistics
                 allBookings={allBookings}
@@ -660,50 +715,22 @@ export default function OwnerPanel() {
             </>
           )}
 
-          {/* ── Products view ── */}
-          {activeView === "products" && (
-            <>
-              <ProductCatalog tenantId={tenant?.id ?? ""} />
+          {/* ── Services view ── */}
+          {view === "services" && <ServicesManager tenantId={tenant?.id ?? ""} />}
 
-              <Box sx={{ mt: 4 }}>
-                <Box sx={{ fontSize: 16, fontWeight: 700, mb: 1.75 }}>Professional Photos</Box>
-                <Box sx={{ background: colors.background.medium, borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.10)", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-                  {professionals.length === 0 && (
-                    <Box sx={{ color: colors.text.tertiary, fontSize: 13 }}>No professionals yet</Box>
-                  )}
-                  {professionals.map((p) => (
-                    <Box key={p.id} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <Box sx={{ minWidth: 140, fontSize: 13 }}>{p.name}</Box>
-                      <PhotoUploadField
-                        storagePath={`${tenant?.id}/professionals/${p.id}.webp`}
-                        currentUrl={p.photo_url}
-                        onUploaded={async (url) => {
-                          await supabase.from("professionals").update({ photo_url: url }).eq("id", p.id);
-                          await loadProfessionals();
-                        }}
-                      />
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            </>
+          {/* ── Products view ── */}
+          {view === "products" && <ProductCatalog tenantId={tenant?.id ?? ""} />}
+
+          {/* ── Staff view ── */}
+          {view === "staff" && (
+            <StaffManager tenantId={tenant?.id ?? ""} professionals={professionals} onChanged={loadProfessionals} />
           )}
+
+          {/* ── Billing view ── */}
+          {view === "billing" && <BillingPanel billing={billing} />}
 
           {/* ── Settings view ── */}
-          {activeView === "settings" && (
-            <Box sx={{ background: colors.background.medium, borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.10)", p: 2.5, maxWidth: 480 }}>
-              <Box sx={{ fontSize: 16, fontWeight: 700, mb: 1.5 }}>Booking Wizard</Box>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={locationStepEnabled}
-                    onChange={(e) => handleToggleLocationStep(e.target.checked)}
-                  />
-                }
-                label="Show location step in booking"
-              />
-            </Box>
-          )}
+          {view === "settings" && <BusinessSettings billing={billing} />}
 
         </Box>
       </Box>
@@ -715,50 +742,61 @@ export default function OwnerPanel() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Booking Details</DialogTitle>
+        <DialogTitle>{t("owner.booking_details")}</DialogTitle>
         <DialogContent>
           {selectedBooking && userProfile && (
             <Box sx={{ pt: 2 }}>
               <Typography variant="h6" gutterBottom color="primary">
-                Customer Information
+                {t("owner.customer_info")}
               </Typography>
               <Box sx={{ mb: 2 }}>
                 <Typography variant="body1">
-                  <strong>Name:</strong> {userProfile.full_name}
+                  <strong>{t("owner.name_label")}</strong> {userProfile.full_name}
                 </Typography>
                 <Typography variant="body1">
-                  <strong>Email:</strong> {userProfile.email}
+                  <strong>{t("owner.email_label")}</strong> {userProfile.email}
                 </Typography>
                 <Typography variant="body1">
-                  <strong>Phone:</strong> {userProfile.phone}
+                  <strong>{t("owner.phone_label")}</strong> {userProfile.phone}
                 </Typography>
               </Box>
 
               <Divider sx={{ my: 2 }} />
 
               <Typography variant="h6" gutterBottom color="primary">
-                Appointment Details
+                {t("owner.appointment_details")}
               </Typography>
               <Typography variant="body1">
-                <strong>Date:</strong>{" "}
-                {dayjs(selectedBooking.date).format("MMMM DD, YYYY")}
+                <strong>{t("booking.date_label")}</strong>{" "}
+                {dayjs(selectedBooking.date).locale(dayLocale).format("MMMM DD, YYYY")}
               </Typography>
+              {selectedBooking.payment_method && (
+                <Typography variant="body1">
+                  <strong>{t("owner.payment_label")}</strong>{" "}
+                  {selectedBooking.payment_method === "card" ? t("owner.pay_card") : t("owner.pay_venue")} ·{" "}
+                  {selectedBooking.payment_status === "paid"
+                    ? t("owner.paid")
+                    : selectedBooking.payment_status === "refunded"
+                      ? t("owner.refunded")
+                      : t("owner.not_paid")}
+                </Typography>
+              )}
               <Typography variant="body1">
-                <strong>Professional:</strong>{" "}
+                <strong>{t("booking.professional_label")}</strong>{" "}
                 {getProfessionalName(selectedBooking.professional_id)}
               </Typography>
               <Typography variant="body1">
-                <strong>Location:</strong>{" "}
+                <strong>{t("booking.location_label")}</strong>{" "}
                 {selectedBooking.location === "your_place"
-                  ? "At Customer Place"
-                  : "At Our Place"}
+                  ? t("owner.at_customer_place")
+                  : t("booking.at_our_place")}
               </Typography>
               <Typography variant="body1">
-                <strong>Services:</strong>{" "}
+                <strong>{t("owner.services_label")}</strong>{" "}
                 {getServiceNames(selectedBooking.services)}
               </Typography>
               <Typography variant="body1" sx={{ mb: 2 }}>
-                <strong>Status:</strong>
+                <strong>{t("owner.status_label")}</strong>
                 <span
                   style={{
                     marginLeft: "8px",
@@ -779,7 +817,7 @@ export default function OwnerPanel() {
                     fontWeight: "bold",
                   }}
                 >
-                  {selectedBooking.status.toUpperCase()}
+                  {t(`status.${selectedBooking.status}`, { defaultValue: selectedBooking.status }).toUpperCase()}
                 </span>
               </Typography>
             </Box>
@@ -804,9 +842,9 @@ export default function OwnerPanel() {
                   },
                 );
                 if (!res.ok) {
-                  alert("Error updating status: " + (await res.text()));
+                  alert(t("owner.status_error", { error: await res.text() }));
                 } else {
-                  alert("✅ Booking force-confirmed by owner!");
+                  alert(t("owner.force_confirmed"));
                   await loadBookings();
                   setShowBookingDialog(false);
                 }
@@ -815,7 +853,7 @@ export default function OwnerPanel() {
               color="success"
               sx={{ mr: 1 }}
             >
-              Force Confirm
+              {t("owner.force_confirm")}
             </Button>
           )}
           {/* Re-open an expired booking — puts it back to pending so customer can confirm */}
@@ -833,9 +871,9 @@ export default function OwnerPanel() {
                   },
                 );
                 if (!res.ok) {
-                  alert("Error reopening booking: " + (await res.text()));
+                  alert(t("owner.reopen_error", { error: await res.text() }));
                 } else {
-                  alert("🔄 Booking reopened — customer can confirm again");
+                  alert(t("owner.reopened"));
                   await loadBookings();
                   setShowBookingDialog(false);
                 }
@@ -844,7 +882,7 @@ export default function OwnerPanel() {
               color="warning"
               sx={{ mr: 1 }}
             >
-              Reopen Booking
+              {t("owner.reopen")}
             </Button>
           )}
           {selectedBooking && selectedBooking.status === "confirmed" && (
@@ -861,9 +899,9 @@ export default function OwnerPanel() {
                   },
                 );
                 if (!res.ok) {
-                  alert("Error updating status: " + (await res.text()));
+                  alert(t("owner.status_error", { error: await res.text() }));
                 } else {
-                  alert("Booking status changed to pending");
+                  alert(t("owner.set_pending_done"));
                   await loadBookings();
                   setShowBookingDialog(false);
                 }
@@ -872,7 +910,7 @@ export default function OwnerPanel() {
               color="warning"
               sx={{ mr: 1 }}
             >
-              Set to Pending
+              {t("owner.set_pending")}
             </Button>
           )}
           {selectedBooking && selectedBooking.status === "confirmed" && (
@@ -889,9 +927,9 @@ export default function OwnerPanel() {
                   },
                 );
                 if (!res.ok) {
-                  alert("Error updating status: " + (await res.text()));
+                  alert(t("owner.status_error", { error: await res.text() }));
                 } else {
-                  alert("✔️ Booking marked as completed");
+                  alert(t("owner.completed_done"));
                   await loadBookings();
                   setShowBookingDialog(false);
                 }
@@ -900,7 +938,7 @@ export default function OwnerPanel() {
               color="secondary"
               sx={{ mr: 1 }}
             >
-              Mark Completed
+              {t("owner.mark_completed")}
             </Button>
           )}
           {selectedBooking &&
@@ -913,7 +951,7 @@ export default function OwnerPanel() {
                 color="error"
                 sx={{ mr: 1 }}
               >
-                Cancel Booking
+                {t("account.cancel_booking")}
               </Button>
             )}
           {selectedBooking && (
@@ -923,25 +961,25 @@ export default function OwnerPanel() {
               color="error"
               sx={{ mr: 1 }}
             >
-              Delete Booking
+              {t("owner.delete_booking")}
             </Button>
           )}
           <Button
             onClick={() => setShowBookingDialog(false)}
             variant="contained"
           >
-            Close
+            {t("common.close")}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* New Booking Dialog */}
       <Dialog open={showNewBookingDialog} onClose={() => setShowNewBookingDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>New Booking</DialogTitle>
+        <DialogTitle>{t("owner.new_booking")}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
             <Box>
-              <Typography variant="caption" color="text.secondary">Date</Typography>
+              <Typography variant="caption" color="text.secondary">{t("owner.col_date")}</Typography>
               <Box component="input" type="date" value={newBookingDate}
                 onChange={e => setNewBookingDate(e.target.value)}
                 sx={{ display: "block", width: "100%", mt: 0.5, p: 1, borderRadius: 1, border: `1px solid ${colors.border.main}`, background: colors.background.card, color: colors.text.primary, fontSize: 14 }}
@@ -949,14 +987,14 @@ export default function OwnerPanel() {
             </Box>
             <Box sx={{ display: "flex", gap: 2 }}>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="caption" color="text.secondary">Start Time</Typography>
+                <Typography variant="caption" color="text.secondary">{t("owner.start_time")}</Typography>
                 <Box component="input" type="time" value={newBookingStartTime}
                   onChange={e => setNewBookingStartTime(e.target.value)}
                   sx={{ display: "block", width: "100%", mt: 0.5, p: 1, borderRadius: 1, border: `1px solid ${colors.border.main}`, background: colors.background.card, color: colors.text.primary, fontSize: 14 }}
                 />
               </Box>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="caption" color="text.secondary">End Time</Typography>
+                <Typography variant="caption" color="text.secondary">{t("owner.end_time")}</Typography>
                 <Box component="input" type="time" value={newBookingEndTime}
                   onChange={e => setNewBookingEndTime(e.target.value)}
                   sx={{ display: "block", width: "100%", mt: 0.5, p: 1, borderRadius: 1, border: `1px solid ${colors.border.main}`, background: colors.background.card, color: colors.text.primary, fontSize: 14 }}
@@ -964,7 +1002,7 @@ export default function OwnerPanel() {
               </Box>
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary">Professional</Typography>
+              <Typography variant="caption" color="text.secondary">{t("owner.col_professional")}</Typography>
               <Box component="select" value={newBookingProfessional}
                 onChange={e => setNewBookingProfessional(e.target.value)}
                 sx={{ display: "block", width: "100%", mt: 0.5, p: 1, borderRadius: 1, border: `1px solid ${colors.border.main}`, background: colors.background.card, color: colors.text.primary, fontSize: 14 }}
@@ -975,7 +1013,7 @@ export default function OwnerPanel() {
               </Box>
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary">Services (hold Ctrl/Cmd to select multiple)</Typography>
+              <Typography variant="caption" color="text.secondary">{t("owner.services_multi")}</Typography>
               <Box component="select" multiple value={newBookingServices}
                 onChange={e => setNewBookingServices(Array.from((e.target as HTMLSelectElement).selectedOptions, o => o.value))}
                 sx={{ display: "block", width: "100%", mt: 0.5, p: 1, borderRadius: 1, border: `1px solid ${colors.border.main}`, background: colors.background.card, color: colors.text.primary, fontSize: 14, minHeight: 100 }}
@@ -986,12 +1024,12 @@ export default function OwnerPanel() {
               </Box>
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary">Client</Typography>
+              <Typography variant="caption" color="text.secondary">{t("owner.client")}</Typography>
               <Box component="select" value={newBookingUserId}
                 onChange={e => setNewBookingUserId(e.target.value)}
                 sx={{ display: "block", width: "100%", mt: 0.5, p: 1, borderRadius: 1, border: `1px solid ${colors.border.main}`, background: colors.background.card, color: colors.text.primary, fontSize: 14 }}
               >
-                <option value="">— select client —</option>
+                <option value="">{t("owner.select_client")}</option>
                 {Object.entries(userNameMap).map(([id, name]) => (
                   <option key={id} value={id}>{name}</option>
                 ))}
@@ -1000,7 +1038,7 @@ export default function OwnerPanel() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowNewBookingDialog(false)} variant="outlined">Cancel</Button>
+          <Button onClick={() => setShowNewBookingDialog(false)} variant="outlined">{t("common.cancel")}</Button>
           <Button
             disabled={!newBookingUserId || !newBookingProfessional || newBookingServices.length === 0}
             variant="contained"
@@ -1023,14 +1061,14 @@ export default function OwnerPanel() {
                 }),
               });
               if (!res.ok) {
-                alert("Error creating booking: " + (await res.text()));
+                alert(t("booking.create_error_detail", { error: await res.text() }));
               } else {
                 await loadBookings();
                 setShowNewBookingDialog(false);
               }
             }}
           >
-            Create Booking
+            {t("owner.create_booking")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1042,11 +1080,10 @@ export default function OwnerPanel() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Cancel Booking?</DialogTitle>
+        <DialogTitle>{t("owner.cancel_title")}</DialogTitle>
         <DialogContent>
           <Typography variant="body1">
-            Are you sure you want to cancel this booking? This will change the
-            booking status to "cancelled".
+            {t("owner.cancel_text")}
           </Typography>
           {selectedBooking && (
             <Box
@@ -1058,11 +1095,11 @@ export default function OwnerPanel() {
               }}
             >
               <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                <strong>Booking Date:</strong>{" "}
-                {dayjs(selectedBooking.date).format("MMMM DD, YYYY")}
+                <strong>{t("owner.booking_date")}</strong>{" "}
+                {dayjs(selectedBooking.date).locale(dayLocale).format("MMMM DD, YYYY")}
               </Typography>
               <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                <strong>Professional:</strong>{" "}
+                <strong>{t("booking.professional_label")}</strong>{" "}
                 {getProfessionalName(selectedBooking.professional_id)}
               </Typography>
             </Box>
@@ -1073,7 +1110,7 @@ export default function OwnerPanel() {
             onClick={() => setShowCancelConfirmDialog(false)}
             variant="outlined"
           >
-            No, Keep It
+            {t("account.keep_it")}
           </Button>
           <Button
             onClick={async () => {
@@ -1089,9 +1126,9 @@ export default function OwnerPanel() {
                   },
                 );
                 if (!res.ok) {
-                  alert("Error cancelling booking: " + (await res.text()));
+                  alert(t("account.cancel_error", { error: await res.text() }));
                 } else {
-                  alert("❌ Booking cancelled");
+                  alert(t("owner.cancelled_done"));
                   await loadBookings();
                   setShowCancelConfirmDialog(false);
                   setShowBookingDialog(false);
@@ -1101,7 +1138,7 @@ export default function OwnerPanel() {
             variant="contained"
             color="error"
           >
-            Yes, Cancel Booking
+            {t("account.yes_cancel")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1114,18 +1151,17 @@ export default function OwnerPanel() {
         fullWidth
       >
         <DialogTitle sx={{ color: colors.error.main }}>
-          ⚠️ Delete Booking Permanently?
+          {t("owner.delete_title")}
         </DialogTitle>
         <DialogContent>
           <Typography
             variant="body1"
             sx={{ color: colors.error.main, fontWeight: "bold", mb: 2 }}
           >
-            WARNING: This action cannot be undone!
+            {t("owner.delete_warning")}
           </Typography>
           <Typography variant="body1">
-            Are you sure you want to permanently delete this booking from the
-            database? All booking information will be lost.
+            {t("owner.delete_text")}
           </Typography>
           {selectedBooking && (
             <Box
@@ -1137,15 +1173,15 @@ export default function OwnerPanel() {
               }}
             >
               <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                <strong>Booking Date:</strong>{" "}
-                {dayjs(selectedBooking.date).format("MMMM DD, YYYY")}
+                <strong>{t("owner.booking_date")}</strong>{" "}
+                {dayjs(selectedBooking.date).locale(dayLocale).format("MMMM DD, YYYY")}
               </Typography>
               <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                <strong>Professional:</strong>{" "}
+                <strong>{t("booking.professional_label")}</strong>{" "}
                 {getProfessionalName(selectedBooking.professional_id)}
               </Typography>
               <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                <strong>Status:</strong> {selectedBooking.status}
+                <strong>{t("owner.status_label")}</strong> {t(`status.${selectedBooking.status}`, { defaultValue: selectedBooking.status })}
               </Typography>
             </Box>
           )}
@@ -1155,7 +1191,7 @@ export default function OwnerPanel() {
             onClick={() => setShowDeleteConfirmDialog(false)}
             variant="contained"
           >
-            No, Keep It
+            {t("account.keep_it")}
           </Button>
           <Button
             onClick={async () => {
@@ -1167,9 +1203,9 @@ export default function OwnerPanel() {
                   { method: "DELETE", headers },
                 );
                 if (!res.ok) {
-                  alert("Error deleting booking: " + (await res.text()));
+                  alert(t("owner.delete_error", { error: await res.text() }));
                 } else {
-                  alert("🗑️ Booking permanently deleted");
+                  alert(t("owner.deleted_done"));
                   await loadBookings();
                   setShowDeleteConfirmDialog(false);
                   setShowBookingDialog(false);
@@ -1179,7 +1215,7 @@ export default function OwnerPanel() {
             variant="contained"
             color="error"
           >
-            Yes, Delete Permanently
+            {t("owner.yes_delete")}
           </Button>
         </DialogActions>
       </Dialog>

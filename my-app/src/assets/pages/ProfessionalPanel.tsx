@@ -31,6 +31,8 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import dayjs from "dayjs";
+import "dayjs/locale/el";
+import { useTranslation } from "react-i18next";
 import BookingStatistics from "../components/BookingStatistics";
 import { fetchProfessionals } from "../components/professionalsService";
 
@@ -96,6 +98,8 @@ const STATUS_COLORS: Record<BookingStatus, { bg: string; color: string; label: s
 export default function ProfessionalPanel() {
   const dispatch = useDispatch();
   const colors = useResolvedColors();
+  const { t, i18n } = useTranslation();
+  const dayLocale = i18n.language === "gr" ? "el" : "en";
   const mode = useSelector((state: RootState) => state.theme?.mode ?? "dark");
   const { tenant } = useTenantContext();
 
@@ -324,7 +328,7 @@ export default function ProfessionalPanel() {
         `${supabaseUrl}/rest/v1/professional_hours?tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}`,
         { method: "DELETE", headers },
       );
-      if (!del.ok) { alert("Error clearing old hours: " + (await del.text())); return; }
+      if (!del.ok) { alert(t("pro.clear_hours_error", { error: await del.text() })); return; }
       if (rows.length > 0) {
         const ins = await fetch(`${supabaseUrl}/rest/v1/professional_hours`, {
           method: "POST",
@@ -337,13 +341,13 @@ export default function ProfessionalPanel() {
             tenant_id: tenant.id,
           }))),
         });
-        if (!ins.ok) { alert("Error saving hours: " + (await ins.text())); return; }
+        if (!ins.ok) { alert(t("pro.save_hours_error", { error: await ins.text() })); return; }
       }
-      alert("Working hours saved successfully");
+      alert(t("pro.hours_saved"));
       await loadProfessionalHours();
     } catch (err) {
       console.error("[ProfessionalPanel] Error saving hours:", err);
-      alert("Unexpected error while saving hours");
+      alert(t("pro.hours_unexpected"));
     }
   };
 
@@ -360,7 +364,7 @@ export default function ProfessionalPanel() {
       `${supabaseUrl}/rest/v1/bookings?id=eq.${bookingId}&tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}`,
       { method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify(payload) },
     );
-    if (!response.ok) { alert("Error updating booking: " + (await response.text())); return false; }
+    if (!response.ok) { alert(t("pro.update_error", { error: await response.text() })); return false; }
     await loadBookings();
     return true;
   };
@@ -391,7 +395,7 @@ export default function ProfessionalPanel() {
       `${supabaseUrl}/rest/v1/bookings?id=eq.${selectedBooking.id}&tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}`,
       { method: "DELETE", headers },
     );
-    if (!response.ok) { alert("Error deleting booking: " + (await response.text())); return; }
+    if (!response.ok) { alert(t("owner.delete_error", { error: await response.text() })); return; }
     await loadBookings();
     setShowBookingDialog(false);
   };
@@ -444,21 +448,21 @@ export default function ProfessionalPanel() {
             </Typography>
             {professionalCode && (
               <Typography sx={{ color: colors.text.secondary, fontSize: 12 }}>
-                Code: {professionalCode}
+                {t("pro.code", { code: professionalCode })}
               </Typography>
             )}
           </Box>
         </Box>
 
         <Typography variant="h6" sx={{ color: colors.text.primary, fontWeight: 700, display: { xs: "none", sm: "block" } }}>
-          Professional Dashboard
+          {t("pro.dashboard")}
         </Typography>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <IconButton
             onClick={() => dispatch(toggleTheme())}
             sx={{ color: colors.text.primary, backgroundColor: colors.background.light, width: 38, height: 38 }}
-            aria-label="Toggle theme"
+            aria-label={t("common.toggle_theme")}
           >
             {mode === "dark" ? <Brightness7Icon fontSize="small" /> : <Brightness4Icon fontSize="small" />}
           </IconButton>
@@ -468,7 +472,7 @@ export default function ProfessionalPanel() {
             size="small"
             sx={{ borderRadius: "20px", borderColor: colors.error.main, color: colors.error.main, fontWeight: 600, textTransform: "none" }}
           >
-            Logout
+            {t("account.sign_out")}
           </Button>
         </Box>
       </Box>
@@ -477,12 +481,12 @@ export default function ProfessionalPanel() {
       <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pt: 3, pb: 1 }}>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(6, 1fr)" }, gap: 1.5 }}>
           {[
-            { label: "Total", value: stats.total, icon: <TrendingUpIcon />, color: colors.primary.main },
-            { label: "Upcoming", value: stats.upcoming, icon: <EventAvailableIcon />, color: "#2e7d32" },
-            { label: "Confirmed", value: stats.confirmed, icon: <CheckCircleIcon />, color: "#2e7d32" },
-            { label: "Pending", value: stats.pending, icon: <PendingIcon />, color: "#ed6c02" },
-            { label: "Completed", value: stats.completed, icon: <CalendarMonthIcon />, color: "#6366f1" },
-            { label: "Cancelled", value: stats.cancelled, icon: <CancelIcon />, color: "#f44336" },
+            { label: t("pro.total"), value: stats.total, icon: <TrendingUpIcon />, color: colors.primary.main },
+            { label: t("owner.upcoming"), value: stats.upcoming, icon: <EventAvailableIcon />, color: "#2e7d32" },
+            { label: t("status.confirmed"), value: stats.confirmed, icon: <CheckCircleIcon />, color: "#2e7d32" },
+            { label: t("status.pending"), value: stats.pending, icon: <PendingIcon />, color: "#ed6c02" },
+            { label: t("status.completed"), value: stats.completed, icon: <CalendarMonthIcon />, color: "#6366f1" },
+            { label: t("status.cancelled"), value: stats.cancelled, icon: <CancelIcon />, color: "#f44336" },
           ].map(({ label, value, icon, color }) => (
             <Box key={label} sx={{ ...cardSx, display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5, p: 2 }}>
               <Box sx={{ color, display: "flex" }}>{icon}</Box>
@@ -498,9 +502,9 @@ export default function ProfessionalPanel() {
       {/* Tabs */}
       <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, mt: 2, borderBottom: `1px solid ${colors.border.main}` }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
-          <Tab label="My Stats" sx={{ textTransform: "none", fontWeight: 600 }} />
-          <Tab label="My Bookings" sx={{ textTransform: "none", fontWeight: 600 }} />
-          <Tab label="My Schedule" sx={{ textTransform: "none", fontWeight: 600 }} />
+          <Tab label={t("pro.tab_stats")} sx={{ textTransform: "none", fontWeight: 600 }} />
+          <Tab label={t("pro.tab_bookings")} sx={{ textTransform: "none", fontWeight: 600 }} />
+          <Tab label={t("pro.tab_schedule")} sx={{ textTransform: "none", fontWeight: 600 }} />
         </Tabs>
       </Box>
 
@@ -518,13 +522,13 @@ export default function ProfessionalPanel() {
         {tab === 1 && (
           <Box>
             <Typography variant="h6" sx={{ color: colors.text.primary, fontWeight: 700, mb: 2 }}>
-              My Bookings
+              {t("pro.tab_bookings")}
             </Typography>
             {loadingData && <LoadingScreen variant="inline" />}
             {!loadingData && selectedBookings.length === 0 && (
               <Box sx={{ ...cardSx, textAlign: "center", py: 5 }}>
                 <CalendarMonthIcon sx={{ fontSize: 48, color: colors.text.secondary, mb: 1 }} />
-                <Typography sx={{ color: colors.text.secondary }}>No bookings assigned to you yet.</Typography>
+                <Typography sx={{ color: colors.text.secondary }}>{t("pro.no_bookings")}</Typography>
               </Box>
             )}
             <Box sx={{ display: "grid", gap: 1.5 }}>
@@ -545,19 +549,19 @@ export default function ProfessionalPanel() {
                     <Box sx={{ flex: 1 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
                         <Typography sx={{ color: colors.text.primary, fontWeight: 700, fontSize: 15 }}>
-                          {dayjs(booking.date).format("MMM DD, YYYY")}
+                          {dayjs(booking.date).locale(dayLocale).format("MMM DD, YYYY")}
                         </Typography>
                         <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>
                           {booking.start_time?.substring(0, 5)} – {booking.end_time?.substring(0, 5)}
                         </Typography>
                         <Chip
-                          label={s.label}
+                          label={t(`status.${booking.status}`, { defaultValue: s.label })}
                           size="small"
                           sx={{ backgroundColor: s.bg, color: s.color, fontWeight: 600, fontSize: 11, height: 22, borderRadius: "9999px" }}
                         />
                       </Box>
                       <Typography sx={{ color: colors.text.secondary, fontSize: 13 }}>
-                        {getServiceNames(booking.services)} · {booking.location === "your_place" ? "At Customer Place" : "At Our Place"}
+                        {getServiceNames(booking.services)} · {booking.location === "your_place" ? t("owner.at_customer_place") : t("booking.at_our_place")}
                       </Typography>
                     </Box>
                     <Button
@@ -566,7 +570,7 @@ export default function ProfessionalPanel() {
                       onClick={() => openBookingDialog(booking)}
                       sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600, whiteSpace: "nowrap" }}
                     >
-                      View Details
+                      {t("pro.view_details")}
                     </Button>
                   </Box>
                 );
@@ -579,10 +583,10 @@ export default function ProfessionalPanel() {
         {tab === 2 && (
           <Box>
             <Typography variant="h6" sx={{ color: colors.text.primary, fontWeight: 700, mb: 0.5 }}>
-              My Weekly Schedule
+              {t("pro.weekly_schedule")}
             </Typography>
             <Typography sx={{ color: colors.text.secondary, fontSize: 14, mb: 2 }}>
-              Set your working hours for each day of the week.
+              {t("pro.schedule_text")}
             </Typography>
 
             <Box sx={{ display: "grid", gap: 1.5 }}>
@@ -601,12 +605,12 @@ export default function ProfessionalPanel() {
                     }}
                   >
                     <Typography sx={{ color: colors.text.primary, fontWeight: 600, width: 90, flexShrink: 0 }}>
-                      {DAY_NAMES[dayOfWeek]}
+                      {t(`days.${DAY_NAMES[dayOfWeek]}`)}
                     </Typography>
                     {existing ? (
                       <>
                         <TextField
-                          label="Start"
+                          label={t("pro.start")}
                           type="time"
                           value={existing.start_time}
                           onChange={(e) => setHourValue(dayOfWeek, "start_time", e.target.value)}
@@ -615,7 +619,7 @@ export default function ProfessionalPanel() {
                           sx={{ width: 130 }}
                         />
                         <TextField
-                          label="End"
+                          label={t("pro.end")}
                           type="time"
                           value={existing.end_time}
                           onChange={(e) => setHourValue(dayOfWeek, "end_time", e.target.value)}
@@ -630,7 +634,7 @@ export default function ProfessionalPanel() {
                           onClick={() => removeWorkingDay(dayOfWeek)}
                           sx={{ borderRadius: "20px", textTransform: "none", ml: "auto" }}
                         >
-                          Remove
+                          {t("pro.remove")}
                         </Button>
                       </>
                     ) : (
@@ -640,7 +644,7 @@ export default function ProfessionalPanel() {
                         onClick={() => addWorkingDay(dayOfWeek)}
                         sx={{ borderRadius: "20px", textTransform: "none" }}
                       >
-                        Add hours
+                        {t("pro.add_hours")}
                       </Button>
                     )}
                   </Box>
@@ -654,7 +658,7 @@ export default function ProfessionalPanel() {
                 onClick={saveProfessionalHours}
                 sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600, px: 4 }}
               >
-                Save Schedule
+                {t("pro.save_schedule")}
               </Button>
             </Box>
           </Box>
@@ -664,12 +668,12 @@ export default function ProfessionalPanel() {
       {/* Booking detail dialog */}
       <Dialog open={showBookingDialog} onClose={() => setShowBookingDialog(false)} maxWidth="sm" fullWidth
         PaperProps={{ sx: { borderRadius: "15px" } }}>
-        <DialogTitle sx={{ fontWeight: 700 }}>Booking Details</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>{t("owner.booking_details")}</DialogTitle>
         <DialogContent>
           {selectedBooking && userProfile && (
             <Box sx={{ pt: 1 }}>
               <Typography variant="subtitle2" sx={{ color: colors.text.secondary, mb: 1, textTransform: "uppercase", fontSize: 11, letterSpacing: 1 }}>
-                Customer
+                {t("pro.customer")}
               </Typography>
               <Typography><strong>{userProfile.full_name}</strong></Typography>
               <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>{userProfile.email}</Typography>
@@ -678,21 +682,21 @@ export default function ProfessionalPanel() {
               <Divider sx={{ my: 2 }} />
 
               <Typography variant="subtitle2" sx={{ color: colors.text.secondary, mb: 1, textTransform: "uppercase", fontSize: 11, letterSpacing: 1 }}>
-                Appointment
+                {t("pro.appointment")}
               </Typography>
-              <Typography><strong>{dayjs(selectedBooking.date).format("MMMM DD, YYYY")}</strong></Typography>
+              <Typography><strong>{dayjs(selectedBooking.date).locale(dayLocale).format("MMMM DD, YYYY")}</strong></Typography>
               <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>
                 {selectedBooking.start_time?.substring(0, 5)} – {selectedBooking.end_time?.substring(0, 5)}
               </Typography>
               <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>
-                {selectedBooking.location === "your_place" ? "At Customer Place" : "At Our Place"}
+                {selectedBooking.location === "your_place" ? t("owner.at_customer_place") : t("booking.at_our_place")}
               </Typography>
               <Typography sx={{ color: colors.text.secondary, fontSize: 14 }}>
                 {getServiceNames(selectedBooking.services)}
               </Typography>
               <Box sx={{ mt: 1.5 }}>
                 <Chip
-                  label={STATUS_COLORS[selectedBooking.status]?.label ?? selectedBooking.status}
+                  label={t(`status.${selectedBooking.status}`, { defaultValue: selectedBooking.status })}
                   sx={{
                     backgroundColor: STATUS_COLORS[selectedBooking.status]?.bg ?? "#78716c",
                     color: "#fff",
@@ -709,31 +713,31 @@ export default function ProfessionalPanel() {
             <Button onClick={() => setShowActionConfirmDialog({ open: true, action: "confirm" })}
               variant="contained" color="success" size="small"
               sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600 }}>
-              Confirm
+              {t("common.confirm")}
             </Button>
           )}
           {selectedBooking && !["cancelled", "completed"].includes(selectedBooking.status) && (
             <Button onClick={() => setShowActionConfirmDialog({ open: true, action: "cancel" })}
               variant="outlined" color="warning" size="small"
               sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600 }}>
-              Decline
+              {t("pro.decline")}
             </Button>
           )}
           {selectedBooking?.status === "confirmed" && (
             <Button onClick={() => setShowActionConfirmDialog({ open: true, action: "complete" })}
               variant="contained" color="secondary" size="small"
               sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600 }}>
-              Mark Completed
+              {t("owner.mark_completed")}
             </Button>
           )}
           <Button onClick={() => setShowActionConfirmDialog({ open: true, action: "delete" })}
             variant="outlined" color="error" size="small"
             sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600, ml: "auto" }}>
-            Delete
+            {t("common.delete")}
           </Button>
           <Button onClick={() => setShowBookingDialog(false)} variant="outlined" size="small"
             sx={{ borderRadius: "20px", textTransform: "none" }}>
-            Close
+            {t("common.close")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -743,19 +747,19 @@ export default function ProfessionalPanel() {
         onClose={() => setShowActionConfirmDialog({ open: false, action: null })}
         maxWidth="xs" fullWidth
         PaperProps={{ sx: { borderRadius: "15px" } }}>
-        <DialogTitle sx={{ fontWeight: 700 }}>Confirm Action</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>{t("pro.confirm_action")}</DialogTitle>
         <DialogContent>
           <Typography>
-            {showActionConfirmDialog.action === "confirm" && "Confirm this pending booking?"}
-            {showActionConfirmDialog.action === "cancel" && "Decline / cancel this booking?"}
-            {showActionConfirmDialog.action === "complete" && "Mark this booking as completed?"}
-            {showActionConfirmDialog.action === "delete" && "Permanently delete this booking? This cannot be undone."}
+            {showActionConfirmDialog.action === "confirm" && t("pro.q_confirm")}
+            {showActionConfirmDialog.action === "cancel" && t("pro.q_cancel")}
+            {showActionConfirmDialog.action === "complete" && t("pro.q_complete")}
+            {showActionConfirmDialog.action === "delete" && t("pro.q_delete")}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => setShowActionConfirmDialog({ open: false, action: null })}
             variant="outlined" sx={{ borderRadius: "20px", textTransform: "none" }}>
-            No
+            {t("common.no")}
           </Button>
           <Button
             onClick={async () => {
@@ -767,7 +771,7 @@ export default function ProfessionalPanel() {
               else if (action === "delete") await handleDeleteBooking();
             }}
             variant="contained" color="error" sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600 }}>
-            Yes
+            {t("common.yes")}
           </Button>
         </DialogActions>
       </Dialog>

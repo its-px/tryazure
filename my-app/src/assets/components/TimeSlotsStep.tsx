@@ -1,5 +1,6 @@
 import { Box, Button, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { getAvailableSlots } from "./slotService";
 import { joinWaitlist } from "./waitlistService";
@@ -34,6 +35,7 @@ export default function TimeSlotsStep({
   userId,
 }: TimeSlotsStepProps) {
   const colors = useResolvedColors();
+  const { t } = useTranslation();
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [waitlisted, setWaitlisted] = useState(false);
@@ -90,15 +92,15 @@ export default function TimeSlotsStep({
   return (
     <Box sx={{ mt: 2 }}>
       <Box sx={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: colors.text.tertiary, mb: 1.5, px: { xs: 2, md: 3 } }}>
-        Available times · {selectedDate}
+        {t("timeslots.available", { date: selectedDate })}
       </Box>
 
       {slots.length === 0 ? (
         <Box sx={{ textAlign: "center", py: 3, color: colors.text.secondary, fontSize: 13, px: 2 }}>
-          <Box sx={{ mb: waitlisted ? 0 : 1.5 }}>No available slots for this date</Box>
+          <Box sx={{ mb: waitlisted ? 0 : 1.5 }}>{t("timeslots.none")}</Box>
           {serviceId && userId && tenantId && (
             waitlisted ? (
-              <Box sx={{ color: colors.accent.main, fontSize: 13 }}>You're on the waitlist — we'll email you if a slot opens up.</Box>
+              <Box sx={{ color: colors.accent.main, fontSize: 13 }}>{t("timeslots.waitlisted")}</Box>
             ) : (
               <Button
                 variant="outlined"
@@ -106,11 +108,11 @@ export default function TimeSlotsStep({
                 onClick={async () => {
                   const ok = await joinWaitlist(tenantId, userId, serviceId, professionalId, selectedDate || null);
                   if (ok) setWaitlisted(true);
-                  else alert("Couldn't join the waitlist, please try again.");
+                  else alert(t("timeslots.waitlist_error"));
                 }}
                 sx={{ borderColor: colors.accent.main, color: colors.accent.main }}
               >
-                Join Waitlist
+                {t("timeslots.join_waitlist")}
               </Button>
             )
           )}

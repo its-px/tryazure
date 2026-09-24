@@ -13,7 +13,7 @@ interface ServicesStepProps {
 export default function ServicesStep({ selectedServices, onServiceToggle }: ServicesStepProps) {
   const colors = useResolvedColors();
   const { tenant } = useTenantContext();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,17 +43,17 @@ export default function ServicesStep({ selectedServices, onServiceToggle }: Serv
     <Box sx={{ px: { xs: 2, md: 3 }, pb: 3 }}>
       <Box sx={{ mb: 3 }}>
         <Box sx={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: colors.accent.light, mb: 0.75 }}>
-          Step 2 of 5
+          {t("booking.step_of", { step: 2, total: 5 })}
         </Box>
         <Box sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 300, color: colors.text.primary, lineHeight: 1.2 }}>
-          <strong style={{ fontWeight: 700 }}>Pick Services</strong>
+          <strong style={{ fontWeight: 700 }}>{t("services_step.title")}</strong>
           <br />
-          <span style={{ fontSize: 14, color: colors.text.secondary }}>Select one or more services</span>
+          <span style={{ fontSize: 14, color: colors.text.secondary }}>{t("services_step.subtitle")}</span>
         </Box>
       </Box>
 
       {services.length === 0 ? (
-        <Box sx={{ textAlign: "center", py: 4, color: colors.text.secondary }}>No services available</Box>
+        <Box sx={{ textAlign: "center", py: 4, color: colors.text.secondary }}>{t("no_services")}</Box>
       ) : (
         services.map((service) => {
           const selected = selectedServices.includes(service.id);
@@ -98,7 +98,7 @@ export default function ServicesStep({ selectedServices, onServiceToggle }: Serv
                     {i18n.language?.startsWith("en") && service.name_en ? service.name_en : service.name}
                   </Box>
                     <Box sx={{ fontSize: 12, color: colors.text.secondary }}>
-                      {service.duration_minutes} min
+                      {t("common.minutes_short", { count: service.duration_minutes })}
                       {service.description ? ` · ${service.description}` : ""}
                     </Box>
                   </Box>
@@ -128,7 +128,7 @@ export default function ServicesStep({ selectedServices, onServiceToggle }: Serv
 
       {selectedServices.length > 0 && (
         <Box sx={{ mt: 1.5, fontSize: 12, color: colors.text.secondary, textAlign: "center" }}>
-          {selectedServices.length} service{selectedServices.length > 1 ? "s" : ""} selected
+          {t("services_step.selected_count", { count: selectedServices.length })}
         </Box>
       )}
     </Box>

@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { Box } from "@mui/material";
 import dayjs, { type Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
+import "dayjs/locale/el";
+import { useTranslation } from "react-i18next";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import type { ProfessionalOption } from "./professionalsService";
 
@@ -46,6 +48,12 @@ function parseTime(t: string | undefined): number {
 
 function fmt(n: number) { return String(n).padStart(2, "0"); }
 
+// Mon..Sun labels in the given dayjs locale ("dd" = short, "ddd" = medium).
+function weekdayLabels(locale: string, format: "dd" | "ddd") {
+  const monday = dayjs().startOf("isoWeek");
+  return Array.from({ length: 7 }, (_, i) => monday.add(i, "day").locale(locale).format(format));
+}
+
 function getServiceNames(services: string, map: Record<string, string>) {
   try {
     const ids = JSON.parse(services);
@@ -67,6 +75,8 @@ function MiniCalendar({
   markedDates: Set<string>;
   colors: ReturnType<typeof useResolvedColors>;
 }) {
+  const { i18n } = useTranslation();
+  const dayLocale = i18n.language === "gr" ? "el" : "en";
   const startOfMonth = focus.startOf("month");
   const startOfGrid = startOfMonth.startOf("isoWeek");
   const days: Dayjs[] = [];
@@ -84,7 +94,7 @@ function MiniCalendar({
           <span className="material-icons" style={{ fontSize: 16 }}>chevron_left</span>
         </Box>
         <Box sx={{ fontSize: 12, fontWeight: 600, color: colors.text.primary }}>
-          {focus.format("MMMM YYYY")}
+          {focus.locale(dayLocale).format("MMMM YYYY")}
         </Box>
         <Box
           component="button"
@@ -96,7 +106,7 @@ function MiniCalendar({
       </Box>
       {/* Day labels */}
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", mb: 0.5 }}>
-        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+        {(dayLocale === "en" ? ["M", "T", "W", "T", "F", "S", "S"] : weekdayLabels(dayLocale, "dd")).map((d, i) => (
           <Box key={i} sx={{ textAlign: "center", fontSize: 10, color: colors.text.tertiary, py: 0.25 }}>{d}</Box>
         ))}
       </Box>
@@ -191,6 +201,8 @@ function EventCard({
 
 export default function OwnerCalendar({ bookings, professionals, serviceMap, onBookingClick, onNewBooking }: OwnerCalendarProps) {
   const colors = useResolvedColors();
+  const { t, i18n } = useTranslation();
+  const dayLocale = i18n.language === "gr" ? "el" : "en";
   const [view, setView] = useState<CalendarView>("week");
   const [focus, setFocus] = useState<Dayjs>(dayjs());
   const [profFilter, setProfFilter] = useState<string>("all");
@@ -231,10 +243,10 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
 
   // Period label
   const periodLabel = view === "week"
-    ? `${focus.startOf("isoWeek").format("MMM D")} – ${focus.endOf("isoWeek").format("MMM D, YYYY")}`
+    ? `${focus.startOf("isoWeek").locale(dayLocale).format("MMM D")} – ${focus.endOf("isoWeek").locale(dayLocale).format("MMM D, YYYY")}`
     : view === "day"
-    ? focus.format("dddd, MMMM D, YYYY")
-    : focus.format("MMMM YYYY");
+    ? focus.locale(dayLocale).format("dddd, MMMM D, YYYY")
+    : focus.locale(dayLocale).format("MMMM YYYY");
 
   const navigate = (dir: 1 | -1) => {
     const unit = view === "day" ? "day" : view === "week" ? "week" : "month";
@@ -285,7 +297,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
           }}
         >
           <span className="material-icons" style={{ fontSize: 16 }}>add</span>
-          New Booking
+          {t("owner.new_booking")}
         </Box>
 
         {/* Mini calendar */}
@@ -293,9 +305,9 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
 
         {/* Upcoming */}
         <Box>
-          <Box sx={{ fontSize: 10, fontWeight: 700, color: colors.text.tertiary, textTransform: "uppercase", letterSpacing: "0.1em", mb: 1 }}>Upcoming</Box>
+          <Box sx={{ fontSize: 10, fontWeight: 700, color: colors.text.tertiary, textTransform: "uppercase", letterSpacing: "0.1em", mb: 1 }}>{t("calendar.upcoming")}</Box>
           {upcoming.length === 0 && (
-            <Box sx={{ fontSize: 12, color: colors.text.secondary }}>No upcoming bookings</Box>
+            <Box sx={{ fontSize: 12, color: colors.text.secondary }}>{t("calendar.no_upcoming")}</Box>
           )}
           {upcoming.map(b => (
             <Box
@@ -312,7 +324,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
                   {getServiceNames(b.services, serviceMap)}
                 </Box>
                 <Box sx={{ fontSize: 10, color: colors.text.secondary }}>
-                  {dayjs(b.date).format("MMM D")}{b.start_time ? ` · ${b.start_time.substring(0, 5)}` : ""}
+                  {dayjs(b.date).locale(dayLocale).format("MMM D")}{b.start_time ? ` · ${b.start_time.substring(0, 5)}` : ""}
                 </Box>
               </Box>
             </Box>
@@ -335,7 +347,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
               component="button"
               onClick={() => setFocus(dayjs())}
               sx={{ background: colors.background.card, border: `1px solid ${colors.border.main}`, borderRadius: "8px", px: 1.5, py: 0.6, fontSize: 12, fontWeight: 600, color: colors.text.primary, cursor: "pointer", "&:hover": { borderColor: colors.accent.main, color: colors.accent.light } }}
-            >Today</Box>
+            >{t("common.today")}</Box>
             <Box
               component="button"
               onClick={() => navigate(-1)}
@@ -359,7 +371,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
                 background: profFilter === "all" ? `${colors.accent.main}22` : "none",
                 color: profFilter === "all" ? colors.accent.light : colors.text.secondary,
               }}
-            >All</Box>
+            >{t("calendar.all")}</Box>
             {professionals.map((p, i) => {
               const c = PROF_COLORS[i % PROF_COLORS.length];
               const active = profFilter === p.code;
@@ -396,7 +408,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
                   color: view === v ? colors.text.primary : colors.text.secondary,
                   "&:hover": { color: colors.text.primary },
                 }}
-              >{v.charAt(0).toUpperCase() + v.slice(1)}</Box>
+              >{t(`calendar.view_${v}`)}</Box>
             ))}
           </Box>
         </Box>
@@ -405,7 +417,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
         {view === "month" && (
           <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
             <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", mb: 0.5 }}>
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+              {weekdayLabels(dayLocale, "ddd").map(d => (
                 <Box key={d} sx={{ textAlign: "center", fontSize: 11, fontWeight: 600, color: colors.text.tertiary, py: 0.75 }}>{d}</Box>
               ))}
             </Box>
@@ -445,7 +457,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
                       </Box>
                     ))}
                     {dayBookings.length > 3 && (
-                      <Box sx={{ fontSize: 9, color: colors.text.tertiary }}>+{dayBookings.length - 3} more</Box>
+                      <Box sx={{ fontSize: 9, color: colors.text.tertiary }}>{t("calendar.more", { count: dayBookings.length - 3 })}</Box>
                     )}
                   </Box>
                 );
@@ -465,7 +477,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
                 const isToday = str === today;
                 return (
                   <Box key={str} onClick={() => { setFocus(d); setView("day"); }} sx={{ flex: 1, textAlign: "center", py: 1, cursor: "pointer", "&:hover": { background: colors.background.card } }}>
-                    <Box sx={{ fontSize: 10, color: colors.text.secondary }}>{d.format("ddd")}</Box>
+                    <Box sx={{ fontSize: 10, color: colors.text.secondary }}>{d.locale(dayLocale).format("ddd")}</Box>
                     <Box sx={{
                       fontSize: 16, fontWeight: 700, mx: "auto", width: 28, height: 28, borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -523,7 +535,7 @@ export default function OwnerCalendar({ bookings, professionals, serviceMap, onB
             {/* Day header */}
             <Box sx={{ borderBottom: `1px solid ${colors.border.main}`, flexShrink: 0, px: 2, py: 1 }}>
               <Box sx={{ fontSize: 13, fontWeight: 700, color: focus.format("YYYY-MM-DD") === today ? colors.accent.light : colors.text.primary }}>
-                {focus.format("dddd, MMMM D")}
+                {focus.locale(dayLocale).format("dddd, MMMM D")}
               </Box>
             </Box>
             <Box sx={{ flex: 1, overflowY: "auto", display: "flex" }}>

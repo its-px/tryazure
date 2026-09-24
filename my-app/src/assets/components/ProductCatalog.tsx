@@ -4,6 +4,7 @@ import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { supabase } from "./supabaseClient";
 import type { Product } from "./productsService";
 import PhotoUploadField from "./PhotoUploadField";
+import { useTranslation } from "react-i18next";
 
 interface ProductCatalogProps {
   tenantId: string;
@@ -16,6 +17,7 @@ const emptyForm = { name: "", price: "", replenish_days: "", active: true };
 // pattern introduced.
 export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
   const colors = useResolvedColors();
+  const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -89,16 +91,16 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.75 }}>
-        <Box sx={{ fontSize: 16, fontWeight: 700 }}>Product Catalog</Box>
+        <Box sx={{ fontSize: 16, fontWeight: 700 }}>{t("products.title")}</Box>
         <Button variant="contained" size="small" onClick={openNew} sx={{ backgroundColor: colors.accent.main }}>
-          Add Product
+          {t("products.add")}
         </Button>
       </Box>
 
       <Box sx={{ background: colors.background.medium, borderRadius: "10px", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.10)" }}>
         {products.length === 0 && (
           <Box sx={{ p: 3, textAlign: "center", color: colors.text.tertiary, fontSize: 13 }}>
-            No products yet
+            {t("products.none")}
           </Box>
         )}
         {products.map((p) => (
@@ -115,12 +117,12 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
           >
             <span>{p.name}</span>
             <span>€{p.price}</span>
-            <span>{p.replenish_days ? `${p.replenish_days}d replenish` : "—"}</span>
-            <span>{p.active ? "Active" : "Inactive"}</span>
+            <span>{p.replenish_days ? t("products.replenish_short", { days: p.replenish_days }) : "—"}</span>
+            <span>{p.active ? t("products.active") : t("products.inactive")}</span>
             <Box sx={{ display: "flex", gap: 1 }}>
-              <Button size="small" onClick={() => openEdit(p)}>Edit</Button>
+              <Button size="small" onClick={() => openEdit(p)}>{t("common.edit")}</Button>
               <Button size="small" onClick={() => toggleActive(p)}>
-                {p.active ? "Deactivate" : "Activate"}
+                {p.active ? t("products.deactivate") : t("products.activate")}
               </Button>
             </Box>
           </Box>
@@ -128,7 +130,7 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
       </Box>
 
       <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingId ? "Edit Product" : "Add Product"}</DialogTitle>
+        <DialogTitle>{editingId ? t("products.edit") : t("products.add")}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
           {editingId && (
             <PhotoUploadField
@@ -141,22 +143,22 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
             />
           )}
           <TextField
-            label="Name"
+            label={t("staff.name")}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             fullWidth
           />
           <TextField
-            label="Price"
+            label={t("products.price")}
             type="number"
             value={form.price}
             onChange={(e) => setForm({ ...form, price: e.target.value })}
             fullWidth
           />
           <TextField
-            label="Replenish after (days)"
+            label={t("products.replenish_label")}
             type="number"
-            helperText="Typical days until a customer needs to rebuy. Leave blank for no replenishment SMS."
+            helperText={t("products.replenish_help")}
             value={form.replenish_days}
             onChange={(e) => setForm({ ...form, replenish_days: e.target.value })}
             fullWidth
@@ -168,13 +170,13 @@ export default function ProductCatalog({ tenantId }: ProductCatalogProps) {
                 onChange={(e) => setForm({ ...form, active: e.target.checked })}
               />
             }
-            label="Active"
+            label={t("products.active")}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDialog}>{editingId ? "Close" : "Cancel"}</Button>
+          <Button onClick={closeDialog}>{editingId ? t("common.close") : t("common.cancel")}</Button>
           <Button variant="contained" onClick={save} disabled={!form.name}>
-            Save
+            {t("common.save")}
           </Button>
         </DialogActions>
       </Dialog>

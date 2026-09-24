@@ -38,7 +38,7 @@ describe("CompleteProfileModal", () => {
     expect(screen.getByText("Complete Your Profile")).toBeInTheDocument();
   });
 
-  it("disables submit until both name and phone are filled", async () => {
+  it("disables submit until name, phone and terms acceptance are filled", async () => {
     render(<CompleteProfileModal open onClose={() => {}} />);
     const btn = screen.getByRole("button", { name: "Complete Profile" });
     expect(btn).toBeDisabled();
@@ -46,6 +46,8 @@ describe("CompleteProfileModal", () => {
     await userEvent.type(screen.getByLabelText(/Full Name/), "Jo");
     expect(btn).toBeDisabled(); // phone still empty
     await userEvent.type(screen.getByLabelText(/Phone/), "123456789");
+    expect(btn).toBeDisabled(); // terms not accepted
+    await userEvent.click(screen.getAllByRole("checkbox")[0]);
     expect(btn).toBeEnabled();
   });
 
@@ -61,6 +63,7 @@ describe("CompleteProfileModal", () => {
     render(<CompleteProfileModal open onClose={() => {}} />);
     await userEvent.type(screen.getByLabelText(/Full Name/), "Jo Doe");
     await userEvent.type(screen.getByLabelText(/Phone/), "123456789");
+    await userEvent.click(screen.getAllByRole("checkbox")[0]);
     await userEvent.click(screen.getByRole("button", { name: "Complete Profile" }));
 
     expect(getUser).toHaveBeenCalled();
@@ -69,6 +72,9 @@ describe("CompleteProfileModal", () => {
         data: expect.objectContaining({ full_name: "Jo Doe", phone: "123456789" }),
       }),
     );
-    expect(upsert).toHaveBeenCalled();
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ terms_accepted_at: expect.any(String), marketing_opt_out: false }),
+      expect.anything(),
+    );
   });
 });

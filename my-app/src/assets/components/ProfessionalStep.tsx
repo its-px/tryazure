@@ -1,5 +1,7 @@
 import { Avatar, Box } from "@mui/material";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { getNextAvailableSlot, type ProfessionalOption } from "./professionalsService";
 
@@ -11,15 +13,15 @@ interface ProfessionalStepProps {
 }
 
 // "Today 3:00 PM" / "Tomorrow 10:00 AM" / "Mon 9:00 AM"
-function formatNextSlot(date: string, startTime: string): string {
+function formatNextSlot(date: string, startTime: string, t: TFunction, locale: string): string {
   const slotDate = new Date(`${date}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const dayDiff = Math.round((slotDate.getTime() - today.getTime()) / 86400000);
   const dayLabel =
-    dayDiff === 0 ? "Today" : dayDiff === 1 ? "Tomorrow" : slotDate.toLocaleDateString(undefined, { weekday: "short" });
+    dayDiff === 0 ? t("common.today") : dayDiff === 1 ? t("common.tomorrow") : slotDate.toLocaleDateString(locale, { weekday: "short" });
   const [h, m] = startTime.split(":").map(Number);
-  const timeLabel = new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const timeLabel = new Date(2000, 0, 1, h, m).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
   return `${dayLabel} ${timeLabel}`;
 }
 
@@ -39,6 +41,8 @@ export default function ProfessionalStep({
   serviceDuration = 0,
 }: ProfessionalStepProps) {
   const colors = useResolvedColors();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === "gr" ? "el-GR" : "en-GB";
   const [nextSlots, setNextSlots] = useState<Record<string, { date: string; start_time: string } | null>>({});
 
   useEffect(() => {
@@ -66,18 +70,18 @@ export default function ProfessionalStep({
     <Box sx={{ px: { xs: 2, md: 3 }, pb: 3 }}>
       <Box sx={{ mb: 3 }}>
         <Box sx={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: colors.accent.light, mb: 0.75 }}>
-          Step 3 of 5
+          {t("booking.step_of", { step: 3, total: 5 })}
         </Box>
         <Box sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 300, color: colors.text.primary, lineHeight: 1.2 }}>
-          <strong style={{ fontWeight: 700 }}>Select Professional</strong>
+          <strong style={{ fontWeight: 700 }}>{t("professional_step.title")}</strong>
           <br />
-          <span style={{ fontSize: 14, color: colors.text.secondary }}>Who would you like to book with?</span>
+          <span style={{ fontSize: 14, color: colors.text.secondary }}>{t("professional_step.subtitle")}</span>
         </Box>
       </Box>
 
       {professionals.length === 0 && (
         <Box sx={{ color: colors.text.secondary, py: 4, textAlign: "center" }}>
-          No professionals available for this tenant.
+          {t("professional_step.none")}
         </Box>
       )}
 
@@ -121,9 +125,9 @@ export default function ProfessionalStep({
               <span className="material-icons" style={{ fontSize: 20 }}>groups</span>
             </Avatar>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary }}>Any professional</Box>
+              <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary }}>{t("booking.any_professional")}</Box>
               <Box sx={{ fontSize: 12, color: colors.text.secondary, mt: 0.25 }}>
-                {earliestAny ? `Next: ${formatNextSlot(earliestAny.date, earliestAny.start_time)}` : "We'll assign the first available one"}
+                {earliestAny ? t("professional_step.next", { slot: formatNextSlot(earliestAny.date, earliestAny.start_time, t, locale) }) : t("professional_step.assign_first")}
               </Box>
             </Box>
             <Box
@@ -190,7 +194,7 @@ export default function ProfessionalStep({
                 <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary }}>{professional.name}</Box>
                 {nextSlots[professional.code] && (
                   <Box sx={{ fontSize: 12, color: colors.text.secondary, mt: 0.25 }}>
-                    Next: {formatNextSlot(nextSlots[professional.code]!.date, nextSlots[professional.code]!.start_time)}
+                    {t("professional_step.next", { slot: formatNextSlot(nextSlots[professional.code]!.date, nextSlots[professional.code]!.start_time, t, locale) })}
                   </Box>
                 )}
               </Box>

@@ -4,3 +4,4 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Permissions-Policy: geolocation=(self), camera=(), microphone=()
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://client.crisp.chat https://eu-assets.i.posthog.com; style-src 'self' 'unsafe-inline' https://client.crisp.chat; img-src 'self' data: blob: https:; font-src 'self' https://client.crisp.chat; connect-src 'self' https://qrvxmqksekxbtipdnfru.supabase.co wss://qrvxmqksekxbtipdnfru.supabase.co https://eu.i.posthog.com https://eu-assets.i.posthog.com https://*.crisp.chat wss://client.relay.crisp.chat https://*.ingest.de.sentry.io; frame-src https://www.google.com https://game.crisp.chat; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'

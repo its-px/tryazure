@@ -8,6 +8,12 @@ const UserPanel = lazy(() => import("./assets/pages/UserPanel"));
 const OwnerPanel = lazy(() => import("./assets/pages/OwnerPanel"));
 const ProfessionalPanel = lazy(() => import("./assets/pages/ProfessionalPanel.tsx"));
 const LandingPage = lazy(() => import("./assets/pages/LandingPage"));
+const LegalPage = lazy(() => import("./components/LegalPage"));
+const UnsubscribePage = lazy(() => import("./components/UnsubscribePage"));
+const SignupPage = lazy(() => import("./assets/pages/SignupPage"));
+const OwnerSignIn = lazy(() =>
+  import("./assets/pages/SignupPage").then((m) => ({ default: m.OwnerSignIn })),
+);
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
 import LoadingScreen from "./assets/components/LoadingScreen";
@@ -262,16 +268,21 @@ function App() {
           <Route
             path="/owner"
             element={
-              <ProtectedRoute
-                session={session}
-                role={role}
-                allowedRoles={["owner"]}
-                loading={loading}
-              >
-                <OwnerPanel />
-              </ProtectedRoute>
+              !loading && !session ? (
+                <OwnerSignIn businessName={tenant?.name} />
+              ) : (
+                <ProtectedRoute
+                  session={session}
+                  role={role}
+                  allowedRoles={["owner"]}
+                  loading={loading}
+                >
+                  <OwnerPanel />
+                </ProtectedRoute>
+              )
             }
           />
+          <Route path="/signup" element={<SignupPage session={session} role={role} />} />
           <Route
             path="/professional"
             element={
@@ -289,8 +300,20 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* Optional: fallback route */}
-          {/* <Route path="*" element={<NotFoundPage />} /> */}
+          {(["privacy", "terms", "cookies", "imprint"] as const).map((doc) => (
+            <Route key={doc} path={`/${doc}`} element={<LegalPage doc={doc} />} />
+          ))}
+          <Route path="/unsubscribe" element={<UnsubscribePage />} />
+          <Route
+            path="*"
+            element={
+              <Box sx={{ textAlign: "center", py: 10 }}>
+                <h1>404</h1>
+                <p>{i18n.t("legal.not_found")}</p>
+                <a href="/">{i18n.t("legal.home")}</a>
+              </Box>
+            }
+          />
         </Routes>
         </Suspense>
         <CompleteProfileModal

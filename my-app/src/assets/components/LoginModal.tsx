@@ -15,6 +15,7 @@ import { supabase } from "./supabaseClient";
 import { getCommonStyles } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import validator from "validator";
+import { useTranslation } from "react-i18next";
 
 // const debugBreak = () => {
 //   if (import.meta.env.MODE === "development") debugger;
@@ -27,6 +28,7 @@ interface LoginModalProps {
 
 export default function LoginModal({ open, onClose }: LoginModalProps) {
   const colors = useResolvedColors();
+  const { t } = useTranslation();
   const common = getCommonStyles(colors);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState("");
@@ -58,7 +60,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
       // The OAuth callback will be handled in App.tsx
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
-      alert("Error with Google login: " + msg);
+      alert(t("login.google_error", { error: msg }));
     }
   };
 
@@ -66,27 +68,27 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
   const handleEmailAuth = async () => {
     // Validation
     if (!email.trim() || !password.trim()) {
-      alert("Email and password are required");
+      alert(t("login.email_password_required"));
       return;
     }
 
     if (isSignUp) {
       if (!fullName.trim()) {
-        alert("Full name is required");
+        alert(t("login.name_required"));
         return;
       }
       if (!phone.trim()) {
-        alert("Phone number is required");
+        alert(t("login.phone_required"));
         return;
       }
       if (password.length < 6) {
-        alert("Password must be at least 6 characters");
+        alert(t("login.password_min"));
         return;
       }
 
       const trimmedEmail = email.trim();
       if (!validator.isEmail(trimmedEmail)) {
-        alert("Invalid email format");
+        alert(t("login.invalid_email"));
         return;
       }
 
@@ -100,7 +102,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
       ];
       const domain = trimmedEmail.split("@")[1]?.toLowerCase();
       if (!allowedDomains.includes(domain)) {
-        alert("Only common email domains allowed");
+        alert(t("login.domain_not_allowed"));
         return;
       }
     }
@@ -151,7 +153,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           );
         }
 
-        alert("Account created! Check your email for confirmation.");
+        alert(t("login.account_created"));
         resetForm();
         onClose();
         // Don't navigate after sign up - let user stay on current page
@@ -235,7 +237,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
       }
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
-      alert("Error: " + msg);
+      alert(t("common.error_detail", { error: msg }));
     } finally {
       setLoading(false);
     }
@@ -244,13 +246,13 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
   // ----- FORGOT PASSWORD -----
   const handleForgotPassword = async () => {
     if (!email.trim()) {
-      alert("Please enter your email address");
+      alert(t("login.enter_email"));
       return;
     }
 
     const trimmedEmail = email.trim();
     if (!validator.isEmail(trimmedEmail)) {
-      alert("Invalid email format");
+      alert(t("login.invalid_email"));
       return;
     }
 
@@ -267,10 +269,10 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
       if (error) throw error;
 
       setResetEmailSent(true);
-      alert("Password reset email sent! Check your inbox.");
+      alert(t("login.reset_sent_alert"));
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
-      alert("Error sending reset email: " + msg);
+      alert(t("login.reset_error", { error: msg }));
     } finally {
       setLoading(false);
     }
@@ -349,7 +351,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         </Box>
 
         <Typography variant="h4" textAlign="center" mb={2}>
-          {isSignUp ? "Sign Up" : "Login"}
+          {isSignUp ? t("login.sign_up") : t("login.login")}
         </Typography>
         <Typography
           variant="body1"
@@ -358,8 +360,8 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
           color={colors.text.secondary}
         >
           {isSignUp
-            ? "Create your account to start booking"
-            : "In order to see your user history you have to login first."}
+            ? t("login.signup_subtitle")
+            : t("login.login_subtitle")}
         </Typography>
 
         {!showEmailForm ? (
@@ -380,7 +382,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                 },
               }}
             >
-              CONTINUE WITH GOOGLE
+              {t("login.continue_google")}
             </Button>
 
             <Button
@@ -396,7 +398,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                 "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" },
               }}
             >
-              CONTINUE WITH EMAIL
+              {t("login.continue_email")}
             </Button>
           </>
         ) : (
@@ -405,7 +407,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
               <>
                 <TextField
                   fullWidth
-                  label="Full Name *"
+                  label={`${t("account.full_name")} *`}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
@@ -413,7 +415,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                 />
                 <TextField
                   fullWidth
-                  label="Phone Number *"
+                  label={`${t("account.phone")} *`}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required
@@ -423,7 +425,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
             )}
             <TextField
               fullWidth
-              label="Email *"
+              label={`${t("login.email")} *`}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -433,12 +435,12 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
             {!showForgotPassword && (
               <TextField
                 fullWidth
-                label="Password *"
+                label={`${t("login.password")} *`}
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                helperText={isSignUp ? "Minimum 6 characters" : ""}
+                helperText={isSignUp ? t("login.min_chars") : ""}
                 sx={{
                   ...textFieldStyle,
                   "& .MuiFormHelperText-root": { color: colors.text.secondary },
@@ -462,8 +464,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                       color={colors.text.primary}
                       textAlign="center"
                     >
-                      Password reset email sent! Check your inbox and follow the
-                      instructions.
+                      {t("login.reset_sent")}
                     </Typography>
                   </Box>
                 ) : (
@@ -484,7 +485,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                         },
                       }}
                     >
-                      {loading ? "Sending..." : "Send Reset Email"}
+                      {loading ? t("login.sending") : t("login.send_reset")}
                     </Button>
                     <Button
                       fullWidth
@@ -492,7 +493,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                       onClick={() => setShowForgotPassword(false)}
                       sx={{ mb: 2, color: colors.text.secondary }}
                     >
-                      Back to Sign In
+                      {t("login.back_to_sign_in")}
                     </Button>
                   </>
                 )}
@@ -516,10 +517,10 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                   }}
                 >
                   {loading
-                    ? "Loading..."
+                    ? t("common.loading")
                     : isSignUp
-                      ? "Create Account"
-                      : "Sign In"}
+                      ? t("login.create_account")
+                      : t("login.sign_in")}
                 </Button>
                 {!isSignUp && (
                   <Button
@@ -532,7 +533,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                       fontSize: "0.875rem",
                     }}
                   >
-                    Forgot Password?
+                    {t("login.forgot")}
                   </Button>
                 )}
               </>
@@ -545,8 +546,8 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
               sx={{ color: colors.accent.main, mb: 2 }}
             >
               {isSignUp
-                ? "Already have an account? Sign In"
-                : "Don't have an account? Sign Up"}
+                ? t("login.have_account")
+                : t("login.no_account")}
             </Button>
 
             <Button
@@ -555,7 +556,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
               onClick={resetForm}
               sx={{ color: colors.text.secondary }}
             >
-              Back to login options
+              {t("login.back_to_options")}
             </Button>
           </>
         )}
@@ -568,7 +569,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
               mb={2}
               color={colors.text.secondary}
             >
-              No profile yet?
+              {t("login.no_profile")}
             </Typography>
             <Box display="flex" justifyContent="center">
               <Button
@@ -583,7 +584,7 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
                   "&:hover": { backgroundColor: colors.accent.hover },
                 }}
               >
-                Create new profile
+                {t("login.create_profile")}
               </Button>
             </Box>
           </>

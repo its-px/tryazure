@@ -5,6 +5,9 @@
 // What it does:
 //   1. Expires pending bookings where confirmation_deadline has passed (8h before start)
 //   2. Marks confirmed bookings as completed when their end_time has passed
+//   3. Cancels card bookings still unpaid 60 min after creation (frees the slot)
+//   4. Data retention (stated in the privacy policy): deletes SMS logs older
+//      than 12 months and unlinks bookings older than 5 years from the person
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -62,11 +65,49 @@ Deno.serve(async (req) => {
       console.log(`Completed ${completedResult} past bookings`);
     }
 
+    // --- 3. Cancel abandoned card payments ---
+    // booking-payment only opens checkout within 30 min of booking and sessions
+    // expire 30 min later, so after 60 min no payment can still land.
+    // created_at is timestamp without time zone (UTC), hence no "Z".
+    const unpaidCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString().slice(0, 19);
+    const { data: abandoned, error: abandonError } = await supabase
+      .from("bookings")
+      .update({ status: "cancelled" })
+      .eq("payment_method", "card")
+      .eq("payment_status", "unpaid")
+      .in("status", ["pending", "confirmed"])
+      .lt("created_at", unpaidCutoff)
+      .select("id");
+    if (abandonError) {
+      console.error("Error cancelling unpaid card bookings:", abandonError);
+    } else {
+      console.log(`Cancelled ${abandoned?.length ?? 0} unpaid card bookings`);
+    }
+
+    // --- 4. Retention ---
+    const monthsAgo = (m: number) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - m);
+      return d;
+    };
+    const { error: smsRetentionError } = await supabase
+      .from("sms_logs")
+      .delete()
+      .lt("created_at", monthsAgo(12).toISOString());
+    if (smsRetentionError) console.error("SMS log retention failed:", smsRetentionError);
+    const { error: bookingRetentionError } = await supabase
+      .from("bookings")
+      .update({ user_id: null })
+      .lt("date", monthsAgo(60).toISOString().slice(0, 10))
+      .not("user_id", "is", null);
+    if (bookingRetentionError) console.error("Booking retention failed:", bookingRetentionError);
+
     return new Response(
       JSON.stringify({
         success: true,
         expired: expiredResult ?? 0,
         completed: completedResult ?? 0,
+        cancelledUnpaid: abandoned?.length ?? 0,
         timestamp: new Date().toISOString(),
       }),
       {
