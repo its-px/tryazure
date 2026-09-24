@@ -23,9 +23,13 @@ interface TimeSlotsStepProps {
   userId?: string | null;
 }
 
+// Stable default: a fresh `[]` per render is a new effect dependency every
+// render, which re-ran the slot fetch in an infinite loop.
+const NO_PROFESSIONALS: ProfessionalOption[] = [];
+
 export default function TimeSlotsStep({
   professionalId,
-  professionals = [],
+  professionals = NO_PROFESSIONALS,
   tenantId,
   selectedDate,
   serviceDuration,

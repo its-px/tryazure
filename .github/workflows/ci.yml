@@ -23,3 +23,31 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: my-app
+    env:
+      # The app needs a Supabase URL to start; every request to it is mocked
+      # in e2e/mockBackend.ts, so no real key is used.
+      VITE_SUPABASE_URL: https://qrvxmqksekxbtipdnfru.supabase.co
+      VITE_SUPABASE_ANON_KEY: e2e-dummy-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: my-app/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: my-app/test-results/
+          retention-days: 7

@@ -96,3 +96,6 @@ $RECYCLE.BIN/
 .netlify
 
 export
+# Playwright
+my-app/test-results/
+my-app/playwright-report/
