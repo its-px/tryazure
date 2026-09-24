@@ -7,7 +7,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 // @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // @ts-ignore - relative Deno import
-import { sendEmail } from "../_shared/sendEmail.ts";
+import { sendEmail, unsubscribePageUrl } from "../_shared/sendEmail.ts";
 
 declare const Deno: {
   env: {
@@ -44,7 +44,7 @@ serve(async (req: Request) => {
     const { data: history, error: historyError } = await supabase
       .from("booking_status_history")
       .select(
-        "booking_id, changed_at, bookings!inner(id, tenant_id, user_id, status, review_requested_at, tenants!inner(name, config))",
+        "booking_id, changed_at, bookings!inner(id, tenant_id, user_id, status, review_requested_at, tenants!inner(name, config, domain))",
       )
       .eq("new_status", "completed")
       .lte("changed_at", twoHoursAgo);
@@ -67,7 +67,7 @@ serve(async (req: Request) => {
         user_id: string;
         status: string;
         review_requested_at: string | null;
-        tenants: { name: string; config: Record<string, unknown> };
+        tenants: { name: string; config: Record<string, unknown>; domain: string | null };
       };
 
       if (
@@ -85,12 +85,16 @@ serve(async (req: Request) => {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("email, full_name")
+        .select("email, full_name, marketing_opt_out, unsubscribe_token")
         .eq("id", booking.user_id)
         .single();
 
       if (profileError || !profile?.email) {
         results.push({ booking_id: booking.id, status: "no_email" });
+        continue;
+      }
+      if (profile.marketing_opt_out) {
+        results.push({ booking_id: booking.id, status: "opted_out" });
         continue;
       }
 
@@ -105,6 +109,10 @@ serve(async (req: Request) => {
           bodyText: `Thanks for visiting ${tenantName}! If you have a minute, a quick review helps us a lot.`,
           ctaLabel: "Leave a Review",
           ctaUrl: reviewUrl,
+          unsubscribe: {
+            token: profile.unsubscribe_token,
+            pageUrl: unsubscribePageUrl(booking.tenants, profile.unsubscribe_token),
+          },
         },
       );
 

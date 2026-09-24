@@ -9,6 +9,8 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 // @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { isReplenishmentDue } from "./replenishment.ts";
+// @ts-ignore - relative Deno import
+import { unsubscribePageUrl } from "../_shared/sendEmail.ts";
 
 declare const Deno: {
   env: {
@@ -54,7 +56,7 @@ serve(async (req: Request) => {
     const { data: purchases, error: purchasesError } = await supabase
       .from("booking_products")
       .select(
-        "id, booking_id, purchased_at, quantity, replenishment_sent_at, products!inner(name, replenish_days), bookings!inner(user_id, tenant_id)",
+        "id, booking_id, purchased_at, quantity, replenishment_sent_at, products!inner(name, replenish_days), bookings!inner(user_id, tenant_id, tenants!inner(domain))",
       )
       .is("replenishment_sent_at", null)
       .not("products.replenish_days", "is", null);
@@ -72,14 +74,18 @@ serve(async (req: Request) => {
 
     for (const row of purchases || []) {
       const product = row.products as { name: string; replenish_days: number };
-      const booking = row.bookings as { user_id: string; tenant_id: string };
+      const booking = row.bookings as {
+        user_id: string;
+        tenant_id: string;
+        tenants: { domain: string | null };
+      };
       const purchasedAt = new Date(row.purchased_at as string);
 
       if (!isReplenishmentDue(purchasedAt, product.replenish_days)) continue;
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("phone")
+        .select("phone, marketing_opt_out, unsubscribe_token")
         .eq("id", booking.user_id)
         .single();
 
@@ -87,11 +93,16 @@ serve(async (req: Request) => {
         results.push({ id: row.id, status: "no_phone" });
         continue;
       }
+      if (profile.marketing_opt_out) {
+        results.push({ id: row.id, status: "opted_out" });
+        continue;
+      }
 
       let formattedPhone = String(profile.phone).replace(/\D/g, "");
       if (!formattedPhone.startsWith("30")) formattedPhone = "30" + formattedPhone;
 
-      const message = `Time to restock your ${product.name}? Book again to pick up more. Thank you!`;
+      // Marketing SMS must carry an opt-out (Law 3471/2006 art. 11).
+      const message = `Time to restock your ${product.name}? Book again to pick up more. Thank you! Stop: ${unsubscribePageUrl(booking.tenants, profile.unsubscribe_token)}`;
 
       const gatewayResponse = await fetch("https://gatewayapi.com/rest/mtsms", {
         method: "POST",

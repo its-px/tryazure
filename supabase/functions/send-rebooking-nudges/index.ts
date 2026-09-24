@@ -7,7 +7,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 // @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // @ts-ignore - relative Deno import
-import { sendEmail, tenantBookingUrl } from "../_shared/sendEmail.ts";
+import { sendEmail, tenantBookingUrl, unsubscribePageUrl } from "../_shared/sendEmail.ts";
 
 declare const Deno: {
   env: {
@@ -159,12 +159,16 @@ serve(async (req: Request) => {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("email, full_name")
+        .select("email, full_name, marketing_opt_out, unsubscribe_token")
         .eq("id", booking.user_id)
         .single();
 
       if (profileError || !profile?.email) {
         results.push({ booking_id: booking.id, status: "no_email" });
+        continue;
+      }
+      if (profile.marketing_opt_out) {
+        results.push({ booking_id: booking.id, status: "opted_out" });
         continue;
       }
 
@@ -179,6 +183,10 @@ serve(async (req: Request) => {
           bodyText: `It's been a while since your last visit to ${tenantName}. We'd love to see you again!`,
           ctaLabel: "Book Again",
           ctaUrl: tenantBookingUrl(booking.tenants),
+          unsubscribe: {
+            token: profile.unsubscribe_token,
+            pageUrl: unsubscribePageUrl(booking.tenants, profile.unsubscribe_token),
+          },
         },
       );
 

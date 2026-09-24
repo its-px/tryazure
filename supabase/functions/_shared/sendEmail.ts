@@ -19,12 +19,27 @@ export function tenantBookingUrl(tenant: { domain?: string | null } | null): str
   return tenant?.domain ? `https://${tenant.domain}` : "https://pxbs.site";
 }
 
+/** App page that confirms a marketing opt-out (see unsubscribe edge function). */
+export function unsubscribePageUrl(tenant: { domain?: string | null } | null, token: string): string {
+  return `${tenantBookingUrl(tenant)}/unsubscribe?t=${encodeURIComponent(token)}`;
+}
+
 export async function sendEmail(
   resendApiKey: string,
   to: string,
   subject: string,
-  opts: { greetingName: string; bodyText: string; ctaLabel: string; ctaUrl: string },
+  opts: {
+    greetingName: string;
+    bodyText: string;
+    ctaLabel: string;
+    ctaUrl: string;
+    // Marketing emails must carry a one-click opt-out (Law 3471/2006 art. 11).
+    unsubscribe?: { token: string; pageUrl: string };
+  },
 ): Promise<boolean> {
+  const unsub = opts.unsubscribe;
+  // @ts-ignore - Deno global at runtime
+  const fnUrl = unsub ? `${Deno.env.get("SUPABASE_URL")}/functions/v1/unsubscribe?t=${encodeURIComponent(unsub.token)}` : "";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -35,6 +50,14 @@ export async function sendEmail(
       from: FROM,
       to,
       subject,
+      ...(unsub
+        ? {
+            headers: {
+              "List-Unsubscribe": `<${fnUrl}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+          }
+        : {}),
       html: `
         <!DOCTYPE html>
         <html>
@@ -46,6 +69,7 @@ export async function sendEmail(
                 <a href="${opts.ctaUrl}" style="display: inline-block; padding: 12px 28px; background-color: #2e7d32; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">${escapeHtml(opts.ctaLabel)}</a>
               </p>
               <p>Thank you!</p>
+              ${unsub ? `<p style="font-size: 12px; color: #888;">Don't want these emails? <a href="${escapeHtml(unsub.pageUrl)}" style="color: #888;">Unsubscribe</a></p>` : ""}
             </div>
           </body>
         </html>
