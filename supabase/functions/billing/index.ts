@@ -5,6 +5,7 @@
 //   { action: "connect", returnUrl }                        -> Stripe onboarding for the
 //        tenant's OWN Stripe account (client card payments go there, not to the platform)
 //   { action: "connect_status" }                            -> refresh charges_enabled
+//   { action: "prices" }                                    -> live plan prices from Stripe
 // Subscription state is written back by stripe-webhook, never by this function.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -46,6 +47,19 @@ Deno.serve(async (req) => {
     }
 
     const { action, plan, returnUrl } = await req.json();
+
+    if (action === "prices") {
+      const out: Record<string, { amount: number; currency: string }> = {};
+      await Promise.all(
+        Object.entries(PRICES).map(async ([key, id]) => {
+          if (!id) return;
+          const p = await stripe.prices.retrieve(id);
+          if (p.unit_amount != null) out[key] = { amount: p.unit_amount, currency: p.currency };
+        }),
+      );
+      return json({ prices: out });
+    }
+
     const url = new URL(returnUrl ?? "https://localhost");
     if (url.protocol !== "https:" && url.hostname !== "localhost") {
       return json({ error: "Invalid returnUrl" }, 400);
