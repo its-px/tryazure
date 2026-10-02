@@ -1,5 +1,7 @@
 # TODO: things you need to do yourself
 
+> **2026-10-02 update:** Claude applied all five migrations (20260922 x2, 20260923, 20260924, 20260925) to prod via Supabase. Skip every "apply migration" item below. **Still open and blocking:** deploy edge functions (`supabase functions deploy --project-ref qrvxmqksekxbtipdnfru`, or push to main and CI does it; `config.toml` already sets verify_jwt), then deploy the frontend. Deploy was blocked for Claude by the permission classifier.
+
 Work through these top to bottom. Use Stripe **test mode** first, then repeat the Stripe steps in live mode.
 
 ---
