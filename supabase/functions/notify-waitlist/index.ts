@@ -8,6 +8,8 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 // @ts-ignore - URL imports are resolved by Deno at runtime in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+// @ts-ignore - npm specifier resolved by Deno at runtime
+import webpush from "npm:web-push@3.6.7";
 // @ts-ignore - relative Deno import
 import { sendEmail, tenantBookingUrl } from "../_shared/sendEmail.ts";
 
@@ -26,6 +28,11 @@ const corsHeaders = {
 // ponytail: bound the scan to the next 2 weeks instead of unbounded future —
 // upgrade to a longer window if tenants report waitlist entries going stale.
 const DAYS_AHEAD = 14;
+
+// A notified entry is re-queued after this long if the customer never booked
+// (slot got taken first), up to MAX_OFFERS offers, then it expires.
+const REOFFER_AFTER_HOURS = 24;
+const MAX_OFFERS = 3;
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -54,10 +61,43 @@ serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Web push is optional: without VAPID secrets the function is email-only.
+    const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
+    const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
+    const pushEnabled = !!(vapidPublic && vapidPrivate);
+    if (pushEnabled) {
+      webpush.setVapidDetails(
+        Deno.env.get("VAPID_SUBJECT") || "mailto:hello@pxbs.site",
+        vapidPublic!,
+        vapidPrivate!,
+      );
+    }
+
+    // Housekeeping: past-dated entries are dead; unclaimed offers go back in the queue.
+    const today = new Date().toISOString().split("T")[0];
+    await supabase
+      .from("waitlist_entries")
+      .update({ status: "expired" })
+      .in("status", ["waiting", "notified"])
+      .lt("preferred_date", today);
+    const cutoff = new Date(Date.now() - REOFFER_AFTER_HOURS * 3600_000).toISOString();
+    await supabase
+      .from("waitlist_entries")
+      .update({ status: "expired" })
+      .eq("status", "notified")
+      .lt("notified_at", cutoff)
+      .gte("notify_count", MAX_OFFERS);
+    await supabase
+      .from("waitlist_entries")
+      .update({ status: "waiting" })
+      .eq("status", "notified")
+      .lt("notified_at", cutoff)
+      .lt("notify_count", MAX_OFFERS);
+
     const { data: entries, error: entriesError } = await supabase
       .from("waitlist_entries")
       .select(
-        "id, tenant_id, user_id, service_id, professional_id, preferred_date, services(duration_minutes, name), tenants(name, domain)",
+        "id, tenant_id, user_id, service_id, professional_id, preferred_date, notify_count, services(duration_minutes, name), tenants(name, domain)",
       )
       .eq("status", "waiting");
 
@@ -114,7 +154,7 @@ serve(async (req: Request) => {
             return d.toISOString().split("T")[0];
           });
 
-      let foundSlot: { date: string } | null = null;
+      let foundSlot: { date: string; professionalId: string } | null = null;
       outer: for (const date of dates) {
         for (const profId of professionalIds) {
           const cacheKey = `${entry.tenant_id}|${profId}|${date}|${service.duration_minutes}`;
@@ -133,7 +173,7 @@ serve(async (req: Request) => {
             slotCache.set(cacheKey, hasSlots);
           }
           if (hasSlots) {
-            foundSlot = { date };
+            foundSlot = { date, professionalId: profId };
             break outer;
           }
         }
@@ -156,6 +196,40 @@ serve(async (req: Request) => {
       }
 
       const tenantName = tenant?.name || "us";
+      // Deep link: the wizard (UserPanel) reads these and lands on the time step.
+      const bookingUrl =
+        `${tenantBookingUrl(tenant)}/?services=${encodeURIComponent(entry.service_id)}` +
+        `&professional=${encodeURIComponent(foundSlot.professionalId)}` +
+        `&date=${foundSlot.date}&waitlist=1`;
+
+      let pushed = false;
+      if (pushEnabled) {
+        const { data: subs } = await supabase
+          .from("push_subscriptions")
+          .select("id, endpoint, p256dh, auth")
+          .eq("user_id", entry.user_id);
+        for (const sub of subs || []) {
+          try {
+            await webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              JSON.stringify({
+                title: tenantName,
+                body: `A slot opened up around ${foundSlot.date} for ${service.name}. Tap to book.`,
+                url: bookingUrl,
+                tag: `waitlist-${entry.id}`,
+              }),
+            );
+            pushed = true;
+          } catch (err) {
+            const code = (err as { statusCode?: number }).statusCode;
+            if (code === 404 || code === 410) {
+              await supabase.from("push_subscriptions").delete().eq("id", sub.id);
+            } else {
+              console.error("Push failed:", err);
+            }
+          }
+        }
+      }
 
       const ok = await sendEmail(
         resendApiKey,
@@ -165,18 +239,22 @@ serve(async (req: Request) => {
           greetingName: profile.full_name || "there",
           bodyText: `Good news — a slot opened up around ${foundSlot.date} for ${service.name} at ${tenantName}. You were on the waitlist for this, so grab it before someone else does!`,
           ctaLabel: "Book Now",
-          ctaUrl: tenantBookingUrl(tenant),
+          ctaUrl: bookingUrl,
         },
       );
 
-      if (!ok) {
+      if (!ok && !pushed) {
         results.push({ entry_id: entry.id, status: "email_failed" });
         continue;
       }
 
       const { error: updateError } = await supabase
         .from("waitlist_entries")
-        .update({ status: "notified", notified_at: new Date().toISOString() })
+        .update({
+          status: "notified",
+          notified_at: new Date().toISOString(),
+          notify_count: (entry.notify_count ?? 0) + 1,
+        })
         .eq("id", entry.id);
 
       if (updateError) {

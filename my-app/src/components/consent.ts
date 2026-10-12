@@ -1,5 +1,5 @@
 // Cookie consent (GDPR + Greek DPA guidance 1/2020): nothing non-essential
-// loads until the visitor opts in. Analytics = PostHog, chat = Crisp.
+// loads until the visitor opts in. Analytics = PostHog + Google Analytics, chat = Crisp.
 // Supabase auth, theme, language and referral keys are strictly necessary /
 // functional and need no consent.
 
@@ -20,7 +20,23 @@ export function readConsent(): Consent | null {
   }
 }
 
-let loaded = { analytics: false, chat: false };
+let loaded = { analytics: false, ga: false, chat: false };
+
+// GA4 gtag.js. Only reached after analytics consent; GA4 itself tracks SPA
+// history changes, so no per-route page_view calls are needed.
+function loadGoogleAnalytics(id: string) {
+  const w = window as unknown as { dataLayer: unknown[] };
+  w.dataLayer = w.dataLayer || [];
+  // gtag.js requires the real `arguments` object, not an array.
+  // eslint-disable-next-line prefer-rest-params, @typescript-eslint/no-unused-vars
+  function gtag(..._args: unknown[]) { w.dataLayer.push(arguments); }
+  gtag("js", new Date());
+  gtag("config", id);
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
+  document.head.appendChild(s);
+}
 
 export async function applyConsent(c: Consent | null) {
   const env = import.meta.env;
@@ -31,6 +47,10 @@ export async function applyConsent(c: Consent | null) {
       api_host: env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com",
       capture_pageview: "history_change", // SPA: track react-router navigations too
     });
+  }
+  if (c?.analytics && env.VITE_GA_MEASUREMENT_ID && !loaded.ga) {
+    loaded.ga = true;
+    loadGoogleAnalytics(env.VITE_GA_MEASUREMENT_ID);
   }
   if (c?.chat && env.VITE_CRISP_WEBSITE_ID && !loaded.chat) {
     loaded.chat = true;
@@ -46,7 +66,7 @@ export function saveConsent(analytics: boolean, chat: boolean) {
   } catch { /* private mode: consent lasts this page only */ }
   // ponytail: neither SDK can be cleanly unloaded, so withdrawing a consent
   // that already loaded something reloads the page without it.
-  if ((loaded.analytics && !analytics) || (loaded.chat && !chat)) {
+  if (((loaded.analytics || loaded.ga) && !analytics) || (loaded.chat && !chat)) {
     window.location.reload();
     return c;
   }
@@ -57,5 +77,5 @@ export function saveConsent(analytics: boolean, chat: boolean) {
 export const openCookieSettings = () => window.dispatchEvent(new Event(OPEN_EVENT));
 
 export function _resetForTests() {
-  loaded = { analytics: false, chat: false };
+  loaded = { analytics: false, ga: false, chat: false };
 }

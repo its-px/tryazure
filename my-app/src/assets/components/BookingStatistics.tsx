@@ -28,6 +28,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PendingIcon from "@mui/icons-material/Pending";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import { supabase } from "../components/supabaseClient";
+import { buildFunnelRows, type FunnelRow } from "./analytics";
 import {
   buildOpenWindowsByDay,
   isBookedWhileClosed,
@@ -36,7 +37,7 @@ import {
 interface Booking {
   id: string;
   date: string;
-  user_id: string;
+  user_id: string | null;
   professional_id: string;
   location: string;
   services: string;
@@ -149,6 +150,13 @@ export default function BookingStatistics({
     useState<number>(0);
   const [rebookingNudgeDays, setRebookingNudgeDays] = useState<number>(45);
   const [lapsedClients, setLapsedClients] = useState<LapsedClient[]>([]);
+  const [funnel, setFunnel] = useState<FunnelRow[]>([]);
+  useEffect(() => {
+    if (!tenantId) return;
+    void Promise.resolve(supabase.rpc("get_funnel_summary", { p_tenant: tenantId, p_days: 30 }))
+      .then(({ data }) => setFunnel(buildFunnelRows(data ?? [])))
+      .catch(() => setFunnel([]));
+  }, [tenantId]);
   const [winBackSending, setWinBackSending] = useState<Record<string, boolean>>(
     {},
   );
@@ -947,6 +955,28 @@ export default function BookingStatistics({
           color={colors.status.confirmed}
         />
       </Box>
+
+      {funnel[0]?.sessions > 0 && (
+        <Card sx={{ mb: 2.5, backgroundColor: colors.background.medium, borderRadius: "12px" }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ color: colors.text.primary, mb: 0.5, fontWeight: "bold" }}>
+              {t("stats.funnel_title")}
+            </Typography>
+            <Typography variant="body2" sx={{ color: colors.text.secondary, mb: 1.5 }}>
+              {t("stats.funnel_text")}
+            </Typography>
+            {funnel.map((r) => (
+              <Box key={r.step} sx={{ display: "flex", justifyContent: "space-between", py: 0.5, color: colors.text.primary }}>
+                <span>{t(`stats.funnel_${r.step}`)}</span>
+                <span>
+                  {r.sessions} ({r.pctOfFirst}%)
+                  {r.dropOffPct > 0 ? ` · -${r.dropOffPct}%` : ""}
+                </span>
+              </Box>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ROI ticker: real, countable revenue-adjacent rollup */}
       <Box sx={{ mb: 2.5 }}>

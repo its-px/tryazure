@@ -13,14 +13,18 @@ const authHeaders = (): Record<string, string> => {
   return headers;
 };
 
-// Earliest upcoming slot for a professional, for the "Next: ..." hint on ProfessionalStep cards.
+// Earliest upcoming slot for a professional, for the "Next: ..." hint on ProfessionalStep
+// cards and the "Soonest appointment" shortcut (which books that exact slot, so slots
+// already past today are skipped, same cutoff as TimeSlotsStep).
+// ponytail: looks at the first 5 available dates only, then gives up (null).
 export const getNextAvailableSlot = async (
   professionalCode: string,
   tenantId: string,
   serviceDurationMinutes: number,
-): Promise<{ date: string; start_time: string } | null> => {
+): Promise<{ date: string; start_time: string; end_time: string } | null> => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const headers = authHeaders();
+  const duration = serviceDurationMinutes > 0 ? serviceDurationMinutes : 30;
   try {
     const datesRes = await fetch(`${supabaseUrl}/rest/v1/rpc/get_available_dates`, {
       method: "POST",
@@ -28,28 +32,32 @@ export const getNextAvailableSlot = async (
       body: JSON.stringify({
         p_professional_id: professionalCode,
         p_tenant_id: tenantId,
-        p_service_duration_minutes: serviceDurationMinutes > 0 ? serviceDurationMinutes : 30,
+        p_service_duration_minutes: duration,
       }),
     });
     if (!datesRes.ok) return null;
     const dates = (await datesRes.json()) as { date: string }[];
-    const nextDate = dates?.map((d) => d.date).sort()[0];
-    if (!nextDate) return null;
+    const now = new Date();
+    const today = now.toLocaleDateString("sv"); // YYYY-MM-DD, local time
+    const cur = now.toLocaleTimeString("sv"); // HH:MM:SS, local time
 
-    const slotsRes = await fetch(`${supabaseUrl}/rest/v1/rpc/get_available_slots`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        p_professional_id: professionalCode,
-        p_date: nextDate,
-        p_service_duration_minutes: serviceDurationMinutes > 0 ? serviceDurationMinutes : 30,
-        p_tenant_id: tenantId,
-      }),
-    });
-    if (!slotsRes.ok) return null;
-    const slots = (await slotsRes.json()) as { start_time: string }[];
-    if (!slots?.length) return null;
-    return { date: nextDate, start_time: slots[0].start_time };
+    for (const date of (dates ?? []).map((d) => d.date).sort().slice(0, 5)) {
+      const slotsRes = await fetch(`${supabaseUrl}/rest/v1/rpc/get_available_slots`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          p_professional_id: professionalCode,
+          p_date: date,
+          p_service_duration_minutes: duration,
+          p_tenant_id: tenantId,
+        }),
+      });
+      if (!slotsRes.ok) return null;
+      const slots = (await slotsRes.json()) as { start_time: string; end_time: string }[];
+      const slot = (slots ?? []).find((s) => date !== today || s.start_time > cur);
+      if (slot) return { date, start_time: slot.start_time, end_time: slot.end_time };
+    }
+    return null;
   } catch (err) {
     console.error("[getNextAvailableSlot] Exception:", err);
     return null;

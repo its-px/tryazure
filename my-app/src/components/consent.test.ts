@@ -14,6 +14,8 @@ beforeEach(() => {
   _resetForTests();
   vi.stubEnv("VITE_POSTHOG_KEY", "phc_test");
   vi.stubEnv("VITE_CRISP_WEBSITE_ID", "crisp_test");
+  vi.stubEnv("VITE_GA_MEASUREMENT_ID", "G-TEST123");
+  document.head.querySelectorAll("script[src*=googletagmanager]").forEach((n) => n.remove());
 });
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -42,5 +44,17 @@ describe("consent", () => {
     await applyConsent(readConsent());
     expect(init).toHaveBeenCalledTimes(1);
     expect(configure).not.toHaveBeenCalled();
+  });
+
+  it("loads Google Analytics only after analytics consent, once", async () => {
+    const gtagScripts = () =>
+      document.head.querySelectorAll("script[src*='googletagmanager.com/gtag/js?id=G-TEST123']");
+    saveConsent(false, true);
+    await flush();
+    expect(gtagScripts()).toHaveLength(0);
+    saveConsent(true, true);
+    await flush();
+    await applyConsent(readConsent());
+    expect(gtagScripts()).toHaveLength(1);
   });
 });

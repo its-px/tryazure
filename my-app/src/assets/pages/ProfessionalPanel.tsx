@@ -19,7 +19,6 @@ import {
   IconButton,
   Tab,
   Tabs,
-  TextField,
   Typography,
 } from "@mui/material";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
@@ -35,6 +34,7 @@ import "dayjs/locale/el";
 import { useTranslation } from "react-i18next";
 import BookingStatistics from "../components/BookingStatistics";
 import { fetchProfessionals } from "../components/professionalsService";
+import StaffScheduleEditor from "../components/StaffScheduleEditor";
 
 type BookingStatus =
   | "pending"
@@ -46,7 +46,10 @@ type BookingStatus =
 interface Booking {
   id: string;
   date: string;
-  user_id: string;
+  user_id: string | null; // null for guest checkout bookings
+  guest_name?: string | null;
+  guest_phone?: string | null;
+  guest_email?: string | null;
   professional_id: string;
   location: string;
   services: string;
@@ -63,29 +66,10 @@ interface UserProfile {
   email: string;
 }
 
-interface ProfessionalHour {
-  id?: string;
-  professional_id: string;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  tenant_id?: string;
-}
-
 interface ServiceMapItem {
   id: string;
   name: string;
 }
-
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
 
 const STATUS_COLORS: Record<BookingStatus, { bg: string; color: string; label: string }> = {
   confirmed: { bg: "#2e7d32", color: "#fff", label: "Confirmed" },
@@ -117,7 +101,6 @@ export default function ProfessionalPanel() {
     action: "confirm" | "cancel" | "complete" | "delete" | null;
   }>({ open: false, action: null });
 
-  const [professionalHours, setProfessionalHours] = useState<ProfessionalHour[]>([]);
   const [serviceMap, setServiceMap] = useState<Record<string, string>>({});
   const [loadingData, setLoadingData] = useState(false);
 
@@ -199,22 +182,6 @@ export default function ProfessionalPanel() {
     }
   };
 
-  const loadProfessionalHours = async () => {
-    if (!tenant?.id || !professionalCode) return;
-    const headers = await getAuthHeaders();
-    if (!headers) return;
-    try {
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/professional_hours?tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}&select=*&order=day_of_week`,
-        { headers },
-      );
-      if (!response.ok) { setProfessionalHours([]); return; }
-      setProfessionalHours((await response.json()) as ProfessionalHour[]);
-    } catch (err) {
-      console.error("[ProfessionalPanel] Exception loading hours:", err);
-    }
-  };
-
   useEffect(() => { loadIdentity(); }, []);
 
   // professionals.name is the single source of truth for display name;
@@ -230,7 +197,6 @@ export default function ProfessionalPanel() {
   useEffect(() => {
     if (!professionalCode || !tenant?.id) return;
     loadBookings();
-    loadProfessionalHours();
     loadServiceMap();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [professionalCode, tenant?.id]);
@@ -284,76 +250,15 @@ export default function ProfessionalPanel() {
     }
   };
 
-  const setHourValue = (dayOfWeek: number, field: "start_time" | "end_time", value: string) => {
-    setProfessionalHours((prev) => {
-      const idx = prev.findIndex((h) => h.day_of_week === dayOfWeek);
-      if (idx === -1) {
-        return [...prev, {
-          professional_id: professionalCode ?? "",
-          day_of_week: dayOfWeek,
-          start_time: field === "start_time" ? value : "09:00",
-          end_time: field === "end_time" ? value : "17:00",
-        }].sort((a, b) => a.day_of_week - b.day_of_week);
-      }
-      return prev
-        .map((h) => h.day_of_week === dayOfWeek ? { ...h, [field]: value } : h)
-        .sort((a, b) => a.day_of_week - b.day_of_week);
-    });
-  };
-
-  const addWorkingDay = (dayOfWeek: number) => {
-    if (!professionalCode) return;
-    setProfessionalHours((prev) => {
-      if (prev.some((h) => h.day_of_week === dayOfWeek)) return prev;
-      return [...prev, {
-        professional_id: professionalCode,
-        day_of_week: dayOfWeek,
-        start_time: "09:00",
-        end_time: "17:00",
-      }].sort((a, b) => a.day_of_week - b.day_of_week);
-    });
-  };
-
-  const removeWorkingDay = (dayOfWeek: number) => {
-    setProfessionalHours((prev) => prev.filter((h) => h.day_of_week !== dayOfWeek));
-  };
-
-  const saveProfessionalHours = async () => {
-    if (!tenant?.id || !professionalCode) return;
-    const headers = await getAuthHeaders();
-    if (!headers) return;
-    try {
-      const rows = professionalHours.filter((h) => h.professional_id === professionalCode);
-      const del = await fetch(
-        `${supabaseUrl}/rest/v1/professional_hours?tenant_id=eq.${tenant.id}&professional_id=eq.${professionalCode}`,
-        { method: "DELETE", headers },
-      );
-      if (!del.ok) { alert(t("pro.clear_hours_error", { error: await del.text() })); return; }
-      if (rows.length > 0) {
-        const ins = await fetch(`${supabaseUrl}/rest/v1/professional_hours`, {
-          method: "POST",
-          headers: { ...headers, Prefer: "return=representation" },
-          body: JSON.stringify(rows.map((h) => ({
-            professional_id: professionalCode,
-            day_of_week: h.day_of_week,
-            start_time: h.start_time,
-            end_time: h.end_time,
-            tenant_id: tenant.id,
-          }))),
-        });
-        if (!ins.ok) { alert(t("pro.save_hours_error", { error: await ins.text() })); return; }
-      }
-      alert(t("pro.hours_saved"));
-      await loadProfessionalHours();
-    } catch (err) {
-      console.error("[ProfessionalPanel] Error saving hours:", err);
-      alert(t("pro.hours_unexpected"));
-    }
-  };
-
   const openBookingDialog = async (booking: Booking) => {
     setSelectedBooking(booking);
-    await loadUserProfile(booking.user_id);
+    if (booking.user_id) await loadUserProfile(booking.user_id);
+    else
+      setUserProfile({
+        full_name: booking.guest_name || "N/A",
+        phone: booking.guest_phone || "N/A",
+        email: booking.guest_email || "N/A",
+      });
     setShowBookingDialog(true);
   };
 
@@ -589,78 +494,7 @@ export default function ProfessionalPanel() {
               {t("pro.schedule_text")}
             </Typography>
 
-            <Box sx={{ display: "grid", gap: 1.5 }}>
-              {[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
-                const existing = professionalHours.find((h) => h.day_of_week === dayOfWeek);
-                return (
-                  <Box
-                    key={dayOfWeek}
-                    sx={{
-                      ...cardSx,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 2,
-                      flexWrap: "wrap",
-                      border: `1px solid ${existing ? colors.primary.main + "60" : colors.border.main}`,
-                    }}
-                  >
-                    <Typography sx={{ color: colors.text.primary, fontWeight: 600, width: 90, flexShrink: 0 }}>
-                      {t(`days.${DAY_NAMES[dayOfWeek]}`)}
-                    </Typography>
-                    {existing ? (
-                      <>
-                        <TextField
-                          label={t("pro.start")}
-                          type="time"
-                          value={existing.start_time}
-                          onChange={(e) => setHourValue(dayOfWeek, "start_time", e.target.value)}
-                          InputLabelProps={{ shrink: true }}
-                          size="small"
-                          sx={{ width: 130 }}
-                        />
-                        <TextField
-                          label={t("pro.end")}
-                          type="time"
-                          value={existing.end_time}
-                          onChange={(e) => setHourValue(dayOfWeek, "end_time", e.target.value)}
-                          InputLabelProps={{ shrink: true }}
-                          size="small"
-                          sx={{ width: 130 }}
-                        />
-                        <Button
-                          color="error"
-                          variant="outlined"
-                          size="small"
-                          onClick={() => removeWorkingDay(dayOfWeek)}
-                          sx={{ borderRadius: "20px", textTransform: "none", ml: "auto" }}
-                        >
-                          {t("pro.remove")}
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => addWorkingDay(dayOfWeek)}
-                        sx={{ borderRadius: "20px", textTransform: "none" }}
-                      >
-                        {t("pro.add_hours")}
-                      </Button>
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
-
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
-              <Button
-                variant="contained"
-                onClick={saveProfessionalHours}
-                sx={{ borderRadius: "20px", textTransform: "none", fontWeight: 600, px: 4 }}
-              >
-                {t("pro.save_schedule")}
-              </Button>
-            </Box>
+            {tenant?.id && professionalCode && <StaffScheduleEditor tenantId={tenant.id} professionalCode={professionalCode} />}
           </Box>
         )}
       </Box>

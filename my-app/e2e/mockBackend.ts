@@ -42,11 +42,14 @@ export type Backend = {
   bookings: Record<string, unknown>[];
   /** Existing bookings returned by the conflict check. */
   existingBookings: { id: string; start_time: string; end_time: string }[];
+  /** Args of create_guest_booking RPC calls. */
+  guestBookings: Record<string, unknown>[];
   unexpected: string[];
 };
 
-export async function mockBackend(page: Page, opts: { loggedIn?: boolean } = {}): Promise<Backend> {
-  const backend: Backend = { bookings: [], existingBookings: [], unexpected: [] };
+export async function mockBackend(page: Page, opts: { loggedIn?: boolean; guestCheckout?: boolean } = {}): Promise<Backend> {
+  const backend: Backend = { bookings: [], existingBookings: [], guestBookings: [], unexpected: [] };
+  const tenant = opts.guestCheckout ? { ...TENANT, config: { ...TENANT.config, guestCheckoutEnabled: true } } : TENANT;
 
   if (opts.loggedIn) {
     // supabase-js reads its session from this key (storageKey in supabaseClient.ts).
@@ -91,7 +94,11 @@ export async function mockBackend(page: Page, opts: { loggedIn?: boolean } = {})
 
     // --- RPCs ---
     const rpc = path.match(/^\/rest\/v1\/rpc\/(\w+)/)?.[1];
-    if (rpc === "get_tenant_by_slug" || rpc === "get_tenant_by_domain") return json(route, [TENANT]);
+    if (rpc === "get_tenant_by_slug" || rpc === "get_tenant_by_domain") return json(route, [tenant]);
+    if (rpc === "create_guest_booking") {
+      backend.guestBookings.push(req.postDataJSON());
+      return json(route, { id: "guest-1", sms_action_token: "gtok", professional_id: "prof1", status: "pending" });
+    }
     if (rpc === "set_current_tenant") return route.fulfill({ status: 204 });
     if (rpc === "get_current_tenant_id") return json(route, TENANT.id);
     if (rpc === "tenant_accepts_card") return json(route, false);

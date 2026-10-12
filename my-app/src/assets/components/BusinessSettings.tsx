@@ -4,6 +4,9 @@ import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { useTenantContext } from "../../context/useTenantContext";
 import { supabase } from "./supabaseClient";
 import PhotoUploadField from "./PhotoUploadField";
+import BookingOptionsSettings from "./BookingOptionsSettings";
+import CancellationPolicySettings from "./CancellationPolicySettings";
+import GuestCheckoutSetting from "./GuestCheckoutSetting";
 import type { TenantBilling } from "./billing";
 import { useTranslation } from "react-i18next";
 
@@ -178,7 +181,12 @@ export default function BusinessSettings({ billing }: BusinessSettingsProps) {
           }
           label={t("settings.show_location_step")}
         />
+        <BookingOptionsSettings config={config} saving={saving} save={save} />
       </Box>
+
+      <CancellationPolicySettings />
+
+      <GuestCheckoutSetting />
 
       <Box sx={card}>
         <Box sx={title}>{t("settings.payments_title")}</Box>

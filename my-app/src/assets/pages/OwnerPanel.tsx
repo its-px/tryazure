@@ -44,7 +44,10 @@ import {
 interface Booking {
   id: string;
   date: string;
-  user_id: string;
+  user_id: string | null; // null for guest checkout bookings
+  guest_name?: string | null;
+  guest_phone?: string | null;
+  guest_email?: string | null;
   professional_id: string;
   location: string;
   services: string;
@@ -158,7 +161,7 @@ export default function OwnerPanel() {
       if (isMountedRef.current) {
         setAllBookings(data);
         // load names for all unique users in one query
-        const ids: string[] = [...new Set<string>(data.map((b: Booking) => b.user_id))];
+        const ids: string[] = [...new Set<string>(data.map((b: Booking) => b.user_id).filter(Boolean))];
         if (ids.length > 0) loadUserNames(ids, headers);
       }
     } catch (err) {
@@ -228,6 +231,18 @@ export default function OwnerPanel() {
       console.error("[OwnerPanel] Exception loading profile:", err);
     }
   };
+
+  // Guest bookings carry their own contact details instead of a profile.
+  const loadBookingProfile = (b: Booking) =>
+    b.user_id
+      ? loadUserProfile(b.user_id)
+      : setUserProfile({
+          full_name: b.guest_name || "N/A",
+          phone: b.guest_phone || "N/A",
+          email: b.guest_email || "N/A",
+        });
+  const bookingLabel = (b: Booking) =>
+    b.user_id ? userNameMap[b.user_id] ?? b.user_id.slice(0, 8) + "…" : b.guest_name || "Guest";
 
   const filteredBookings =
     selectedProfessional === "all"
@@ -624,7 +639,7 @@ export default function OwnerPanel() {
                       key={booking.id}
                       onClick={() => {
                         setSelectedBooking(booking);
-                        loadUserProfile(booking.user_id);
+                        loadBookingProfile(booking);
                         setShowBookingDialog(true);
                       }}
                       sx={{
@@ -648,11 +663,11 @@ export default function OwnerPanel() {
                             justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0,
                           }}
                         >
-                          {(userNameMap[booking.user_id] ?? booking.user_id).slice(0, 2).toUpperCase()}
+                          {bookingLabel(booking).slice(0, 2).toUpperCase()}
                         </Box>
                         <Box sx={{ minWidth: 0 }}>
                           <Box sx={{ fontSize: 13, color: colors.text.primary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {userNameMap[booking.user_id] ?? booking.user_id.slice(0, 8) + "…"}
+                            {bookingLabel(booking)}
                           </Box>
                           <Box sx={{ display: { xs: "block", sm: "none" }, fontSize: 11, color: colors.text.tertiary }}>
                             {dayjs(booking.date).locale(dayLocale).format("ddd MMM D")}
@@ -690,7 +705,7 @@ export default function OwnerPanel() {
                 onBookingClick={(b) => {
                   setSelectedBooking(b);
                   setShowBookingDialog(true);
-                  loadUserProfile(b.user_id);
+                  loadBookingProfile(b);
                 }}
                 onNewBooking={(date) => {
                   setNewBookingDate(date);

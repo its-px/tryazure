@@ -1,8 +1,9 @@
-import { Avatar, Box } from "@mui/material";
+import { Avatar, Box, Button } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
+import ResizedAvatar from "./ResizedAvatar";
 import { getNextAvailableSlot, type ProfessionalOption } from "./professionalsService";
 
 interface ProfessionalStepProps {
@@ -10,7 +11,13 @@ interface ProfessionalStepProps {
   onProfessionalSelect: (professionalId: string | null) => void;
   professionals: ProfessionalOption[];
   serviceDuration?: number;
+  // "Soonest appointment": book the earliest slot across all professionals.
+  onSoonest?: (pick: { professionalCode: string; date: string; slot: { start_time: string; end_time: string } }) => void;
+  // Tenant switch: false hides the "Any professional" card.
+  anyProfessionalEnabled?: boolean;
 }
+
+type NextSlot = { date: string; start_time: string; end_time: string };
 
 // "Today 3:00 PM" / "Tomorrow 10:00 AM" / "Mon 9:00 AM"
 function formatNextSlot(date: string, startTime: string, t: TFunction, locale: string): string {
@@ -39,11 +46,13 @@ export default function ProfessionalStep({
   onProfessionalSelect,
   professionals,
   serviceDuration = 0,
+  onSoonest,
+  anyProfessionalEnabled = true,
 }: ProfessionalStepProps) {
   const colors = useResolvedColors();
   const { t, i18n } = useTranslation();
   const locale = i18n.language === "gr" ? "el-GR" : "en-GB";
-  const [nextSlots, setNextSlots] = useState<Record<string, { date: string; start_time: string } | null>>({});
+  const [nextSlots, setNextSlots] = useState<Record<string, NextSlot | null>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -62,9 +71,10 @@ export default function ProfessionalStep({
   }, [professionals, serviceDuration]);
 
   // Earliest slot across all professionals, for the "Any professional" card.
-  const earliestAny = Object.values(nextSlots)
-    .filter((s): s is { date: string; start_time: string } => !!s)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))[0];
+  const earliestEntry = Object.entries(nextSlots)
+    .filter((e): e is [string, NextSlot] => !!e[1])
+    .sort(([, a], [, b]) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))[0];
+  const earliestAny = earliestEntry?.[1];
 
   return (
     <Box sx={{ px: { xs: 2, md: 3 }, pb: 3 }}>
@@ -85,7 +95,24 @@ export default function ProfessionalStep({
         </Box>
       )}
 
-      {professionals.length > 0 && (
+      {onSoonest && earliestEntry && (
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={() =>
+            onSoonest({
+              professionalCode: earliestEntry[0],
+              date: earliestEntry[1].date,
+              slot: { start_time: earliestEntry[1].start_time, end_time: earliestEntry[1].end_time },
+            })
+          }
+          sx={{ mb: 1.5, py: 1.25, textTransform: "none", backgroundColor: colors.accent.main, "&:hover": { backgroundColor: colors.accent.hover } }}
+        >
+          {t("professional_step.soonest", { slot: formatNextSlot(earliestEntry[1].date, earliestEntry[1].start_time, t, locale) })}
+        </Button>
+      )}
+
+      {anyProfessionalEnabled && professionals.length > 0 && (
         <Box
           key="any"
           onClick={() => onProfessionalSelect(null)}
@@ -178,8 +205,9 @@ export default function ProfessionalStep({
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.75 }}>
               {/* Avatar */}
-              <Avatar
-                src={professional.photo_url || undefined}
+              <ResizedAvatar
+                size={46}
+                src={professional.photo_url}
                 sx={{
                   width: 46, height: 46,
                   background: colors.accent.main,
@@ -189,7 +217,7 @@ export default function ProfessionalStep({
                 }}
               >
                 {initials(professional.name)}
-              </Avatar>
+              </ResizedAvatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Box sx={{ fontSize: 15, fontWeight: 600, color: colors.text.primary }}>{professional.name}</Box>
                 {nextSlots[professional.code] && (

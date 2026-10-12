@@ -1,4 +1,25 @@
 {
+  "guest": {
+    "title": "Book as a guest",
+    "name": "Full name",
+    "phone": "Phone",
+    "email": "Email",
+    "name_invalid": "Enter your name (2-100 characters)",
+    "phone_invalid": "Enter a valid phone number",
+    "email_invalid": "Enter a valid email address",
+    "consent": "I agree to my details being used to manage this booking.",
+    "no_card_note": "Guest bookings are paid at the venue. Sign in to pay by card.",
+    "sign_in_instead": "Sign in or create an account instead",
+    "or_sign_in": "Already have an account?",
+    "cancel_link": "Need to cancel? Use this private link: {{url}}",
+    "confirmed": "Booking confirmed! A confirmation was sent to {{email}}.",
+    "error_disabled": "Guest booking is not available for this business. Please sign in.",
+    "error_rate": "Too many attempts. Please try again later.",
+    "error_invalid": "Please check your details and try again.",
+    "setting_title": "Guest checkout",
+    "setting_hint": "Let visitors book with just their name, phone and email, without creating an account. Guest bookings are paid at the venue.",
+    "setting_label": "Allow booking without an account"
+  },
   "book_appointment": "Book Appointment",
   "business_infos": "Business Infos",
   "qr_code": "QR Code",
@@ -10,7 +31,7 @@
   "contact_admin": "Please contact the administrator",
   "cookies": {
     "title": "Cookies",
-    "text": "We use strictly necessary storage to run the app. With your permission we also use analytics (PostHog, EU) and a support chat (Crisp). You can change your choice at any time from “Cookie settings”.",
+    "text": "We use strictly necessary storage to run the app. With your permission we also use analytics (PostHog, EU, and Google Analytics) and a support chat (Crisp). You can change your choice at any time from “Cookie settings”.",
     "necessary": "Strictly necessary (always on)",
     "analytics": "Analytics",
     "chat": "Support chat",
@@ -100,6 +121,7 @@
   "booking": {
     "payment_received": "Payment received. Thank you!",
     "payment_not_completed": "Payment was not completed. Your booking is still reserved, and you can pay at the venue.",
+    "duration_min": "≈ {{count}} min",
     "any_professional": "Any professional",
     "complete_all_steps": "Please complete all steps including selecting a time slot",
     "tenant_not_loaded": "Business not loaded yet. Please refresh and try again.",
@@ -153,6 +175,7 @@
     "selected_count_other": "{{count}} services selected"
   },
   "professional_step": {
+    "soonest": "Soonest appointment · {{slot}}",
     "title": "Select Professional",
     "subtitle": "Who would you like to book with?",
     "none": "No professionals available for this tenant.",
@@ -175,6 +198,8 @@
     "no_show": "No-show"
   },
   "info": {
+    "team": "Our team",
+    "book_with": "Book with {{name}}",
     "map": "Map",
     "show_map": "Show map",
     "map_privacy": "Loads Google Maps, which receives your IP address.",
@@ -266,6 +291,10 @@
     "install": "Install"
   },
   "booking_action": {
+    "ask_confirm": "Confirm your booking?",
+    "ask_cancel": "Cancel your booking?",
+    "do_confirm": "Confirm booking",
+    "do_cancel": "Yes, cancel booking",
     "invalid": "This link is invalid.",
     "confirmed": "Your booking is confirmed. See you then!",
     "cancelled": "Your booking has been cancelled."
@@ -274,6 +303,22 @@
     "manage": "Manage {{name}}",
     "title": "Owner sign in",
     "text": "Sign in with the same account you used to create your business."
+  },
+  "cancel_policy": {
+    "title": "Cancellation policy",
+    "hint": "Clients cannot cancel online inside this window. 0 = no policy.",
+    "hours": "Hours before appointment",
+    "text_el": "Policy text (Greek, optional)",
+    "text_en": "Policy text (English, optional)",
+    "text_hint": "Leave empty to show a standard sentence.",
+    "save": "Save policy",
+    "invalid_hours": "Hours must be a whole number from 0 to 720.",
+    "default_text": "Free cancellation up to {{hours}} hours before your appointment. Later cancellations are not possible online.",
+    "agree": "I agree to the",
+    "link": "cancellation policy",
+    "close": "Close",
+    "required": "Please accept the cancellation policy to continue.",
+    "locked": "Cancellation is not possible within {{hours}} hours of the appointment. Please contact the business."
   },
   "settings": {
     "save_error": "Could not save: {{error}}",
@@ -295,11 +340,46 @@
     "save_color": "Save color",
     "booking_wizard": "Booking wizard",
     "show_location_step": "Show location step in booking",
+    "booking_options": "Booking options",
+    "any_professional_enabled": "Let clients book with \"Any professional\"",
+    "waitlist_enabled": "Offer the waitlist when no slots are free",
     "payments_title": "Online payments from your clients",
     "payments_text": "Connect your own Stripe account so clients can pay by card when they book. The money goes straight to your Stripe account. Clients can still choose to pay at the venue.",
     "payments_on": "✓ Card payments are on. Manage payouts and refunds at dashboard.stripe.com",
     "finish_stripe": "Finish Stripe setup",
     "connect_stripe": "Connect Stripe"
+  },
+  "proLinks": {
+    "title": "Booking links and QR codes",
+    "hint": "Share a professional's link to skip the professional step for their clients.",
+    "tenant_wide": "Whole business",
+    "copy": "Copy link",
+    "copied": "Copied",
+    "download_qr": "Download QR",
+    "copy_prompt": "Copy this link",
+    "qr_aria": "Booking QR code for {{name}}"
+  },
+  "schedule": {
+    "open": "Hours & time off",
+    "hours_title": "Weekly hours",
+    "start": "Start",
+    "end": "End",
+    "break_start": "Break from",
+    "break_end": "Break to",
+    "day_off": "Day off",
+    "add_day": "Add hours",
+    "save": "Save hours",
+    "saved": "Hours saved.",
+    "time_off_title": "Time off",
+    "time_off_none": "No upcoming time off.",
+    "from": "From",
+    "to": "To",
+    "reason": "Reason",
+    "remove_aria": "Remove time off",
+    "err_hours": "End time must be after start time.",
+    "err_break": "Break needs a start before its end.",
+    "err_break_outside": "Break must be within working hours.",
+    "err_range": "Time off must end after it starts."
   },
   "staff": {
     "name_exists": "Someone with that name already exists.",
@@ -478,6 +558,14 @@
     "replenish_help": "Typical days until a customer needs to rebuy. Leave blank for no replenishment SMS."
   },
   "stats": {
+    "funnel_title": "Booking funnel (30 days)",
+    "funnel_text": "Visitors who reached each step; the minus shows how many dropped off since the previous step. Anonymous, no personal data.",
+    "funnel_wizard_started": "Started booking",
+    "funnel_service_selected": "Chose service",
+    "funnel_professional_selected": "Chose professional",
+    "funnel_time_selected": "Chose time",
+    "funnel_payment_started": "Payment started",
+    "funnel_booking_confirmed": "Booking confirmed",
     "bookings_label": "Bookings: {{count}}",
     "title": "📊 Booking Statistics (Last 30 Days)",
     "revenue_30d": "Revenue (30d)",

@@ -331,12 +331,25 @@ export default function AdminPanel() {
       return;
     }
 
+    // This editor has no break fields; keep breaks set in StaffScheduleEditor
+    // (delete + insert below would otherwise wipe them).
+    const { data: existingBreaks } = await supabase
+      .from("professional_hours")
+      .select("day_of_week, break_start, break_end")
+      .eq("professional_id", selectedProfessional)
+      .eq("tenant_id", activeTenant.id);
+    const breakByDay = new Map(
+      (existingBreaks ?? []).map((r) => [r.day_of_week, r]),
+    );
+
     const hoursData = hoursToSave.map(
       ({ professional_id, day_of_week, start_time, end_time }) => ({
         professional_id,
         day_of_week,
         start_time,
         end_time,
+        break_start: breakByDay.get(day_of_week)?.break_start ?? null,
+        break_end: breakByDay.get(day_of_week)?.break_end ?? null,
         tenant_id: activeTenant.id,
       }),
     );

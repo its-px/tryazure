@@ -24,9 +24,11 @@ import { useTranslation } from "react-i18next";
 interface LoginModalProps {
   open: boolean;
   onClose: () => void;
+  // Render the form in place (no dialog), e.g. on the booking information step.
+  inline?: boolean;
 }
 
-export default function LoginModal({ open, onClose }: LoginModalProps) {
+export default function LoginModal({ open, onClose, inline = false }: LoginModalProps) {
   const colors = useResolvedColors();
   const { t } = useTranslation();
   const common = getCommonStyles(colors);
@@ -309,28 +311,8 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
     },
   };
 
-  return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{ sx: common.dialog }}
-    >
-      <DialogContent sx={{ position: "relative", padding: 4 }}>
-        {/* Close Button */}
-        <IconButton
-          onClick={handleClose}
-          sx={{
-            position: "absolute",
-            right: 8,
-            top: 8,
-            color: colors.text.primary,
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
-
+  const body = (
+    <>
         {/* Info Icon */}
         <Box display="flex" justifyContent="center" mb={2}>
           <Box
@@ -589,6 +571,33 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
             </Box>
           </>
         )}
+    </>
+  );
+
+  if (inline) return <Box sx={{ position: "relative", p: { xs: 2, md: 4 } }}>{body}</Box>;
+
+  return (
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{ sx: common.dialog }}
+    >
+      <DialogContent sx={{ position: "relative", padding: 4 }}>
+        {/* Close Button */}
+        <IconButton
+          onClick={handleClose}
+          sx={{
+            position: "absolute",
+            right: 8,
+            top: 8,
+            color: colors.text.primary,
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+        {body}
       </DialogContent>
     </Dialog>
   );

@@ -61,6 +61,7 @@ import App from "./App.tsx";
 import { TenantProvider } from "./context/TenantContext";
 import { BrowserRouter } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
+import { checkAppVersion } from "./appVersion";
 // import  React from 'react';
 // import {render} from 'react-dom';
 import { Provider, useSelector } from "react-redux";
@@ -88,11 +89,26 @@ export function ThemeProviderWrapper({
   );
 }
 
-// ponytail: updateSW(true) force-reloads the tab the instant a new service
-// worker is found — combined with the 60s poll this reloaded users mid-session
-// (most noticeably right after a tab regains focus, when Chrome re-checks the
-// SW). Let the new SW take over silently; it activates on the user's next
-// natural full page load instead of yanking the rug out from under them.
+// Stale-build refresh: purge Cache Storage and reload once when the build
+// changed. Never unregisters the SW (would kill the Web Push subscription).
+checkAppVersion({
+  current: __APP_VERSION__,
+  local: localStorage,
+  session: sessionStorage,
+  caches: "caches" in window ? caches : undefined,
+  reload: () => window.location.reload(),
+});
+
+// A new SW skipWaiting()s + claims; reload once so the page runs the new build.
+// bookingState is persisted in localStorage, so an in-progress booking survives.
+const hadController = !!navigator.serviceWorker?.controller;
+let swReloaded = false;
+navigator.serviceWorker?.addEventListener("controllerchange", () => {
+  if (hadController && !swReloaded) {
+    swReloaded = true;
+    window.location.reload();
+  }
+});
 registerSW({
   immediate: true,
   onOfflineReady() {

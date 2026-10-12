@@ -190,6 +190,7 @@ serve(async (req: Request) => {
       professional,
       tenantSlug,
       appUrl,
+      actionToken,
     } = await req.json();
 
     console.log("Received params:", {
@@ -298,7 +299,18 @@ serve(async (req: Request) => {
       typeof tenantSlug === "string" && tenantSlug.trim().length > 0
         ? `?tenant=${encodeURIComponent(tenantSlug.trim())}`
         : "";
-    const confirmBookingsUrl = `${normalizedAppUrl}/${tenantQuery}`;
+    let confirmBookingsUrl = `${normalizedAppUrl}/${tenantQuery}`;
+    // One-tap links (same page as the SMS links) when the caller sent the booking's
+    // token. Only a UUID is accepted so nothing else can be injected into the HTML.
+    let cancelLinkHtml = "";
+    if (
+      typeof actionToken === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(actionToken)
+    ) {
+      const actionBase = `${normalizedAppUrl}/booking-action?token=${actionToken}`;
+      confirmBookingsUrl = `${actionBase}&action=confirm`;
+      cancelLinkHtml = `<p style="margin-top:16px;font-size:13px;">Can't make it? <a href="${actionBase}&action=cancel">Cancel this booking</a></p>`;
+    }
 
     // Confirmation deadline: 8 hours before the appointment
     const deadline = calculateConfirmationDeadline(
@@ -429,6 +441,7 @@ serve(async (req: Request) => {
                     <div class="deadline-highlight">📅 ${deadline.display}</div>
                     <br/>
                     <a href="${confirmBookingsUrl}" class="confirm-btn">Confirm My Booking →</a>
+                    ${cancelLinkHtml}
                     <p class="cancel-warning">
                       ❌ Bookings not confirmed by the deadline above will be automatically cancelled by the system.
                     </p>

@@ -4,6 +4,8 @@ import { Phone, Room } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { useTenantContext } from "../../context/useTenantContext";
+import type { ProfessionalOption } from "./professionalsService";
+import ResizedAvatar from "./ResizedAvatar";
 
 interface BusinessInfo {
   address?: string;
@@ -14,7 +16,16 @@ interface BusinessInfo {
   healthSafety?: string[];
 }
 
-export default function InfoPage() {
+interface InfoPageProps {
+  professionals?: ProfessionalOption[];
+  // Start a booking with this professional preselected.
+  onBookWith?: (professionalCode: string) => void;
+}
+
+const initials = (name: string) =>
+  name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+
+export default function InfoPage({ professionals = [], onBookWith }: InfoPageProps) {
   const colors = useResolvedColors();
   const { t } = useTranslation();
   const { tenant } = useTenantContext();
@@ -118,6 +129,37 @@ export default function InfoPage() {
           </Button>
         )}
       </Box>
+
+      {/* Team */}
+      {professionals.length > 0 && (
+      <Box mt={5}>
+        <Typography variant="h6" textAlign="center">{t("info.team")}</Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 3, mt: 2 }}>
+          {professionals.map((p) => (
+            <Box key={p.id} sx={{ width: 140, textAlign: "center" }}>
+              <ResizedAvatar
+                size={84}
+                src={p.photo_url}
+                sx={{ width: 84, height: 84, mx: "auto", mb: 1, background: colors.accent.main, color: "#fff", fontWeight: 700 }}
+              >
+                {initials(p.name)}
+              </ResizedAvatar>
+              <Typography sx={{ fontWeight: 600 }}>{p.name}</Typography>
+              {onBookWith && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => onBookWith(p.code)}
+                  sx={{ mt: 1, borderColor: colors.accent.main, color: colors.accent.main }}
+                >
+                  {t("info.book_with", { name: p.name.split(" ")[0] })}
+                </Button>
+              )}
+            </Box>
+          ))}
+        </Box>
+      </Box>
+      )}
 
       {/* Business Hours */}
       {showHours && (

@@ -76,25 +76,55 @@ registerRoute(
 // Handle navigation requests
 registerRoute(({ request }) => request.mode === "navigate", navigationCache);
 
-// Listen for notifications and post messages to app
+// Web push (waitlist "your slot opened", etc). Always show a notification:
+// a push that shows nothing makes Chrome show a generic one and may revoke permission.
+self.addEventListener("push", (event) => {
+  let d: { title?: string; body?: string; url?: string; tag?: string } = {};
+  try {
+    d = event.data?.json() ?? {};
+  } catch {
+    d = { body: event.data?.text() };
+  }
+  event.waitUntil(
+    self.registration.showNotification(d.title || "RENDEZVOUS", {
+      body: d.body || "",
+      icon: "/apple-touch-icon.png",
+      tag: d.tag,
+      data: { url: d.url || "/" },
+    }),
+  );
+});
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const targetUrl = event.notification.data?.url || "/";
+  // Only same-origin targets; anything else falls back to the app root.
+  let target: URL;
+  try {
+    target = new URL(event.notification.data?.url || "/", self.location.origin);
+    if (target.origin !== self.location.origin) target = new URL("/", self.location.origin);
+  } catch {
+    target = new URL("/", self.location.origin);
+  }
+  // Booking deep links (waitlist offers) must land on the exact URL or the wizard prefill never runs.
+  const isDeepLink = /[?&]services=/.test(target.search);
+
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
+        const exact = clientList.find((c) => c.url === target.href);
+        if (exact) return exact.focus();
+        // New window, not navigate: re-navigating a mid-booking tab would lose its state.
+        if (isDeepLink) return self.clients.openWindow(target.href);
         for (const client of clientList) {
           if ("focus" in client) {
             client.postMessage({ type: "SHOW_ACCOUNT_PAGE" });
             return client.focus();
           }
         }
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(targetUrl);
-        }
-      })
+        return self.clients.openWindow(target.href);
+      }),
   );
 });
 

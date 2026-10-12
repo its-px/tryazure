@@ -23,6 +23,7 @@ import { getCommonStyles, getStatusColor } from "../../theme";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { useTenantContext } from "../../context/useTenantContext";
 import PrivacyCard from "../../components/PrivacyCard";
+import { getPolicyHours, isInsideCancellationWindow } from "./cancellationPolicy";
 import { useTranslation } from "react-i18next";
 import {
   fetchProfessionals,
@@ -711,6 +712,11 @@ export default function UserAccountPage() {
                     )}
                   </Box>
                 )}
+                {isInsideCancellationWindow(booking.date, booking.start_time, getPolicyHours(tenant?.config)) ? (
+                  <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 220 }}>
+                    {t("cancel_policy.locked", { hours: getPolicyHours(tenant?.config) })}
+                  </Typography>
+                ) : (
                 <IconButton
                   color="error"
                   onClick={() => {
@@ -722,6 +728,7 @@ export default function UserAccountPage() {
                     sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
                   />
                 </IconButton>
+                )}
               </Box>
             )}
           </Box>

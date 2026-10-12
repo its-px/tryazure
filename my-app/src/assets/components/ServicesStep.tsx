@@ -1,4 +1,5 @@
-import { Avatar, Box, CircularProgress } from "@mui/material";
+import ResizedAvatar from "./ResizedAvatar";
+import { Box, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchServices, type Service } from "./servicesService";
@@ -87,7 +88,8 @@ export default function ServicesStep({ selectedServices, onServiceToggle }: Serv
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
                   {service.photo_icon_url && (
-                    <Avatar
+                    <ResizedAvatar
+                      size={38}
                       src={service.photo_icon_url}
                       variant="circular"
                       sx={{ width: 38, height: 38, flexShrink: 0 }}

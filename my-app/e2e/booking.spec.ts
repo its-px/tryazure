@@ -77,13 +77,42 @@ test("a taken slot is refused and nothing is booked", async ({ page }) => {
   expect(backend.bookings).toHaveLength(0);
 });
 
-test("a signed-out visitor must sign in before reaching the summary", async ({ page }) => {
+test("a signed-out visitor signs in on the summary step before confirming", async ({ page }) => {
   const backend = await mockBackend(page);
   await walkThroughTime(page);
 
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Booking Summary" })).toHaveCount(0);
+  // Sign-in is inline on the final step: no dialog, and nothing to confirm yet.
+  await expect(page.getByRole("heading", { name: "Booking Summary" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /continue with google/i })).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Confirm Booking" })).toHaveCount(0);
   expect(backend.bookings).toHaveLength(0);
+});
+
+test("a guest books without an account when the tenant allows it", async ({ page }) => {
+  const backend = await mockBackend(page, { guestCheckout: true });
+  await walkThroughTime(page);
+  await expect(page.getByRole("heading", { name: "Booking Summary" })).toBeVisible();
+
+  await page.getByLabel("Full name").fill("Maria Guest");
+  await page.getByLabel("Phone").fill("+30 694 123 4567");
+  await page.getByLabel("Email").fill("maria@example.com");
+  await page.getByRole("checkbox", { name: /agree to my details/i }).check();
+
+  const alert = nextAlert(page);
+  await page.getByRole("button", { name: "Confirm Booking" }).click();
+  expect(await alert).toContain("maria@example.com");
+
+  expect(backend.guestBookings).toHaveLength(1);
+  expect(backend.guestBookings[0]).toMatchObject({
+    p_tenant_id: TENANT.id,
+    p_professional_id: "prof1",
+    p_start_time: "10:00:00",
+    p_guest_name: "Maria Guest",
+    p_consent: true,
+  });
+  expect(backend.bookings).toHaveLength(0);
+  expect(backend.unexpected).toEqual([]);
 });
 
 test.describe("Greek browser", () => {

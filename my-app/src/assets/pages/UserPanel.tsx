@@ -3,6 +3,7 @@ import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { setCurrentStep, setUserSelections } from "../../slices/appSlice";
+import { trackFunnel } from "../components/analytics";
 import type { RootState } from "../../configureStore";
 import { supabase } from "../components/supabaseClient";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
@@ -12,10 +13,15 @@ import NavigationComponent from "../components/NavigationComponent";
 import LocationStep from "../components/LocationStep";
 import ServicesStep from "../components/ServicesStep";
 import ProfessionalStep from "../components/ProfessionalStep";
+import BookingSelectionBar from "../components/BookingSelectionBar";
 import Hero from "../components/hero";
 import InfoPage from "../components/InfoPage";
 import { Box } from "@mui/material";
 import LoginModal from "../components/LoginModal";
+import GuestDetailsForm from "../components/GuestDetailsForm";
+import type { GuestDetails } from "../components/guestValidation";
+import CancellationPolicyConsent from "../components/CancellationPolicyConsent";
+import { getPolicyHours } from "../components/cancellationPolicy";
 import { Button } from "@mui/material";
 import UserAccountPage from "../components/UserAccountPage";
 //import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
@@ -32,28 +38,13 @@ import {
   getProfessionalNameByCode,
   type ProfessionalOption,
 } from "../components/professionalsService";
+import { findLinkedProfessional } from "../components/proLinkUtils";
 import BookingSMSService from "../components/BookingSMSService";
 import LegalFooter from "../../components/LegalFooter";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
-
-// Furthest step reachable given selections made so far — used to stop
-// someone deep-linking (or hitting Back/Forward into) a step whose
-// prerequisites aren't met, e.g. ?step=4 with no service selected.
-function maxReachableStepFor(sel: {
-  selectedLocation: unknown;
-  selectedServices: unknown[];
-  selectedProfessional: unknown;
-  selectedDate: string;
-  selectedSlot: unknown;
-}) {
-  if (!sel.selectedLocation) return 1;
-  if (!(Array.isArray(sel.selectedServices) && sel.selectedServices.length > 0))
-    return 2;
-  // Step 3 (professional) is always satisfied — null means "any professional".
-  if (!(sel.selectedDate && sel.selectedSlot)) return 4;
-  return 5;
-}
+import { maxReachableStepFor } from "../components/bookingFlow";
+import { enablePush } from "../components/pushSubscription";
 
 export default function UserPanel() {
   const colors = useResolvedColors();
@@ -68,6 +59,12 @@ export default function UserPanel() {
   const [availableDates, setAvailableDates] = React.useState<string[]>([]);
   const [showLoginModal, setShowLoginModal] = React.useState(false);
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [policyAccepted, setPolicyAccepted] = React.useState(false);
+  const guestCheckoutEnabled = tenant?.config?.guestCheckoutEnabled === true;
+  const [guestSignIn, setGuestSignIn] = React.useState(false);
+  const [guestSubmitting, setGuestSubmitting] = React.useState(false);
+  const [guest, setGuest] = React.useState<GuestDetails>({ name: "", phone: "", email: "", consent: false });
+  const policyRequired = getPolicyHours(tenant?.config) > 0 && !policyAccepted;
   const [services, setServices] = React.useState<Service[]>([]);
   const [professionals, setProfessionals] = React.useState<
     ProfessionalOption[]
@@ -122,13 +119,13 @@ export default function UserPanel() {
   } = userSelections || {};
   const totalSteps = 5;
   const locationStepEnabled = tenant?.config?.locationStepEnabled !== false;
+  const anyProfessionalEnabled = tenant?.config?.anyProfessionalEnabled !== false;
+  const waitlistEnabled = tenant?.config?.waitlistEnabled !== false;
   const prefersReducedMotion = useReducedMotion();
   const previousStepRef = React.useRef(currentStep);
+  React.useEffect(() => { trackFunnel(tenant?.id, "wizard_started"); }, [tenant?.id]);
+  React.useEffect(() => { if (selectedSlot) trackFunnel(tenant?.id, "time_selected", { professionalId: selectedProfessional }); }, [selectedSlot, selectedProfessional, tenant?.id]);
   const [stepDirection, setStepDirection] = React.useState<1 | -1>(1);
-  // Set when we open the login modal to gate step 4 -> 5, so we can resume
-  // the flow once the user logs in instead of stranding them on the time step.
-  const awaitingLoginRef = React.useRef(false);
-
   // URL step tracking so browser Back/Forward moves between wizard steps.
   // localStorage (below) already covers refresh-recovery of selections; this
   // only mirrors currentStep into ?step= so history entries exist per step.
@@ -266,27 +263,14 @@ export default function UserPanel() {
         }),
       );
 
-      // If we left for login from the step-4 gate and now have a session,
-      // resume at the summary step instead of the time picker.
-      const resume = localStorage.getItem("resumeBookingAfterLogin");
-      localStorage.removeItem("resumeBookingAfterLogin");
-      let hasSession = false;
-      try {
-        const sess = JSON.parse(localStorage.getItem("sb-auth-token") || "null");
-        hasSession = !!(
-          sess?.user && sess.expires_at > Math.floor(Date.now() / 1000)
-        );
-      } catch {
-        /* ignore malformed session */
-      }
-
-      const localStep = resume && hasSession ? 5 : (s.currentStep ?? 1);
+      // Sign-in happens inline on step 5, so a Google redirect returns here.
+      const localStep = s.currentStep ?? 1;
       // A ?step= in the URL (deep link, or a reload while parked mid-wizard)
       // wins over the localStorage step, but only up to what's reachable.
       const urlStepRaw = Number(searchParams.get("step"));
       const finalStep =
         urlStepRaw >= 1 && urlStepRaw <= totalSteps
-          ? Math.min(urlStepRaw, maxReachableStepFor(s))
+          ? Math.min(urlStepRaw, maxReachableStepFor(s, anyProfessionalEnabled))
           : localStep;
       goToStep(finalStep, { push: false });
     } catch {
@@ -295,6 +279,39 @@ export default function UserPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Deep link (waitlist offers): ?services=<id,..>&professional=<code>&date=YYYY-MM-DD
+  // prefills the wizard and lands on the time step. Runs once, after services load,
+  // and wins over any restored draft.
+  const deepLinkApplied = React.useRef(false);
+  useEffect(() => {
+    if (deepLinkApplied.current || services.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const ids = (params.get("services") ?? "")
+      .split(",")
+      .filter((id) => services.some((s) => s.id === id));
+    if (ids.length === 0) return;
+    deepLinkApplied.current = true;
+    const pro = params.get("professional") ?? "";
+    const date = params.get("date") ?? "";
+    dispatch(
+      setUserSelections({
+        selectedLocation: "our_place",
+        selectedServices: ids,
+        selectedProfessional: /^[\w-]+$/.test(pro) ? pro : null,
+        selectedDate: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "",
+        selectedSlot: null,
+        serviceDuration: ids.reduce(
+          (sum, id) => sum + (services.find((s) => s.id === id)?.duration_minutes || 0),
+          0,
+        ),
+      }),
+    );
+    dispatch(setCurrentStep(4));
+    ["services", "professional", "date", "waitlist"].forEach((k) => params.delete(k));
+    params.set("step", "4");
+    setSearchParams(params, { replace: true });
+  }, [services, dispatch, setSearchParams]);
+
   // Sync currentStep FROM the URL — handles the browser's native Back/Forward,
   // which changes ?step= without going through goToStep/dispatch.
   useEffect(() => {
@@ -302,13 +319,16 @@ export default function UserPanel() {
     if (!raw) return;
     const urlStep = Number(raw);
     if (!Number.isFinite(urlStep) || urlStep === currentStep) return;
-    const maxReachable = maxReachableStepFor({
-      selectedLocation,
-      selectedServices,
-      selectedProfessional,
-      selectedDate,
-      selectedSlot,
-    });
+    const maxReachable = maxReachableStepFor(
+      {
+        selectedLocation,
+        selectedServices,
+        selectedProfessional,
+        selectedDate,
+        selectedSlot,
+      },
+      anyProfessionalEnabled,
+    );
     const target = Math.min(Math.max(urlStep, 1), maxReachable);
     if (target !== urlStep) {
       const params = new URLSearchParams(searchParams);
@@ -425,6 +445,28 @@ export default function UserPanel() {
     };
   }, [tenant?.id, dispatch, selectedProfessional]);
 
+  // "Any professional" switched off: a null selection is invalid past step 3
+  // (restored draft, deep link, reloaded professionals). Auto-pick a lone
+  // professional, otherwise send the client back to choose one.
+  useEffect(() => {
+    if (anyProfessionalEnabled || selectedProfessional || currentStep < 3) return;
+    if (professionals.length === 1) {
+      dispatch(
+        setUserSelections({
+          selectedLocation,
+          selectedServices,
+          selectedProfessional: professionals[0].code,
+          selectedDate: "",
+          selectedSlot: null,
+          serviceDuration,
+        }),
+      );
+    } else if (currentStep > 3) {
+      goToStep(3, { push: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anyProfessionalEnabled, selectedProfessional, currentStep, professionals]);
+
   const getProfessionalName = (code: string | null | undefined) =>
     code === null ? t("booking.any_professional") : getProfessionalNameByCode(professionals, code);
 
@@ -480,6 +522,24 @@ export default function UserPanel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [services, professionals]);
+
+  // Per-professional link: ?pro=<professionalId> preselects that professional
+  // and skips step 3. Unknown/other-tenant ids fall back to the normal step.
+  const linkedPro = findLinkedProfessional(searchParams.get("pro"), professionals, tenant?.id);
+  useEffect(() => {
+    if (!linkedPro || selectedProfessional === linkedPro.code) return;
+    dispatch(
+      setUserSelections({
+        selectedLocation: userSelections?.selectedLocation ?? null,
+        selectedServices: userSelections?.selectedServices ?? [],
+        selectedProfessional: linkedPro.code,
+        selectedDate: "",
+        selectedSlot: null,
+        serviceDuration: userSelections?.serviceDuration ?? 0,
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedPro?.code, selectedProfessional]);
 
   // One-tap rebooking: ?autobook_token=... from an SMS "book again" link.
   // Looks up the ORIGINAL booking server-side (RLS blocks a plain client
@@ -678,6 +738,7 @@ export default function UserPanel() {
         : [...selectedServices, serviceId]
       : [serviceId];
     // Calculate total duration based on selected services from database
+    if (newSelectedServices.includes(serviceId)) trackFunnel(tenant?.id, "service_selected", { serviceId });
     const totalDuration = newSelectedServices.reduce(
       (sum: number, id: string) => {
         const service = services.find((s) => s.id === id);
@@ -698,33 +759,10 @@ export default function UserPanel() {
   };
 
   const handleNextStep = () => {
-    // If moving to final step (summary/booking), check login
-    if (currentStep === 4 && !isLoggedIn) {
-      awaitingLoginRef.current = true;
-      // Persisted so the resume survives Google's full-page OAuth redirect.
-      localStorage.setItem("resumeBookingAfterLogin", "1");
-      setShowLoginModal(true);
-
-      return;
-    }
     if (canProceedNext()) {
-      goToStep(currentStep + 1);
+      goToStep(currentStep + (linkedPro && currentStep === 2 ? 2 : 1));
     }
   };
-
-  // After the user logs in from the step-4 gate, resume the flow: advance to
-  // the summary step instead of leaving them on the date/time picker.
-  useEffect(() => {
-    if (isLoggedIn && awaitingLoginRef.current) {
-      awaitingLoginRef.current = false;
-      localStorage.removeItem("resumeBookingAfterLogin");
-      setShowLoginModal(false);
-      if (currentStep === 4 && canProceedNext()) {
-        goToStep(5);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn, currentStep, dispatch]);
 
   // Check if user is logged in and handle auth changes
   // Check auth state from localStorage (bypass hanging Supabase client)
@@ -791,6 +829,7 @@ export default function UserPanel() {
   }, []); // Only run once on mount
 
   const handleProfessionalSelect = (professionalId: string | null) => {
+    trackFunnel(tenant?.id, "professional_selected", { professionalId });
     dispatch(
       setUserSelections({
         selectedLocation: userSelections?.selectedLocation ?? null,
@@ -801,6 +840,42 @@ export default function UserPanel() {
         serviceDuration: userSelections?.serviceDuration ?? 0,
       }),
     );
+  };
+
+  // "Soonest appointment": jump straight to the time step with the earliest
+  // slot across all professionals already chosen.
+  const handleSoonest = (pick: {
+    professionalCode: string;
+    date: string;
+    slot: { start_time: string; end_time: string };
+  }) => {
+    dispatch(
+      setUserSelections({
+        selectedLocation: userSelections?.selectedLocation ?? null,
+        selectedServices: userSelections?.selectedServices ?? [],
+        selectedProfessional: pick.professionalCode,
+        selectedDate: pick.date,
+        selectedSlot: pick.slot,
+        serviceDuration: userSelections?.serviceDuration ?? 0,
+      }),
+    );
+    goToStep(4);
+  };
+
+  // From the info page's team section: start the wizard with this professional preselected.
+  const handleBookWith = (professionalCode: string) => {
+    dispatch(
+      setUserSelections({
+        selectedLocation: userSelections?.selectedLocation ?? null,
+        selectedServices: userSelections?.selectedServices ?? [],
+        selectedProfessional: professionalCode,
+        selectedDate: "",
+        selectedSlot: null,
+        serviceDuration: userSelections?.serviceDuration ?? 0,
+      }),
+    );
+    goToStep(locationStepEnabled ? 1 : 2, { push: false });
+    setCurrentPage("booking");
   };
 
   const handleLocationSelect = (location: "your_place" | "our_place") => {
@@ -824,9 +899,8 @@ export default function UserPanel() {
       case 2:
         return Array.isArray(selectedServices) && selectedServices.length > 0;
       case 3:
-        // ponytail: null now means "any professional" (default), not "unset" —
-        // the step is always satisfiable.
-        return true;
+        // null = "any professional", valid only while the tenant allows it.
+        return anyProfessionalEnabled || selectedProfessional !== null;
       case 4:
         return (
           selectedDate !== "" &&
@@ -838,6 +912,90 @@ export default function UserPanel() {
       default:
         return false;
     }
+  };
+
+  // Guest checkout: no account. All checks (tenant opt-in, conflicts, any-professional
+  // resolution, rate limit) happen server-side in create_guest_booking().
+  const handleGuestBooking = async () => {
+    if (!selectedDate || !selectedLocation || selectedServices.length === 0 || !selectedSlot || !tenant?.id) {
+      alert(t("booking.complete_all_steps"));
+      return;
+    }
+    if (policyRequired) {
+      alert(t("cancel_policy.required"));
+      return;
+    }
+    setGuestSubmitting(true);
+    const { data, error } = await supabase.rpc("create_guest_booking", {
+      p_tenant_id: tenant.id,
+      p_date: selectedDate,
+      p_location: selectedLocation,
+      p_services: selectedServices,
+      p_professional_id: selectedProfessional,
+      p_start_time: selectedSlot.start_time,
+      p_end_time: selectedSlot.end_time,
+      p_guest_name: guest.name.trim(),
+      p_guest_phone: guest.phone.trim(),
+      p_guest_email: guest.email.trim(),
+      p_consent: guest.consent,
+    });
+    setGuestSubmitting(false);
+    if (error || !data) {
+      const m = error?.message ?? "";
+      alert(
+        m.includes("slot_unavailable") ? t("booking.professional_booked")
+        : m.includes("guest_checkout_disabled") ? t("guest.error_disabled")
+        : m.includes("rate_limited") ? t("guest.error_rate")
+        : m.includes("invalid_") || m.includes("consent_required") ? t("guest.error_invalid")
+        : t("booking.create_error"),
+      );
+      return;
+    }
+
+    const booking = data as { id: string; sms_action_token: string; professional_id: string };
+    const serviceNames = selectedServices.map((id) => services.find((s) => s.id === id)?.name || id);
+    const emailPayload = {
+      email: guest.email.trim(),
+      name: guest.name.trim(),
+      bookingDate: selectedDate,
+      startTime: selectedSlot.start_time,
+      endTime: selectedSlot.end_time,
+      location: selectedLocation,
+      services: serviceNames,
+      professional: booking.professional_id,
+      tenantSlug: tenant.slug ?? null,
+      appUrl: window.location.origin,
+      actionToken: booking.sms_action_token,
+    };
+    const cancelUrl = `${window.location.origin}/booking-action?token=${booking.sms_action_token}&action=cancel`;
+    const guestEmail = guest.email.trim();
+
+    goToStep(1, { push: false });
+    dispatch(
+      setUserSelections({
+        selectedLocation: null,
+        selectedServices: [],
+        selectedProfessional: null,
+        selectedDate: "",
+        selectedSlot: null,
+        serviceDuration: 0,
+      }),
+    );
+    setSelectedProducts({});
+    setGuest({ name: "", phone: "", email: "", consent: false });
+    localStorage.removeItem("bookingState");
+
+    // Best-effort confirmation email (same public function the signed-in flow uses).
+    fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send_booking_email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify(emailPayload),
+    }).catch((err) => console.error("Guest booking email failed:", err));
+
+    alert(`${t("guest.confirmed", { email: guestEmail })}\n\n${t("guest.cancel_link", { url: cancelUrl })}`);
   };
 
   const handleCompleteBooking = async () => {
@@ -856,6 +1014,10 @@ export default function UserPanel() {
 
       return;
     }
+    if (policyRequired) {
+      alert(t("cancel_policy.required"));
+      return;
+    }
 
     const { data: sessionData } = await supabase.auth.getSession();
     const session = sessionData.session;
@@ -870,6 +1032,9 @@ export default function UserPanel() {
       alert(t("booking.tenant_not_loaded"));
       return;
     }
+
+    // Still inside the "Confirm booking" click gesture: ask for push permission (reminders + waitlist).
+    void enablePush(tenant.id, user.id);
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -1032,6 +1197,7 @@ export default function UserPanel() {
         services: serviceNames,
       });
 
+      trackFunnel(tenant?.id, "booking_confirmed", { professionalId: capturedProfessional as string | null });
       if (!payByCard) alert(t("booking.confirmed"));
 
       // Show notification with captured values - run in background, don't block email
@@ -1241,6 +1407,7 @@ export default function UserPanel() {
           professional: capturedProfessional,
           tenantSlug: tenant?.slug ?? null,
           appUrl: window.location.origin,
+          actionToken: insertedBooking?.sms_action_token as string | undefined,
         };
 
         console.log("Email payload:", emailPayload);
@@ -1277,6 +1444,7 @@ export default function UserPanel() {
       console.log("Step 4: Email section complete. Booking flow finished!");
 
       if (payByCard && insertedBooking?.id) {
+        trackFunnel(tenant?.id, "payment_started");
         const { data, error } = await supabase.functions.invoke("booking-payment", {
           body: {
             bookingId: insertedBooking.id,
@@ -1301,7 +1469,7 @@ export default function UserPanel() {
   const renderPage = () => {
     switch (currentPage) {
       case "info":
-        return <InfoPage />;
+        return <InfoPage professionals={professionals} onBookWith={handleBookWith} />;
 
       case "qr": {
         const tenantParam = searchParams.get("tenant");
@@ -1355,7 +1523,7 @@ export default function UserPanel() {
               currentStep={locationStepEnabled ? currentStep : currentStep - 1}
               totalSteps={locationStepEnabled ? totalSteps : totalSteps - 1}
               onPreviousStep={() =>
-                goToStep(Math.max(locationStepEnabled ? 1 : 2, currentStep - 1))
+                goToStep(Math.max(locationStepEnabled ? 1 : 2, currentStep - (linkedPro && currentStep === 4 ? 2 : 1)))
               }
               onNextStep={handleNextStep}
               canProceedNext={canProceedNext()}
@@ -1426,6 +1594,8 @@ export default function UserPanel() {
                     onProfessionalSelect={handleProfessionalSelect}
                     professionals={professionals}
                     serviceDuration={serviceDuration}
+                    onSoonest={handleSoonest}
+                    anyProfessionalEnabled={anyProfessionalEnabled}
                   />
                 </motion.div>
               )}
@@ -1457,6 +1627,20 @@ export default function UserPanel() {
                         {t("booking.for_professional", { name: getProfessionalName(selectedProfessional) })}
                       </Box>
                     </Box>
+
+                    <BookingSelectionBar
+                      services={selectedServices.map(
+                        (id) => services.find((s) => s.id === id)?.name ?? id,
+                      )}
+                      professional={getProfessionalName(selectedProfessional)}
+                      date={selectedDate}
+                      slot={selectedSlot}
+                      duration={serviceDuration}
+                      price={selectedServices.reduce(
+                        (sum, id) => sum + Number(services.find((s) => s.id === id)?.price ?? 0),
+                        0,
+                      )}
+                    />
 
                     {availableDates.length === 0 ? (
                       <Box
@@ -1509,6 +1693,7 @@ export default function UserPanel() {
                           selectedDate={selectedDate}
                           serviceDuration={serviceDuration}
                           selectedSlot={selectedSlot}
+                          waitlistEnabled={waitlistEnabled}
                           serviceId={userSelections?.selectedServices?.[0] ?? null}
                           userId={(() => {
                             // ponytail: same localStorage session read used by slotService,
@@ -1538,27 +1723,7 @@ export default function UserPanel() {
                             )
                           }
                         />
-                        {selectedDate && (
-                          <Box
-                            sx={{
-                              mt: 1,
-                              mb: 5,
-                              p: 3,
-                              backgroundColor: colors.accent.main,
-                              borderRadius: 1,
-                            }}
-                          >
-                            <p
-                              style={{
-                                margin: 0,
-                                fontWeight: "bold",
-                                color: colors.text.primary,
-                              }}
-                            >
-                              {t("booking.selected_date", { date: selectedDate })}
-                            </p>
-                          </Box>
-                        )}
+                        <Box sx={{ mb: 5 }} />
                       </>
                     )}
                   </div>
@@ -1599,6 +1764,30 @@ export default function UserPanel() {
                         {selectedSlot.end_time.substring(0, 5)}
                       </p>
                     )}
+                    {!isLoggedIn ? (
+                      guestCheckoutEnabled && !guestSignIn ? (
+                        <>
+                          <CancellationPolicyConsent checked={policyAccepted} onChange={setPolicyAccepted} />
+                          <GuestDetailsForm
+                            value={guest}
+                            onChange={setGuest}
+                            onSubmit={handleGuestBooking}
+                            submitting={guestSubmitting}
+                            onSignIn={() => setGuestSignIn(true)}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          {guestCheckoutEnabled && (
+                            <Button onClick={() => setGuestSignIn(false)} sx={{ mt: 1 }}>
+                              {t("guest.title")}
+                            </Button>
+                          )}
+                          <LoginModal open inline onClose={() => {}} />
+                        </>
+                      )
+                    ) : (
+                    <>
                     {products.length > 0 && (
                       <Box sx={{ mt: 2 }}>
                         <h4 style={{ marginBottom: 8 }}>{t("booking.add_products")}</h4>
@@ -1679,8 +1868,10 @@ export default function UserPanel() {
                         </Box>
                       );
                     })()}
+                    <CancellationPolicyConsent checked={policyAccepted} onChange={setPolicyAccepted} />
                     <Button
                       onClick={handleCompleteBooking}
+                      disabled={policyRequired}
                       variant="contained"
                       sx={{
                         mt: 2,
@@ -1691,6 +1882,8 @@ export default function UserPanel() {
                     >
                       {paymentMethod === "card" && cardEnabled ? t("booking.confirm_and_pay") : t("booking.confirm_booking")}
                     </Button>
+                    </>
+                    )}
                   </div>
                 </motion.div>
               )}

@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: fetchError } = await supabase
       .from("bookings")
-      .select("id, status, confirmation_deadline")
+      .select("id, status, confirmation_deadline, tenant_id, date, start_time")
       .eq("sms_action_token", token)
       .single();
 
@@ -69,6 +69,26 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: "The confirmation deadline has passed." }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // The tenant's cancellation policy applies to this link too (it runs as service
+    // role, which the DB trigger exempts). Fails open if the check itself errors
+    // (e.g. migration not applied yet) so cancelling keeps working.
+    if (action === "cancel") {
+      const { data: closed, error: policyError } = await supabase.rpc(
+        "cancellation_window_closed",
+        { p_tenant_id: booking.tenant_id, p_date: String(booking.date ?? ""), p_start_time: booking.start_time ?? null },
+      );
+      if (policyError) console.error("cancellation policy check failed:", policyError.message);
+      if (closed === true) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "This booking can no longer be cancelled online because it is within the cancellation policy window. Please contact the business directly.",
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     // Reschedule is out of scope for this pass: cancel + let the customer

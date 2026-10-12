@@ -93,6 +93,15 @@ describe("TimeSlotsStep", () => {
     expect(await screen.findByText(/You're on the waitlist/)).toBeInTheDocument();
   });
 
+  it("hides Join Waitlist when waitlistEnabled is false but keeps the empty message", async () => {
+    getAvailableSlots.mockResolvedValue([]);
+    render(
+      <TimeSlotsStep {...base} selectedDate="2099-01-01" serviceId="svc1" userId="user1" waitlistEnabled={false} />,
+    );
+    await screen.findByText("No available slots for this date");
+    expect(screen.queryByText("Join Waitlist")).not.toBeInTheDocument();
+  });
+
   it("does not show Join Waitlist without serviceId/userId", async () => {
     getAvailableSlots.mockResolvedValue([]);
     render(<TimeSlotsStep {...base} selectedDate="2099-01-01" />);

@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // Build-unique id; changes every deploy (see src/appVersion.ts).
+  define: { __APP_VERSION__: JSON.stringify(Date.now().toString(36)) },
   // Use relative asset paths so `dist` can be served from any static host
   // and local previews (file-based or static servers) will resolve assets.
   base: "./",

@@ -12,7 +12,7 @@ dayjs.extend(isoWeek);
 interface Booking {
   id: string;
   date: string;
-  user_id: string;
+  user_id: string | null;
   professional_id: string;
   location: string;
   services: string;

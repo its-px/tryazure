@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Box, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import { supabase } from "../components/supabaseClient";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTranslation } from "react-i18next";
 
-// Public, unauthenticated landing page for the one-tap confirm/cancel links
-// sent in booking SMS. No login required by design.
+// Public, unauthenticated landing page for the confirm/cancel links sent in
+// booking SMS/emails. No login required by design. The action runs only when the
+// visitor presses the button: mail/SMS link scanners and previews that render the
+// page (even with JavaScript) must not confirm or cancel a booking by themselves.
 export default function BookingActionPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const action = searchParams.get("action");
 
-  const [state, setState] = useState<"loading" | "success" | "error">(
-    "loading",
+  const [state, setState] = useState<"ready" | "loading" | "success" | "error">(
+    "ready",
   );
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -23,9 +25,12 @@ export default function BookingActionPage() {
     if (!token || (action !== "confirm" && action !== "cancel")) {
       setState("error");
       setMessage(t("booking_action.invalid"));
-      return;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  const run = () => {
+    setState("loading");
     supabase.functions
       .invoke("booking-sms-action", { body: { token, action } })
       .then(({ data, error }) => {
@@ -41,8 +46,7 @@ export default function BookingActionPage() {
         setState("error");
         setMessage(err instanceof Error ? err.message : String(err));
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
 
   return (
     <Box
@@ -57,6 +61,16 @@ export default function BookingActionPage() {
         gap: 2,
       }}
     >
+      {state === "ready" && (
+        <>
+          <Typography variant="h6">
+            {action === "confirm" ? t("booking_action.ask_confirm") : t("booking_action.ask_cancel")}
+          </Typography>
+          <Button variant="contained" color={action === "confirm" ? "primary" : "error"} onClick={run}>
+            {action === "confirm" ? t("booking_action.do_confirm") : t("booking_action.do_cancel")}
+          </Button>
+        </>
+      )}
       {state === "loading" && <LoadingScreen variant="full" />}
       {state === "success" && (
         <Typography variant="h6" color="success.main">

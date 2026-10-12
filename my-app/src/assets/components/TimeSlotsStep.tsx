@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useResolvedColors } from "../../hooks/useResolvedColors";
 import { getAvailableSlots } from "./slotService";
 import { joinWaitlist } from "./waitlistService";
+import { enablePush } from "./pushSubscription";
 import type { ProfessionalOption } from "./professionalsService";
 
 interface TimeSlot {
@@ -21,6 +22,8 @@ interface TimeSlotsStepProps {
   onSlotSelect: (slot: TimeSlot) => void;
   serviceId?: string | null;
   userId?: string | null;
+  // Tenant switch: false hides "join waitlist" when there are no slots.
+  waitlistEnabled?: boolean;
 }
 
 // Stable default: a fresh `[]` per render is a new effect dependency every
@@ -37,12 +40,14 @@ export default function TimeSlotsStep({
   onSlotSelect,
   serviceId,
   userId,
+  waitlistEnabled = true,
 }: TimeSlotsStepProps) {
   const colors = useResolvedColors();
   const { t } = useTranslation();
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [waitlisted, setWaitlisted] = useState(false);
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     if (!tenantId || !selectedDate || !serviceDuration) {
@@ -102,15 +107,19 @@ export default function TimeSlotsStep({
       {slots.length === 0 ? (
         <Box sx={{ textAlign: "center", py: 3, color: colors.text.secondary, fontSize: 13, px: 2 }}>
           <Box sx={{ mb: waitlisted ? 0 : 1.5 }}>{t("timeslots.none")}</Box>
-          {serviceId && userId && tenantId && (
+          {waitlistEnabled && serviceId && userId && tenantId && (
             waitlisted ? (
               <Box sx={{ color: colors.accent.main, fontSize: 13 }}>{t("timeslots.waitlisted")}</Box>
             ) : (
               <Button
                 variant="outlined"
                 size="small"
+                disabled={joining}
                 onClick={async () => {
+                  setJoining(true);
+                  void enablePush(tenantId, userId);
                   const ok = await joinWaitlist(tenantId, userId, serviceId, professionalId, selectedDate || null);
+                  setJoining(false);
                   if (ok) setWaitlisted(true);
                   else alert(t("timeslots.waitlist_error"));
                 }}

@@ -27,6 +27,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.notify-waitlist]
 verify_jwt = false
+[functions.send-appointment-reminders]
+verify_jwt = false
 [functions.send-sms-final]
 verify_jwt = false
 [functions.sync-user-phone]

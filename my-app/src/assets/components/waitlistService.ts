@@ -44,7 +44,8 @@ export const joinWaitlist = async (
       }),
     });
 
-    return response.ok;
+    // 409 = unique index hit: already on the waitlist, which is what the user wanted.
+    return response.ok || response.status === 409;
   } catch (err) {
     console.error("[joinWaitlist] Exception:", err);
     return false;

@@ -7,6 +7,8 @@ import { supabase } from "./supabaseClient";
 import PhotoUploadField from "./PhotoUploadField";
 import type { ProfessionalOption } from "./professionalsService";
 import { useTranslation } from "react-i18next";
+import StaffScheduleEditor from "./StaffScheduleEditor";
+import ProfessionalLinks from "./ProfessionalLinks";
 
 // Mon–Fri 09:00–17:00 (0 = Sunday), same shape the Admin/Professional panels edit.
 const DEFAULT_HOURS = [1, 2, 3, 4, 5].map((day_of_week) => ({
@@ -28,6 +30,7 @@ export default function StaffManager({ tenantId, professionals, onChanged }: Sta
   const { t } = useTranslation();
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [scheduleFor, setScheduleFor] = useState<string | null>(null);
 
   const add = async () => {
     const name = newName.trim();
@@ -94,8 +97,10 @@ export default function StaffManager({ tenantId, professionals, onChanged }: Sta
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mb: 2 }}>
         {professionals.length === 0 && <Box sx={{ color: colors.text.tertiary, fontSize: 13 }}>{t("staff.none")}</Box>}
         {professionals.map((p) => (
-          <Box key={p.id} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box key={p.id}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Box sx={{ minWidth: 140, fontSize: 14, flex: 1 }}>{p.name}</Box>
+            <Button size="small" onClick={() => setScheduleFor(scheduleFor === p.id ? null : p.id)}>{t("schedule.open")}</Button>
             <PhotoUploadField
               storagePath={`${tenantId}/professionals/${p.id}.webp`}
               currentUrl={p.photo_url}
@@ -111,6 +116,8 @@ export default function StaffManager({ tenantId, professionals, onChanged }: Sta
               {busy === p.id ? <CircularProgress size={18} /> : <DeleteOutlineIcon />}
             </IconButton>
           </Box>
+          {scheduleFor === p.id && <StaffScheduleEditor tenantId={tenantId} professionalCode={p.code} />}
+          </Box>
         ))}
       </Box>
 
@@ -124,6 +131,7 @@ export default function StaffManager({ tenantId, professionals, onChanged }: Sta
           {busy === "add" ? <CircularProgress size={16} color="inherit" /> : t("common.add")}
         </Button>
       </Box>
+      <ProfessionalLinks professionals={professionals} />
     </Box>
   );
 }
