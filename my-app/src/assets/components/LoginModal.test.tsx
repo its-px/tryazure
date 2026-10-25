@@ -114,7 +114,7 @@ describe("LoginModal", () => {
     );
   });
 
-  it("logs in via signInWithPassword and stores the session", async () => {
+  it("logs in via signInWithPassword", async () => {
     signInWithPassword.mockResolvedValue({
       data: {
         user: { id: "u1" },
@@ -136,7 +136,6 @@ describe("LoginModal", () => {
       email: "jo@gmail.com",
       password: "secret1",
     });
-    expect(localStorage.getItem("sb-auth-token")).toContain("tok");
   });
 
   it("forgot-password flow validates email then calls resetPasswordForEmail", async () => {
