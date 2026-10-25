@@ -140,7 +140,8 @@ Deno.serve(async (req) => {
     return json({ error: "Unknown action" }, 400);
   } catch (err) {
     console.error("sms-admin error:", err);
-    return json({ error: String(err) }, 500);
+    console.error("sms-admin error:", err);
+    return json({ error: "Internal server error" }, 500);
   }
 });
 

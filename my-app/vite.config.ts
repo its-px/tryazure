@@ -66,8 +66,7 @@ export default defineConfig({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [
           /^\/api/,
-          /^https:\/\/.+\.qrvxmqksekxbtipdnfru.supabase.com/,
-          /^https:\/\/.+\.supabase\.com/,
+          /^https:\/\/[^/]+\.supabase\.co\//,
           /^\/auth/,
           /^\/login/,
           /^\/callback/,

@@ -214,7 +214,8 @@ Deno.serve(async (req) => {
     return json({ success: true, tenant_id: tenant.id, slug: tenant.slug });
   } catch (err) {
     console.error("generate-demo-tenant error:", err);
-    return json({ error: String(err) }, 500);
+    console.error("generate-demo-tenant error:", err);
+    return json({ error: "Internal server error" }, 500);
   }
 });
 

@@ -6,9 +6,6 @@
 // so the file type-checks locally while still running in Supabase (Deno).
 declare const Deno: any;
 
-const errorMessage = (err: unknown) =>
-  err instanceof Error ? err.message : String(err);
-
 Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -94,7 +91,7 @@ Deno.serve(async (req: Request) => {
 
     if (error) {
       console.error("Error updating user phone:", error);
-      return new Response(JSON.stringify({ error: errorMessage(error) }), {
+      return new Response(JSON.stringify({ error: "Internal server error" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
@@ -111,7 +108,7 @@ Deno.serve(async (req: Request) => {
     );
   } catch (err) {
     console.error("Unexpected error:", err);
-    return new Response(JSON.stringify({ error: errorMessage(err) }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

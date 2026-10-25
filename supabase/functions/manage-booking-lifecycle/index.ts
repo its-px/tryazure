@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("Lifecycle function error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

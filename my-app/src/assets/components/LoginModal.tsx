@@ -169,20 +169,6 @@ export default function LoginModal({ open, onClose, inline = false }: LoginModal
         //debugBreak();
         if (error) throw error;
 
-        // Store session in localStorage for consistency with App.tsx
-        if (authData?.session) {
-          const sessionData = {
-            access_token: authData.session.access_token,
-            refresh_token: authData.session.refresh_token,
-            expires_in: authData.session.expires_in,
-            expires_at: authData.session.expires_at,
-            token_type: authData.session.token_type || "bearer",
-            user: authData.session.user,
-          };
-          localStorage.setItem("sb-auth-token", JSON.stringify(sessionData));
-          console.log("[LoginModal] Session stored in localStorage");
-        }
-
         // Get user from session after login
         const user = authData?.user;
         // debugBreak();
